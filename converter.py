@@ -110,7 +110,7 @@ def add_edge(node, new_rel, new_spec=None, head=None):
     if head_id in node['new_deps']:
         # TODO - this is not the ideal result, we want to have multigraph with same head here,
         # but this case should really never happen, and even stanford has here a BUG
-        node['new_deps']["tag" + str(head_id) + str(tag_counter)] = rel_with_specs
+        node['new_deps'][str(head_id) + "_" + str(tag_counter)] = rel_with_specs
         tag_counter += 1
     else:
         node['new_deps'][head_id] = rel_with_specs
@@ -273,6 +273,9 @@ def propagate_gov_and_deps(sentence):
 
 
 def convert_sentence(sentence):
+    global tag_counter
+    tag_counter = 0
+    
     # correctDependencies - correctSubjPass
     correct_subj_pass(sentence)
     
