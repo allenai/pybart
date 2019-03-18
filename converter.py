@@ -159,7 +159,6 @@ def passive_agent(sentence):
         ]])
         if not is_matched:
             continue
-        import pdb;pdb.set_trace()
         replace_edge(ret['mod'], new_spec_list=["agent"])
 
 
@@ -178,7 +177,7 @@ def prep_patterns(sentence, used_cased, mw2=False, mw3=False, fix_nmods=True):
     for (cur_id, token) in sentence.items():
         is_matched, ret = match(sentence, cur_id, None, [[
             Restriction({"gov": first_gov, "name": "mod", "nested": [[
-                Restriction({"gov": second_gov, "name": "c1", "nested": [[
+                Restriction({"gov": second_gov, "name": "c1", "form": "[^(by)]" if not (mw2 or mw3) else None, "nested": [[
                     Restriction({"gov": 'mwe', "name": "c2"}),
                     Restriction({"gov": 'mwe', "name": "c3", "diff": ["c2"]}) if mw3 else None
                 ]] if mw2 or mw3 else None})
