@@ -238,7 +238,7 @@ def conj_info(sentence):
             continue
         
         cur_form = None
-        for (id, conj) in ret_conj:
+        for (id, conj) in sorted(ret_conj):
             if conj["conllu_info"].deprel == "cc":
                 cur_form = conj["conllu_info"].form
             else:
