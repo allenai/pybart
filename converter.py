@@ -245,7 +245,7 @@ def conj_info(sentence):
                 replace_edge(conj, new_spec_list=[cur_form])
 
 
-def propagate_gov_and_deps(sentence):
+def conjoined_subj(sentence):
     for (cur_id, token) in sentence.items():
         is_matched, ret = match(sentence, cur_id, "gov_new", [
             [
@@ -272,6 +272,21 @@ def propagate_gov_and_deps(sentence):
         add_edge(ret['dep'], ret['gov']['conllu_info'].deprel, head=ret['gov']['conllu_info'].head)
 
 
+def conjoined_verb(sentence):
+    for (cur_id, token) in sentence.items():
+        is_matched, ret = match(sentence, cur_id, None, [[
+            Restriction({"gov": "conj", "name": "conj", "nested": [[
+                Restriction({"no-gov": ".subj"})
+            ]]}),
+            Restriction({"gov": ".subj", "name": "subj"})
+        ]])
+        
+        if not is_matched:
+            continue
+        
+        add_edge(ret['subj'], ret['subj']['conllu_info'].deprel, head=ret['conj']['conllu_info'].id)
+
+
 def convert_sentence(sentence):
     global tag_counter
     tag_counter = 0
@@ -294,7 +309,8 @@ def convert_sentence(sentence):
     conj_info(sentence)
     
     # treatCC
-    propagate_gov_and_deps(sentence)
+    conjoined_subj(sentence)
+    conjoined_verb(sentence) # TODO - finish
     
     # TODO - continue conversion
     return sentence
