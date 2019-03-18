@@ -249,7 +249,7 @@ def propagate_gov_and_deps(sentence):
     for (cur_id, token) in sentence.items():
         is_matched, ret = match(sentence, cur_id, "gov_new", [
             [
-                Restriction({"gov": "[^(root|case|nsubj|dobj)]", "name": "gov", "nested": [
+                Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested": [
                     [
                         Restriction({"gov": "rcmod"}),
                         Restriction({"gov": ".*conj.*", "name": "dep", "diff": ["gov_new"]})
@@ -260,7 +260,7 @@ def propagate_gov_and_deps(sentence):
                 ]})
             ],
             [
-                Restriction({"gov": "[^(root|case)]", "name": "gov", "nested": [[
+                Restriction({"gov": "^((?!root|case).)*$", "name": "gov", "nested": [[
                     Restriction({"no-gov": "rcmod"}),
                     Restriction({"gov": ".*conj.*", "name": "dep", "diff": ["gov_new"], "nested": [[Restriction({"no-gov": "rcmod"})]]})
                 ]]})
