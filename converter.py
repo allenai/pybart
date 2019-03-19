@@ -16,7 +16,7 @@ tag_counter = 0
 
 class Restriction(object):
         def __init__(self, dictionary):
-            self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None, "form": None, "nested": None}
+            self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None, "form": None, "xpos": None, "nested": None}
             self._dictionary.update(dictionary)
         
         def __setitem__(self, key, item):
@@ -82,6 +82,10 @@ def match(sent, cur_id, cur_name, restriction_lists, given_named_nodes=None):
                 
                 if restriction["form"]:
                     if not re.match(restriction["form"], child['conllu_info'].form):
+                        continue
+                
+                if restriction["xpos"]:
+                    if not re.match(restriction["xpos"], child['conllu_info'].xpos):
                         continue
                 
                 if restriction["name"]:
@@ -262,6 +266,8 @@ def conjoined_subj(sentence):
             [
                 Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested": [
                     [
+                        # TODO - I don't fully understand why SC decided to add this rcmod condition, and I belive they have a bug:
+                        #   (rcmodHeads.contains(gov) && rcmodHeads.contains(dep)) should be ||, and so I coded.
                         Restriction({"gov": "rcmod"}),
                         Restriction({"gov": ".*conj.*", "name": "dep", "diff": ["gov_new"]})
                     ],
@@ -285,8 +291,16 @@ def conjoined_subj(sentence):
 
 def conjoined_verb(sentence):
     for (cur_id, token) in sentence.items():
-        is_matched, ret = match(sentence, cur_id, None, [[
-            Restriction({"gov": "conj", "name": "conj", "nested": [[
+        is_matched, ret = match(sentence, cur_id, None, [
+        [
+            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested": [[
+                Restriction({"no-gov": ".subj"}),
+                Restriction({"gov": "auxpass", "name": "auxpass"})
+            ]]}),
+            Restriction({"gov": ".subj", "name": "subj"})
+        ],
+        [
+            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested": [[
                 Restriction({"no-gov": ".subj"})
             ]]}),
             Restriction({"gov": ".subj", "name": "subj"})
@@ -295,7 +309,22 @@ def conjoined_verb(sentence):
         if not is_matched:
             continue
         
-        add_edge(ret['subj'], ret['subj']['conllu_info'].deprel, head=ret['conj']['conllu_info'].id)
+        # fixing the relation as done in SC
+        relation = ret['subj']['conllu_info'].deprel
+        if relation == "nsubjpass":
+            if ret['subj']['conllu_info'].xpos in ["VB", "VBZ", "VBP", "JJ"]:
+                relation = "nsubj"
+        elif relation == "csubjpass":
+            if ret['subj']['conllu_info'].xpos in ["VB", "VBZ", "VBP", "JJ"]:
+                relation = "csubj"
+        elif relation == "nsubj":
+            if "auxpass" in ret:
+                relation = "nsubjpass"
+        elif relation == "csubj":
+            if "auxpass" in ret:
+                relation = "csubjpass"
+        
+        add_edge(ret['subj'], relation, head=ret['conj']['conllu_info'].id)
 
 
 def convert_sentence(sentence):
