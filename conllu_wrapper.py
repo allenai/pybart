@@ -4,6 +4,21 @@ from collections import namedtuple
 ConlluInfo = namedtuple("ConlluInfo", "id, form, lemma, upos, xpos, feats, head, deprel, deps, misc")
 
 
+def replace_conllu_info(
+        node, new_id=None, form=None, lemma=None, upos=None, xpos=None, feats=None, head=None, deprel=None, deps=None, misc=None):
+    node["conllu_info"] = ConlluInfo(
+        node["conllu_info"].id if not new_id else new_id,
+        node["conllu_info"].form if not form else form,
+        node["conllu_info"].lemma if not lemma else lemma,
+        node["conllu_info"].upos if not upos else upos,
+        node["conllu_info"].xpos if not xpos else xpos,
+        node["conllu_info"].feats if not feats else feats,
+        node["conllu_info"].head if not head else head,
+        node["conllu_info"].deprel if not deprel else deprel,
+        node["conllu_info"].deps if not deps else deps,
+        node["conllu_info"].misc if not misc else misc)
+
+
 def post_process(parsed):
     for i, sentence in enumerate(parsed):
         for (cur_id, token) in sentence.items():
