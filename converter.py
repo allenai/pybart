@@ -7,6 +7,7 @@
 ###
 
 import regex as re
+import conllu_wrapper as cw
 
 # configuration
 enhance_only_nmods = False
@@ -103,35 +104,42 @@ def match(sent, cur_id, cur_name, restriction_lists, given_named_nodes=None):
 # ----------------------------------------- replacing functions ---------------------------------- #
 
 
-def add_edge(node, new_rel, new_spec=None, head=None):
+def add_edge(node, new_rel, new_spec=None, head=None, replace_deprel=False):
     global tag_counter
-    head_id = node['conllu_info'].head if not head else head
     rel_with_specs = new_rel + ((":" + new_spec) if new_spec else "")
-    if head_id in node['new_deps']:
+    if replace_deprel:
+        cw.replace_conllu_info(node, deprel=rel_with_specs)
+        return
+        
+    head_id = node['conllu_info'].head if not head else head
+    if head_id in node['new_deps'][1]:
         # TODO - this is not the ideal result, we want to have multigraph with same head here,
-        # but this case should really never happen, and even stanford has here a BUG
-        node['new_deps'][str(head_id) + "_" + str(tag_counter)] = rel_with_specs
+        # but this case should really never happen, and even stanford converter (SC) has here a BUG
+        node['new_deps'][1][str(head_id) + "_" + str(tag_counter)] = rel_with_specs
         tag_counter += 1
     else:
-        node['new_deps'][head_id] = rel_with_specs
+        node['new_deps'][1][head_id] = rel_with_specs
+    node['new_deps'][0] = True
 
 
 def remove_edge(node, old_rel):
-    node['new_deps'].pop(node['conllu_info'].head, old_rel)
+    node['new_deps'][1].pop(node['conllu_info'].head, old_rel)
 
 
-def replace_edge(node, new_spec_list=None, new_rel=None, old_rel=None):
+def replace_edge(node, new_spec_list=None, new_rel=None, old_rel=None, replace_deprel=False):
     if not old_rel:
         old_rel = node['conllu_info'].deprel
     if not new_rel:
         new_rel = node['conllu_info'].deprel
     
-    remove_edge(node, old_rel)
+    if not replace_deprel:
+        remove_edge(node, old_rel)
+    
     if new_spec_list:
         for new_spec in new_spec_list:
-            add_edge(node, new_rel, new_spec)
+            add_edge(node, new_rel, new_spec=new_spec, replace_deprel=replace_deprel)
     else:
-        add_edge(node, new_rel)
+        add_edge(node, new_rel, replace_deprel=replace_deprel)
 
 
 # ----------------------------------------- content functions ------------------------------------ #
@@ -146,7 +154,7 @@ def correct_subj_pass(sentence):
         if not is_matched:
             continue
         
-        replace_edge(ret['subj'], new_rel=re.sub("subj", "subjpass", ret['subj']['new_deps'][cur_id]))
+        replace_edge(ret['subj'], new_rel=re.sub("subj", "subjpass", ret['subj']['conllu_info'].deprel), replace_deprel=True)
 
 
 def passive_agent(sentence):
@@ -159,10 +167,10 @@ def passive_agent(sentence):
         ]])
         if not is_matched:
             continue
-        replace_edge(ret['mod'], new_spec_list=["agent"])
+        replace_edge(ret['mod'], new_spec_list=["agent"], replace_deprel=True)
 
 
-def prep_patterns(sentence, used_cased, mw2=False, mw3=False, fix_nmods=True):
+def prep_patterns(sentence, used_cases, mw2=False, mw3=False, fix_nmods=True):
     if mw3 and mw2:
         raise Exception("mw2 and mw3 mustn't be both True")
     
@@ -187,12 +195,12 @@ def prep_patterns(sentence, used_cased, mw2=False, mw3=False, fix_nmods=True):
         # We only want to match every case/marker once, so we test, and save them for further propagation
         # TODO - maybe a nicer and clearer way to do this?
         if not is_matched or            \
-            ret['c1'] in used_cased or  \
-            ('c2' in ret and ret['c2'] in used_cased) or  \
-            ('c3' in ret and ret['c3'] in used_cased):
+            ret['c1'] in used_cases or  \
+            ('c2' in ret and ret['c2'] in used_cases) or  \
+            ('c3' in ret and ret['c3'] in used_cases):
             continue
-        used_cased += [ret['c1'], ret['c2'] if 'c2' in ret else None, ret['c3'] if 'c3' in ret else None]
-        used_cased = [x for x in used_cased if x is not None]
+        used_cases += [ret['c1'], ret['c2'] if 'c2' in ret else None, ret['c3'] if 'c3' in ret else None]
+        used_cases = [x for x in used_cases if x is not None]
         
         # we need to create a concat string for every marker neighbor chain
         # actually it should never happen that they are separate, but nonetheless we add relation if so,
@@ -210,7 +218,10 @@ def prep_patterns(sentence, used_cased, mw2=False, mw3=False, fix_nmods=True):
                 else:
                     strs_to_add.append(ret['c3']['conllu_info'].form)
         
-        replace_edge(ret['mod'], new_spec_list=strs_to_add)
+        replace_edge(
+            ret['mod'],
+            new_spec_list=strs_to_add,
+            replace_deprel=False if len(strs_to_add) > 1 else True)
 
 
 def conj_help_matcher(sentence, cur_id, ret_conj, matcher):
@@ -242,7 +253,7 @@ def conj_info(sentence):
             if conj["conllu_info"].deprel == "cc":
                 cur_form = conj["conllu_info"].form
             else:
-                replace_edge(conj, new_spec_list=[cur_form])
+                replace_edge(conj, new_spec_list=[cur_form], replace_deprel=True)
 
 
 def conjoined_subj(sentence):

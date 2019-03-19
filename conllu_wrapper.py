@@ -44,18 +44,19 @@ def parse_conllu(text):
             sentence = dict()
             for line in lines:
                 parts = line.split('\t')
-                id, form, lemma, upos, xpos, feats, head, deprel, deps, misc = parts
-                if '-' in id or '.' in id:
+                new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc = parts
+                if '-' in new_id or '.' in new_id:
                     # TODO - add a print and a raise since they shouldn't appear here
                     continue
                 try:
                     if deps != '_':
                         raise Exception
                     xpos = upos if xpos == '_' else xpos  # TODO - is needed?
-                    sentence[int(id)] = {'conllu_info': ConlluInfo(int(id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc),
-                                         'head_pointer': None,
-                                         'children_list': [],
-                                         'new_deps': {int(head): deprel}}
+                    sentence[int(new_id)] = {
+                        'conllu_info': ConlluInfo(int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc),
+                        'head_pointer': None,
+                        'children_list': [],
+                        'new_deps': [False, {int(head): deprel}]}
                 except:
                     print(line)
                     raise
@@ -69,10 +70,11 @@ def serialize_conllu(converted):
     text = ''
     
     for sentence in converted:
+        new_deps_changed = True in [val['new_deps'][0] for val in sentence.values()]
         for (cur_id, token) in sentence.items():
             for field, field_name in zip(token['conllu_info'], token['conllu_info']._fields):
-                if field_name == 'deps':
-                    text += "|".join(sorted([(str(a) + ":" + b) for (a, b) in token['new_deps'].items()])) + '\t' # TODO - validate the result is ordered
+                if field_name == 'deps' and new_deps_changed:
+                        text += "|".join(sorted([(str(a) + ":" + b) for (a, b) in token['new_deps'][1].items()])) + '\t' # TODO - validate the result is ordered
                 elif field_name == 'misc':
                     text += str(field) + '\n'
                 else:
