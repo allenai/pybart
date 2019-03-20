@@ -320,6 +320,45 @@ def conjoined_verb(sentence):
                 # TODO - we need to add the aux relation (as SC say they do but not in the code)
 
 
+def xcomp_propagation(sentence):
+    to_xcomp_rest = \
+        [
+            Restriction({"gov": "xcomp", "name": "dep", "form": "^(?i:to)$", "nested": [[
+                Restriction({"no-gov": "nsubj"}),  # includes both nsubj and nsubj pass but noe csubjs
+                Restriction({"no-gov": "^(aux|mark)$"})
+            ]]}),
+            Restriction({"gov": "nsubj", "name": "subj"}),
+        ]
+    basic_xcomp_rest = \
+         [
+            Restriction({"gov": "xcomp", "name": "dep", "form": "(?!(^(?i:to)$)).", "nested": [[
+                Restriction({"no-gov": "nsubj"}),  # includes both nsubj and nsubj pass but noe csubjs
+                Restriction({"gov": "^(aux|mark)$"})
+            ]]}),
+            Restriction({"gov": "nsubj", "name": "subj"}),
+        ]
+
+    for (cur_id, token) in sentence.items():
+        is_matched, ret = match(sentence, cur_id, None, [
+            to_xcomp_rest + [Restriction({"gov": "dobj", "name": "obj"})],
+            to_xcomp_rest,
+            basic_xcomp_rest + [Restriction({"gov": "dobj", "name": "obj"})],
+            basic_xcomp_rest
+        ])
+        
+        if not is_matched:
+            continue
+        
+        if 'obj' in ret:
+            for obj in ret['obj']:
+                if ret['dep']['conllu_info'].head not in obj['new_deps'][1].keys():
+                    add_edge(obj, obj['conllu_info'].deprel, head=ret['dep']['conllu_info'].head)
+        else:
+            for subj in ret['subj']:
+                if ret['dep']['conllu_info'].head not in subj['new_deps'][1].keys():
+                    add_edge(subj, subj['conllu_info'].deprel, head=ret['dep']['conllu_info'].head)
+            
+
 def convert_sentence(sentence):
     global tag_counter
     tag_counter = 0
@@ -340,6 +379,8 @@ def convert_sentence(sentence):
     conjoined_subj(sentence)
     conjoined_verb(sentence)
     
+    # addExtraNSubj
+    xcomp_propagation(sentence)
     
     # correctSubjPass
     # TODO - why again?
