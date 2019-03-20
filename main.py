@@ -7,8 +7,8 @@ import converter
 def main(sentences_path, out_path=None):
     with open(sentences_path, "r") as f:
         sentences_text = f.read()
-        parsed = cw.parse_conllu(sentences_text)
-        converted = converter.convert(parsed)
+        parsed, found_ner = cw.parse_conllu(sentences_text)
+        converted = converter.convert(parsed, found_ner)
         ready_to_write = cw.serialize_conllu(converted)
 
     if out_path:

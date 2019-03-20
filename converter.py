@@ -166,6 +166,11 @@ def correct_subj_pass(sentence):
             replace_edge(subj, new_rel=re.sub("subj", "subjpass", subj['conllu_info'].deprel), replace_deprel=True)
 
 
+def process_names(sentence):
+    # TODO - decide whether to implement or not
+    pass
+
+
 def passive_agent(sentence):
     for (cur_id, token) in sentence.items():
         is_matched, ret = match(sentence, cur_id, None, [[
@@ -318,6 +323,7 @@ def conjoined_verb(sentence):
                 
                 add_edge(subj, relation, head=conj['conllu_info'].id)
                 # TODO - we need to add the aux relation (as SC say they do but not in the code)
+                #   and the obj relation, which they say they do and also coded, but then commented out...
 
 
 def xcomp_propagation(sentence):
@@ -359,12 +365,15 @@ def xcomp_propagation(sentence):
                     add_edge(subj, subj['conllu_info'].deprel, head=ret['dep']['conllu_info'].head)
             
 
-def convert_sentence(sentence):
+def convert_sentence(sentence, found_ner):
     global tag_counter
     tag_counter = 0
     
     # correctDependencies - correctSubjPass
     correct_subj_pass(sentence)
+    
+    if found_ner:
+        process_names(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
@@ -390,9 +399,9 @@ def convert_sentence(sentence):
     return sentence
 
 
-def convert(parsed):
+def convert(parsed, found_ner):
     converted_sentences = []
     for sentence in parsed:
-        converted_sentences.append(convert_sentence(sentence))
+        converted_sentences.append(convert_sentence(sentence, found_ner))
     return converted_sentences
 
