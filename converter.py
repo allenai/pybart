@@ -11,7 +11,13 @@ import conllu_wrapper as cw
 
 # configuration
 enhance_only_nmods = False
+enhanced_plus_plus = True
+
+# global states
 tag_counter = 0
+
+# constants
+two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", " prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
 
 
 class Restriction(object):
@@ -116,7 +122,7 @@ def add_edge(node, new_rel, new_spec=None, head=None, replace_deprel=False):
     global tag_counter
     rel_with_specs = new_rel + ((":" + new_spec) if new_spec else "")
     if replace_deprel:
-        cw.replace_conllu_info(node, deprel=rel_with_specs)
+        cw.replace_conllu_info(node, deprel=rel_with_specs, head=head)
         return
         
     head_id = node['conllu_info'].head if not head else head
@@ -358,7 +364,37 @@ def xcomp_propagation(sentence):
             for subj in ret['subj']:
                 if ret['dep']['conllu_info'].head not in subj['new_deps'][1].keys():
                     add_edge(subj, subj['conllu_info'].deprel, head=ret['dep']['conllu_info'].head)
-            
+
+
+def process_multiword_preps(sentence):
+    for (cur_id, token) in sentence.items():
+        is_matched, ret = match(sentence, cur_id, "gov", [[
+            Restriction({"gov": "case", "name": "case", "nested": [[
+                Restriction({"no-gov": ".*"})
+            ]]}),
+            Restriction({"gov": "advmod", "name": "advmod", "nested": [[
+                Restriction({"no-gov": ".*"})
+            ]]})
+
+        ]])
+        
+        if (not is_matched) or ('case' not in ret):
+            continue
+        
+        if 'advmod' in ret:
+            for advmod in ret['advmod']:
+                for case in ret['case']:
+                    if (advmod['conllu_info'].id == case['conllu_info'].id - 1) and \
+                            ((advmod['conllu_info'].form + "_" + case['conllu_info'].form) in two_word_preps_regular):
+                        add_edge(advmod, "case", replace_deprel=True)
+                        add_edge(case, "mwe", head=ret['gov']['conllu_info'].id, replace_deprel=True)
+        for case1 in ret['case']:
+            for case2 in ret['case']:
+                if (case1['conllu_info'].id == case2['conllu_info'].id - 1) and \
+                        ((case1['conllu_info'].form + "_" + case2['conllu_info'].form) in two_word_preps_regular):
+                    add_edge(case1, "case", replace_deprel=True)
+                    add_edge(case2, "mwe", head=ret['gov']['conllu_info'].id, replace_deprel=True)
+
 
 def convert_sentence(sentence):
     global tag_counter
@@ -367,6 +403,10 @@ def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
+    
+    # processMultiwordPreps
+    if enhanced_plus_plus:
+        process_multiword_preps(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
