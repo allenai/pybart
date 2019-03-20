@@ -157,7 +157,7 @@ def correct_subj_pass(sentence):
     for (cur_id, token) in sentence.items():
         is_matched, ret = match(sentence, cur_id, None, [[
             Restriction({"gov": 'auxpass'}),
-            Restriction({"gov": "^(nsubj|csubj).*$", "name": "subj"})
+            Restriction({"gov": "^(nsubj|csubj)$", "name": "subj"})
         ]])
         if not is_matched:
             continue
@@ -291,7 +291,7 @@ def conjoined_verb(sentence):
         ],
         [
             Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested": [[
-                Restriction({"no-gov": ".subj"})
+                Restriction({"no-gov": ".subj|auxpass"})
             ]]}),
             Restriction({"gov": ".subj", "name": "subj"})
         ]])
