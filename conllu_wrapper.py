@@ -43,11 +43,13 @@ def parse_conllu(text):
                 lines.pop(0)
             sentence = dict()
             for line in lines:
-                parts = line.split('\t')
-                new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc = parts
+                parts = line.split()
+                new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc = parts[:10]
+                
                 if '-' in new_id or '.' in new_id:
                     # TODO - add a print and a raise since they shouldn't appear here
                     continue
+                
                 try:
                     if deps != '_':
                         raise Exception
@@ -82,9 +84,3 @@ def serialize_conllu(converted):
         text += '\n'
     
     return text
-
-
-def test():
-    parsed = parse_conllu(open("test2.conllu", "r").read())
-    print(serialize_conllu(parsed))
-    

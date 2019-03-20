@@ -318,6 +318,7 @@ def conjoined_verb(sentence):
                 
                 add_edge(subj, relation, head=conj['conllu_info'].id)
                 # TODO - we need to add the aux relation (as SC say they do but not in the code)
+                #   and the obj relation, which they say they do and also coded, but then commented out...
 
 
 def xcomp_propagation(sentence):
