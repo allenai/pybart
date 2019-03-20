@@ -364,7 +364,8 @@ def convert_sentence(sentence):
     global tag_counter
     tag_counter = 0
     
-    # correctDependencies - correctSubjPass
+    # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
+    # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
     # addCaseMarkerInformation
