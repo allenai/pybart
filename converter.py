@@ -35,7 +35,7 @@ def match(sent, cur_id, cur_name, restriction_lists, given_named_nodes=None):
     for restriction_list in restriction_lists:
         named_nodes = dict()
         if cur_name:
-            named_nodes[cur_name] = sent[cur_id]
+            named_nodes[cur_name] = [sent[cur_id]]
         
         one_restriction_violated = False
         for restriction in restriction_list:
@@ -44,16 +44,18 @@ def match(sent, cur_id, cur_name, restriction_lists, given_named_nodes=None):
             if not restriction:
                 continue
             
+            # this is separated, because this is the only restriction type that should be met on all kids
+            if restriction["no-gov"]:
+                if False in [re.match(restriction["no-gov"], child['conllu_info'].deprel) is None for child in sent[cur_id]['children_list']]:
+                    break
+
             restriction_matched = False
             for child in sent[cur_id]['children_list']:
                 inner_named_nodes = {}
+                
                 if restriction["gov"]:
                     if not re.match(restriction["gov"], child['conllu_info'].deprel):
                         continue
-                
-                if restriction["no-gov"]:
-                    if re.match(restriction["no-gov"], child['conllu_info'].deprel):
-                        break
                 
                 if restriction["nested"]:
                     inner_is_matched, inner_named_nodes = match(sent, child['conllu_info'].id, restriction["name"], restriction["nested"], named_nodes)
@@ -89,11 +91,13 @@ def match(sent, cur_id, cur_name, restriction_lists, given_named_nodes=None):
                         continue
                 
                 if restriction["name"]:
-                    named_nodes[restriction["name"]] = child
+                    if restriction["name"] not in named_nodes:
+                        named_nodes[restriction["name"]] = [child]
+                    else:
+                        named_nodes[restriction["name"]] += [child]
      
                 named_nodes.update(inner_named_nodes)
                 restriction_matched = True
-                break
             
             if not restriction_matched:
                 one_restriction_violated = True
@@ -158,7 +162,8 @@ def correct_subj_pass(sentence):
         if not is_matched:
             continue
         
-        replace_edge(ret['subj'], new_rel=re.sub("subj", "subjpass", ret['subj']['conllu_info'].deprel), replace_deprel=True)
+        for subj in ret['subj']:
+            replace_edge(subj, new_rel=re.sub("subj", "subjpass", subj['conllu_info'].deprel), replace_deprel=True)
 
 
 def passive_agent(sentence):
@@ -171,13 +176,12 @@ def passive_agent(sentence):
         ]])
         if not is_matched:
             continue
-        replace_edge(ret['mod'], new_spec_list=["agent"], replace_deprel=True)
+        
+        for mod in ret['mod']:
+            replace_edge(mod, new_spec_list=["agent"], replace_deprel=True)
 
 
-def prep_patterns(sentence, used_cases, mw2=False, mw3=False, fix_nmods=True):
-    if mw3 and mw2:
-        raise Exception("mw2 and mw3 mustn't be both True")
-    
+def prep_patterns(sentence, fix_nmods=True):
     # to enhance nmods or acl/advcls markers
     if fix_nmods:
         first_gov = '^nmod$'
@@ -187,77 +191,61 @@ def prep_patterns(sentence, used_cases, mw2=False, mw3=False, fix_nmods=True):
         second_gov = '^(mark|case)$'
     
     for (cur_id, token) in sentence.items():
-        is_matched, ret = match(sentence, cur_id, None, [[
+        is_matched, ret = match(sentence, cur_id, None, [
+        [
             Restriction({"gov": first_gov, "name": "mod", "nested": [[
-                Restriction({"gov": second_gov, "name": "c1", "form": "[^(by)]" if not (mw2 or mw3) else None, "nested": [[
-                    Restriction({"gov": 'mwe', "name": "c2"}),
-                    Restriction({"gov": 'mwe', "name": "c3", "diff": ["c2"]}) if mw3 else None
-                ]] if mw2 or mw3 else None})
+                Restriction({"gov": second_gov, "name": "c1", "nested": [[
+                    Restriction({"gov": 'mwe', "name": "c2"})
+                ]]})
+            ]]})
+        ],
+        [
+            Restriction({"gov": first_gov, "name": "mod", "nested": [[
+                Restriction({"gov": second_gov, "name": "c1", "form": "(?!(^(?i:by)$))."})
             ]]})
         ]])
         
         # We only want to match every case/marker once, so we test, and save them for further propagation
         # TODO - maybe a nicer and clearer way to do this?
-        if not is_matched or            \
-            ret['c1'] in used_cases or  \
-            ('c2' in ret and ret['c2'] in used_cases) or  \
-            ('c3' in ret and ret['c3'] in used_cases):
+        if not is_matched:
             continue
-        used_cases += [ret['c1'], ret['c2'] if 'c2' in ret else None, ret['c3'] if 'c3' in ret else None]
-        used_cases = [x for x in used_cases if x is not None]
         
-        # we need to create a concat string for every marker neighbor chain
-        # actually it should never happen that they are separate, but nonetheless we add relation if so,
-        # as done in the stanford converter code
-        # TODO - this complicated the function - maybe move to different function?
-        strs_to_add = [ret['c1']['conllu_info'].form]
-        if 'c2' in ret:
-            if ret['c1']['conllu_info'].id == ret['c2']['conllu_info'].id - 1:
-                strs_to_add[-1] += '_' + ret['c2']['conllu_info'].form
-            else:
-                strs_to_add.append(ret['c2']['conllu_info'].form)
-            if 'c3' in ret:
-                if ret['c2']['conllu_info'].id == ret['c3']['conllu_info'].id - 1:
-                    strs_to_add[-1] += '_' + ret['c3']['conllu_info'].form
-                else:
-                    strs_to_add.append(ret['c3']['conllu_info'].form)
-        
-        replace_edge(
-            ret['mod'],
-            new_spec_list=strs_to_add,
-            replace_deprel=False if len(strs_to_add) > 1 else True)
-
-
-def conj_help_matcher(sentence, cur_id, ret_conj, matcher):
-    is_matched = True
-    i = 1
-    given_named_nodes = {}
-    while is_matched:
-        is_matched, ret = match(sentence, cur_id, None, [[
-            Restriction({"gov": matcher, "name": str(i) + matcher, "diff": given_named_nodes.keys()})
-        ]], given_named_nodes=given_named_nodes)
-        if is_matched:
-            ret_conj.append((ret[str(i) + matcher]["conllu_info"].id, ret[str(i) + matcher]))
-            given_named_nodes[str(i) + matcher] = ret[str(i) + matcher]
-        i += 1
-    
-    return len(given_named_nodes) > 0
+        for mod in ret['mod']:
+            for c1 in ret['c1']:
+                strs_to_add = [c1['conllu_info'].form]
+                if 'c2' in ret:
+                    # we need to create a concat string for every marker neighbor chain
+                    # actually it should never happen that they are separate, but nonetheless we add relation if so,
+                    # as done in the stanford converter code
+                    prev = c1
+                    for c2 in ret['c2']:
+                        if prev['conllu_info'].id == c2['conllu_info'].id - 1:
+                            strs_to_add[-1] += '_' + c2['conllu_info'].form
+                        else:
+                            strs_to_add.append(c2['conllu_info'].form)
+                        prev = c2
+                
+                replace_edge(
+                    mod,
+                    new_spec_list=strs_to_add,
+                    replace_deprel=False if len(strs_to_add) > 1 else True)
 
 
 def conj_info(sentence):
     for (cur_id, token) in sentence.items():
-        ret_conj = []
-        if not conj_help_matcher(sentence, cur_id, ret_conj, "cc"):
-            continue
-        if not conj_help_matcher(sentence, cur_id, ret_conj, "conj"):
+        is_matched, ret = match(sentence, cur_id, None, [[
+            Restriction({"gov": "cc", "name": "cc"}),
+            Restriction({"gov": "conj", "name": "conj"})
+        ]])
+        if not is_matched or "cc" not in ret or "conj" not in ret:
             continue
         
         cur_form = None
-        for (id, conj) in sorted(ret_conj):
-            if conj["conllu_info"].deprel == "cc":
-                cur_form = conj["conllu_info"].form
+        for (_, cc_or_conj) in sorted([(node["conllu_info"].id, node) for node in ret["cc"] + ret["conj"]]):
+            if cc_or_conj["conllu_info"].deprel == "cc":
+                cur_form = cc_or_conj["conllu_info"].form
             else:
-                replace_edge(conj, new_spec_list=[cur_form], replace_deprel=True)
+                replace_edge(cc_or_conj, new_spec_list=[cur_form], replace_deprel=True)
 
 
 def conjoined_subj(sentence):
@@ -286,7 +274,9 @@ def conjoined_subj(sentence):
         if not is_matched:
             continue
         
-        add_edge(ret['dep'], ret['gov']['conllu_info'].deprel, head=ret['gov']['conllu_info'].head)
+        for gov in ret['gov']:
+            for dep in ret['dep']:
+                add_edge(dep, gov['conllu_info'].deprel, head=gov['conllu_info'].head)
 
 
 def conjoined_verb(sentence):
@@ -309,22 +299,25 @@ def conjoined_verb(sentence):
         if not is_matched:
             continue
         
-        # fixing the relation as done in SC
-        relation = ret['subj']['conllu_info'].deprel
-        if relation == "nsubjpass":
-            if ret['subj']['conllu_info'].xpos in ["VB", "VBZ", "VBP", "JJ"]:
-                relation = "nsubj"
-        elif relation == "csubjpass":
-            if ret['subj']['conllu_info'].xpos in ["VB", "VBZ", "VBP", "JJ"]:
-                relation = "csubj"
-        elif relation == "nsubj":
-            if "auxpass" in ret:
-                relation = "nsubjpass"
-        elif relation == "csubj":
-            if "auxpass" in ret:
-                relation = "csubjpass"
-        
-        add_edge(ret['subj'], relation, head=ret['conj']['conllu_info'].id)
+        for subj in ret['subj']:
+            for conj in ret['conj']:
+                # fixing the relation as done in SC
+                relation = subj['conllu_info'].deprel
+                if relation == "nsubjpass":
+                    if subj['conllu_info'].xpos in ["VB", "VBZ", "VBP", "JJ"]:
+                        relation = "nsubj"
+                elif relation == "csubjpass":
+                    if subj['conllu_info'].xpos in ["VB", "VBZ", "VBP", "JJ"]:
+                        relation = "csubj"
+                elif relation == "nsubj":
+                    if "auxpass" in ret:
+                        relation = "nsubjpass"
+                elif relation == "csubj":
+                    if "auxpass" in ret:
+                        relation = "csubjpass"
+                
+                add_edge(subj, relation, head=conj['conllu_info'].id)
+                # TODO - we need to add the aux relation (as SC say they do but not in the code)
 
 
 def convert_sentence(sentence):
@@ -335,22 +328,22 @@ def convert_sentence(sentence):
     correct_subj_pass(sentence)
     
     # addCaseMarkerInformation
-    used_cases = []
     passive_agent(sentence)
-    prep_patterns(sentence, used_cases, mw3=True)
-    prep_patterns(sentence, used_cases, mw2=True)
-    prep_patterns(sentence, used_cases)
+    prep_patterns(sentence)
     if not enhance_only_nmods:
-        prep_patterns(sentence, used_cases, mw3=True, fix_nmods=False)
-        prep_patterns(sentence, used_cases, mw2=True, fix_nmods=False)
-        prep_patterns(sentence, used_cases, fix_nmods=False)
+        prep_patterns(sentence, fix_nmods=False)
     
     # addConjInformation
     conj_info(sentence)
     
     # treatCC
     conjoined_subj(sentence)
-    conjoined_verb(sentence) # TODO - finish
+    conjoined_verb(sentence)
+    
+    
+    # correctSubjPass
+    # TODO - why again?
+    correct_subj_pass(sentence)
     
     # TODO - continue conversion
     return sentence
