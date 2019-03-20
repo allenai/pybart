@@ -18,6 +18,8 @@ tag_counter = 0
 
 # constants
 two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", " prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
+two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
+clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
 
 
 class Restriction(object):
@@ -366,7 +368,16 @@ def xcomp_propagation(sentence):
                     add_edge(subj, subj['conllu_info'].deprel, head=ret['dep']['conllu_info'].head)
 
 
-def process_multiword_preps(sentence):
+def add_edges_for_mwe_preps(match_list, gov_id, node1, node2, node3=None):
+    if (node1['conllu_info'].id == node2['conllu_info'].id - 1) and \
+            ((node3 is None) or (node2['conllu_info'].id == node3['conllu_info'].id - 1)) and \
+            ((node1['conllu_info'].form + "_" + node2['conllu_info'].form) in match_list):
+        add_edge(node1, "case", replace_deprel=True)
+        add_edge(node2, "mwe", head=gov_id, replace_deprel=True)
+        # TODO - complete for 3-mwe
+
+
+def process_simple_2wp(sentence):
     for (cur_id, token) in sentence.items():
         is_matched, ret = match(sentence, cur_id, "gov", [[
             Restriction({"gov": "case", "name": "case", "nested": [[
@@ -384,16 +395,48 @@ def process_multiword_preps(sentence):
         if 'advmod' in ret:
             for advmod in ret['advmod']:
                 for case in ret['case']:
-                    if (advmod['conllu_info'].id == case['conllu_info'].id - 1) and \
-                            ((advmod['conllu_info'].form + "_" + case['conllu_info'].form) in two_word_preps_regular):
-                        add_edge(advmod, "case", replace_deprel=True)
-                        add_edge(case, "mwe", head=ret['gov']['conllu_info'].id, replace_deprel=True)
+                    add_edges_for_mwe_preps(two_word_preps_regular, ret['gov']['conllu_info'].id, advmod, case)
         for case1 in ret['case']:
             for case2 in ret['case']:
-                if (case1['conllu_info'].id == case2['conllu_info'].id - 1) and \
-                        ((case1['conllu_info'].form + "_" + case2['conllu_info'].form) in two_word_preps_regular):
-                    add_edge(case1, "case", replace_deprel=True)
-                    add_edge(case2, "mwe", head=ret['gov']['conllu_info'].id, replace_deprel=True)
+                add_edges_for_mwe_preps(two_word_preps_regular, ret['gov']['conllu_info'].id, case1, case2)
+
+
+def process_complex_2wp(sentence):
+    for (cur_id, token) in sentence.items():
+        is_matched, ret = match(sentence, cur_id, "w1", [[
+            Restriction({"gov": "nmod", "name": "gov2", "nested": [[
+                Restriction({"gov": "case", "name": "w2", "nested": [[
+                    Restriction({"no-gov": ".*"})
+                ]]}),
+            ]]})
+        ]])
+        
+        if (not is_matched) or ('case' not in ret):
+            continue
+        
+        for gov2 in ret['gov2']:
+            # reattach w1 sons to gov2
+            w1_has_cop_child  = False
+            for child in ret['w1']['children_list']:
+                if child['conllu_info'].deprel == "cop":
+                    w1_has_cop_child = True
+                add_edge(child, gov2['conllu_info'].deprel, head=gov2['conllu_info'].head, replace_deprel=True)
+            
+            # replace gov2's governor
+            if ret['w1']['conllu_info'].head == 0:
+                add_edge(gov2, "root", head=0, replace_deprel=True)
+            else:
+                # Determine the relation to use. If it is a relation that can
+                # join two clauses and w1 is the head of a copular construction,
+                # then use the relation of w1 and its parent. Otherwise use the relation of edge.
+                rel = gov2['conllu_info'].deprel
+                if (ret['w1']['conllu_info'].deprel in clause_relations) and w1_has_cop_child:
+                    rel = ret['w1']['conllu_info'].deprel
+                add_edge(gov2, rel, head=ret['w1']['conllu_info'].head, replace_deprel=True)
+            
+            # create a multiword expression
+            for w2 in ret['w2']:
+                add_edges_for_mwe_preps(two_word_preps_complex, gov2['conllu_info'].id, ret['w1'], w2)
 
 
 def convert_sentence(sentence):
@@ -404,9 +447,10 @@ def convert_sentence(sentence):
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
-    # processMultiwordPreps
+    # processMultiwordPreps: processSimple2WP, processComplex2WP
     if enhanced_plus_plus:
-        process_multiword_preps(sentence)
+        process_simple_2wp(sentence)
+        process_complex_2wp(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
@@ -437,4 +481,3 @@ def convert(parsed):
     for sentence in parsed:
         converted_sentences.append(convert_sentence(sentence))
     return converted_sentences
-
