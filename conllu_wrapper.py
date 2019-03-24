@@ -88,19 +88,16 @@ def parse_conllu(text):
             if deps != '_' or '.' in new_id:
                 raise ValueError("text must be a basic CoNLL-U, received an enhanced one.")
             
-            try:
-                # fix xpos if empty to a copy of upos
-                xpos = upos if xpos == '_' else xpos
-                
-                # add current token to current sentence
-                sentence[int(new_id)] = {
-                    'conllu_info': ConlluInfo(
-                        int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc),
-                    'head_pointer': None,
-                    'children_list': [],
-                    'new_deps': [False, {int(head): deprel}]}
-            finally:
-                print(line)
+            # fix xpos if empty to a copy of upos
+            xpos = upos if xpos == '_' else xpos
+            
+            # add current token to current sentence
+            sentence[int(new_id)] = {
+                'conllu_info': ConlluInfo(
+                    int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc),
+                'head_pointer': None,
+                'children_list': [],
+                'new_deps': [False, {int(head): deprel}]}
         
         # after parsing entire sentence, exchange information between tokens,
         # and add sentence to output list
