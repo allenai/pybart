@@ -1,4 +1,5 @@
 from collections import namedtuple
+import configuration as conf
 
 # format of CoNLL-u as described here: https://universaldependencies.org/format.html
 ConlluInfo = namedtuple("ConlluInfo", "id, form, lemma, upos, xpos, feats, head, deprel, deps, misc")
@@ -125,15 +126,16 @@ def serialize_conllu(converted, all_comments):
         new_deps_changed = True in [val['new_deps'][0] for val in sentence.values()]
         
         # recover comments from original file
-        for comment in comments:
-            text += comment + '\n'
+        if conf.preserve_comments:
+            for comment in comments:
+                text += comment + '\n'
         
         for (cur_id, token) in sentence.items():
             # add every field of the given token
             for field, field_name in zip(token['conllu_info'], token['conllu_info']._fields):
                 # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
                 # as required by the format.
-                if field_name == 'deps' and new_deps_changed:
+                if field_name == 'deps' and (conf.output_unchanged_deps or new_deps_changed):
                         sorted_new_deps = sorted([(str(a) + ":" + b) for (a, b) in token['new_deps'][1].items()])
                         text += "|".join(sorted_new_deps) + '\t'
                 # misc is the last one so he needs a spacial case for the new line character.

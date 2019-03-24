@@ -8,10 +8,8 @@
 
 import regex as re
 import conllu_wrapper as cw
+import configuration as conf
 
-# configuration
-enhance_only_nmods = False
-enhanced_plus_plus = True
 
 # global states
 tag_counter = 0
@@ -531,7 +529,7 @@ def convert_sentence(sentence):
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
-    if enhanced_plus_plus:
+    if conf.enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
         process_simple_2wp(sentence)
         process_complex_2wp(sentence)
@@ -540,7 +538,7 @@ def convert_sentence(sentence):
     # addCaseMarkerInformation
     passive_agent(sentence)
     prep_patterns(sentence)
-    if not enhance_only_nmods:
+    if not conf.enhance_only_nmods:
         prep_patterns(sentence, fix_nmods=False)
     
     # addConjInformation
