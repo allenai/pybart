@@ -1,3 +1,4 @@
 
 *.conllu
 *.pyc
+.idea
