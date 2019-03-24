@@ -6,7 +6,7 @@ ConlluInfo = namedtuple("ConlluInfo", "id, form, lemma, upos, xpos, feats, head,
 
 def replace_conllu_info(
         node, new_id=None, form=None, lemma=None, upos=None, xpos=None,
-        feats=None, head=None, deprel=None,deps=None, misc=None):
+        feats=None, head=None, deprel=None, deps=None, misc=None):
     """Purpose: Creates a new ConlluInfo tuple.
     
     Args:
@@ -55,57 +55,63 @@ def parse_conllu(text):
         (str) The text.
     
     returns:
-        (list(dict)) returns a list of sentence dicts.
-        a sentence dict is a mapping from id to token/word.
-        a token is a dict of ConlluInfo, list of children nodes, pointer to head, and dict of new relations.
-        TODO - add a Token class for simplicity and modularity.
+        (list(dict(Token))) returns a list of sentence dicts.
+            a sentence dict is a mapping from id to token/word.
+        (list(list(str))) returns a list of comments list per sentence.
         
      Raises:
          ValueError: text must be a basic CoNLL-U, received an enhanced one.
          ValueError: text must be a basic CoNLL-U format, received a CoNLL-X format.
 ]    """
     sentences = []
+    all_comments = []
     for sent in text.strip().split('\n\n'):
         lines = sent.strip().split('\n')
-        if lines:
-            # ignore comments
-            while lines[0].startswith('#'):
-                lines.pop(0)
-            sentence = dict()
-            for line in lines:
-                # split line by any whitespace, and store the first 10 columns.
-                parts = line.split()
-                new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc = parts[:10]
-                
-                # validate input
-                if '-' in new_id:
-                    raise ValueError("text must be a basic CoNLL-U format, received a CoNLL-X format.")
-                if deps != '_' or '.' in new_id:
-                    raise ValueError("text must be a basic CoNLL-U, received an enhanced one.")
-                
-                try:
-                    # fix xpos if empty to a copy of upos (TODO - is this really needed?)
-                    xpos = upos if xpos == '_' else xpos
-                    
-                    # add current token to current sentence
-                    sentence[int(new_id)] = {
-                        'conllu_info': ConlluInfo(
-                            int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc),
-                        'head_pointer': None,
-                        'children_list': [],
-                        'new_deps': [False, {int(head): deprel}]}
-                finally:
-                    print(line)
+        if not lines:
+            continue
+        
+        comments = []
+        sentence = dict()
+        for line in lines:
+            # store comments
+            if line.startswith('#'):
+                comments.append(line)
+                continue
             
-            # after parsing entire sentence, exchange information between tokens,
-            # and add sentence to output list
-            exchange_pointers(sentence)
-            sentences.append(sentence)
+            # split line by any whitespace, and store the first 10 columns.
+            parts = line.split()
+            new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc = parts[:10]
+            
+            # validate input
+            if '-' in new_id:
+                raise ValueError("text must be a basic CoNLL-U format, received a CoNLL-X format.")
+            if deps != '_' or '.' in new_id:
+                raise ValueError("text must be a basic CoNLL-U, received an enhanced one.")
+            
+            try:
+                # fix xpos if empty to a copy of upos
+                xpos = upos if xpos == '_' else xpos
+                
+                # add current token to current sentence
+                sentence[int(new_id)] = {
+                    'conllu_info': ConlluInfo(
+                        int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc),
+                    'head_pointer': None,
+                    'children_list': [],
+                    'new_deps': [False, {int(head): deprel}]}
+            finally:
+                print(line)
+        
+        # after parsing entire sentence, exchange information between tokens,
+        # and add sentence to output list
+        exchange_pointers(sentence)
+        sentences.append(sentence)
+        all_comments.append(comments)
     
-    return sentences
+    return sentences, all_comments
 
 
-def serialize_conllu(converted):
+def serialize_conllu(converted, all_comments):
     """Purpose: create a CoNLL-U formatted text from a sentence list.
     
     Args:
@@ -114,13 +120,16 @@ def serialize_conllu(converted):
     returns:
         (str) the text corresponding to the sentence list in the CoNLL-U format.
      """
-    # TODO - recover comments from original file?
     text = ''
     
-    for sentence in converted:
+    for (sentence, comments) in zip(converted, all_comments):
         # check if new_deps has changed for at least one token, otherwise we won't add it to the output.
-        # this is mimicking the SC behavior. (TODO - do we want to presarve this behavior?)
+        # this is mimicking the SC behavior. (TODO - do we want to preserve this behavior?)
         new_deps_changed = True in [val['new_deps'][0] for val in sentence.values()]
+        
+        # recover comments from original file
+        for comment in comments:
+            text += comment + '\n'
         
         for (cur_id, token) in sentence.items():
             # add every field of the given token
