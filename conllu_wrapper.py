@@ -1,35 +1,5 @@
-from collections import namedtuple
 import configuration as conf
-
-# format of CoNLL-u as described here: https://universaldependencies.org/format.html
-ConlluInfo = namedtuple("ConlluInfo", "id, form, lemma, upos, xpos, feats, head, deprel, deps, misc")
-
-
-def replace_conllu_info(
-        node, new_id=None, form=None, lemma=None, upos=None, xpos=None,
-        feats=None, head=None, deprel=None, deps=None, misc=None):
-    """Purpose: Creates a new ConlluInfo tuple.
-    
-    Args:
-        ConlluInfo fields
-    
-    Comments:
-        As we can't change the fields of a tuple,
-        we must restore all the original fields except those we wish to change.
-        This might seem like an overhead but the named tuple is much more readable while using it.
-    """
-
-    node["conllu_info"] = ConlluInfo(
-        node["conllu_info"].id if not new_id else new_id,
-        node["conllu_info"].form if not form else form,
-        node["conllu_info"].lemma if not lemma else lemma,
-        node["conllu_info"].upos if not upos else upos,
-        node["conllu_info"].xpos if not xpos else xpos,
-        node["conllu_info"].feats if not feats else feats,
-        node["conllu_info"].head if not head else head,
-        node["conllu_info"].deprel if not deprel else deprel,
-        node["conllu_info"].deps if not deps else deps,
-        node["conllu_info"].misc if not misc else misc)
+from token import Token
 
 
 def exchange_pointers(sentence):
@@ -39,14 +9,15 @@ def exchange_pointers(sentence):
         (dict) The parsed sentence.
     """
     for (cur_id, token) in sentence.items():
-        currents_head = sentence[cur_id]['conllu_info'].head
+        currents_head = token.get_conllu_info()['head']
+        
         # only if node isn't root
-        if currents_head != 0:
-            # add the head as the Token itself (TODO - either use, or remove)
-            sentence[cur_id]['head_pointer'] = sentence[currents_head]
+        if token.is_root():
+            # add the head as the Token itself
+            token.add_parent(sentence[currents_head])
             
             # add to target head, the current node as child
-            sentence[currents_head]['children_list'].append(sentence[cur_id])
+            sentence[currents_head].add_child(token)
 
 
 def parse_conllu(text):
@@ -93,12 +64,8 @@ def parse_conllu(text):
             xpos = upos if xpos == '_' else xpos
             
             # add current token to current sentence
-            sentence[int(new_id)] = {
-                'conllu_info': ConlluInfo(
-                    int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc),
-                'head_pointer': None,
-                'children_list': [],
-                'new_deps': [False, {int(head): deprel}]}
+            sentence[int(new_id)] = Token(
+                    int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
         
         # after parsing entire sentence, exchange information between tokens,
         # and add sentence to output list
@@ -121,10 +88,6 @@ def serialize_conllu(converted, all_comments):
     text = ''
     
     for (sentence, comments) in zip(converted, all_comments):
-        # check if new_deps has changed for at least one token, otherwise we won't add it to the output.
-        # this is mimicking the SC behavior. (TODO - do we want to preserve this behavior?)
-        new_deps_changed = True in [val['new_deps'][0] for val in sentence.values()]
-        
         # recover comments from original file
         if conf.preserve_comments:
             for comment in comments:
@@ -132,11 +95,13 @@ def serialize_conllu(converted, all_comments):
         
         for (cur_id, token) in sentence.items():
             # add every field of the given token
-            for field, field_name in zip(token['conllu_info'], token['conllu_info']._fields):
+            for field_name, field in token.get_conllu_info():
                 # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
                 # as required by the format.
-                if field_name == 'deps' and (conf.output_unchanged_deps or new_deps_changed):
-                        sorted_new_deps = sorted([(str(a) + ":" + b) for (a, b) in token['new_deps'][1].items()])
+                # check if new_deps has changed for at least one token, otherwise,
+                # check if we want to add it to the output or preserve SC behavior.
+                if field_name == 'deps' and (conf.output_unchanged_deps or token.is_new_deps_changed()):
+                        sorted_new_deps = sorted([(str(a) + ":" + b) for (a, b) in token.get_new_deps_pairs()])
                         text += "|".join(sorted_new_deps) + '\t'
                 # misc is the last one so he needs a spacial case for the new line character.
                 elif field_name == 'misc':
