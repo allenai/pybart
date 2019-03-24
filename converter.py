@@ -531,8 +531,8 @@ def convert_sentence(sentence):
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
-    # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
     if enhanced_plus_plus:
+        # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
         process_simple_2wp(sentence)
         process_complex_2wp(sentence)
         process_3wp(sentence)
