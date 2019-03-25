@@ -16,8 +16,7 @@ class Token(object):
         self._children_list.remove(child)
     
     def get_children(self):
-        for child in self._children_list:
-            yield child
+        return self._children_list
     
     def get_conllu_info(self):
         return self._conllu_info.items()
@@ -41,18 +40,17 @@ class Token(object):
         
         return new_deps_pairs
     
-    def match_rel(self, str_to_match):
+    def match_rel(self, str_to_match, head):
         ret = []
-        for head, edges in self._new_deps.items():
-            # having more than one edge should really never happen
-            for edge in edges:
-                m = re.match(str_to_match, edge)
-                if m:
-                    ret.append(edge)
+        # having more than one edge should really never happen
+        for edge in self._new_deps[head.get_conllu_field('id')]:
+            m = re.match(str_to_match, edge)
+            if m:
+                ret.append(edge)
         return ret
     
     def add_edge(self, rel, head):
-        head_id = head._conllu_info['id']
+        head_id = head.get_conllu_field('id')
         if head_id in self._new_deps:
             if rel in self._new_deps[head_id]:
                 return
@@ -62,7 +60,7 @@ class Token(object):
             head.add_child(self)
     
     def remove_edge(self, rel, head):
-        head_id = head._conllu_info['id']
+        head_id = head.get_conllu_field('id')
         if head_id in self._new_deps and rel in self._new_deps[head_id]:
             self._new_deps[head_id].remove(rel)
             if not self._new_deps[head_id]:

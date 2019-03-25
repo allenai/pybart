@@ -9,7 +9,6 @@
 import regex as re
 import configuration as conf
 
-
 # global states
 tag_counter = 0
 
@@ -22,7 +21,8 @@ clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "para
 
 class Restriction(object):
         def __init__(self, dictionary):
-            self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None, "form": None, "xpos": None, "nested": None}
+            self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
+                                "form": None, "xpos": None, "follows": None, "nested": None}
             self._dictionary.update(dictionary)
         
         def __setitem__(self, key, item):
@@ -36,33 +36,19 @@ class Restriction(object):
 
 # ----------------------------------------- matching functions ----------------------------------- #
 
-
-def match(token, restriction_lists, given_named_nodes=None):
+def match(children, restriction_lists, given_named_nodes, additional_named_nodes=None, head=None):
     for restriction_list in restriction_lists:
-        named_nodes = dict()
+        named_nodes = dict(given_named_nodes)
         
         one_restriction_violated = False
         for restriction in restriction_list:
             # this is separated, because this is the only restriction type that should be met on all kids
             if restriction["no-gov"]:
-                if False in [len(child.match_rel(restriction["no-gov"])) == 0 for child in token.get_children()]:
+                if False in [len(child.match_rel(restriction["no-gov"], head)) == 0 for child in children]:
                     break
-
+            
             restriction_matched = False
-            for child in token.get_children():
-                inner_named_nodes = {}
-                
-                if restriction["gov"]:
-                    relations = child.match_rel(restriction["gov"])
-                    if len(relations) == 0:
-                        continue
-                
-                if restriction["nested"]:
-                    inner_is_matched, inner_named_nodes = match(child, restriction["nested"], named_nodes)
-                    
-                    if not inner_is_matched:
-                        continue
-                
+            for child in children:
                 if restriction["form"]:
                     if not re.match(restriction["form"], child.get_conllu_field('form')):
                         continue
@@ -71,14 +57,40 @@ def match(token, restriction_lists, given_named_nodes=None):
                     if not re.match(restriction["xpos"], child.get_conllu_field('xpos')):
                         continue
                 
-                # this is not really a restriction, but a feature, adding a name to a node.
-                if restriction["name"]:
-                    if restriction["name"] not in named_nodes:
-                        named_nodes[restriction["name"]] = [(child, token, rel) for rel in relations]
-                    else:
-                        named_nodes[restriction["name"]] += [(child, token, rel) for rel in relations]
+                relations = [None]
+                if restriction["gov"]:
+                    relations = child.match_rel(restriction["gov"], head)
+                    if len(relations) == 0:
+                        continue
                 
-                named_nodes.update(inner_named_nodes)
+                # this is not really a restriction, but a feature, adding a name to a node.
+                if restriction["nested"]:
+                    additional_named_nodes = {
+                        **({restriction["name"]: [(child, head, rel) for rel in relations]} if restriction["name"] else {}),
+                        **(additional_named_nodes if additional_named_nodes else {})}
+                    if not match(
+                            child.get_children(),
+                            restriction["nested"],
+                            named_nodes,
+                            additional_named_nodes=additional_named_nodes,
+                            head=child):
+                        continue
+                
+                if restriction["follows"]:
+                    if (restriction["follows"] not in named_nodes.keys()) or \
+                            (child.get_conllu_field('id') - 1 != named_nodes[restriction["follows"]][0].get_conllu_field('id')):
+                        continue
+                    elif (restriction["follows"] not in additional_named_nodes.keys()) or \
+                            (child.get_conllu_field('id') - 1 != additional_named_nodes[restriction["follows"]][0].get_conllu_field('id')):
+                        continue
+                    else:
+                        raise ValueError("got wrong type of 'follows' restriction")
+                
+                if restriction["name"]:
+                    if restriction["name"] in named_nodes:
+                        named_nodes[restriction["name"]] += [(child, head, rel) for rel in relations]
+                    else:
+                        named_nodes[restriction["name"]] = [(child, head, rel) for rel in relations]
                 restriction_matched = True
             
             if not restriction_matched:
@@ -86,40 +98,51 @@ def match(token, restriction_lists, given_named_nodes=None):
                 break
         
         if not one_restriction_violated:
-            return True, named_nodes
+            given_named_nodes.update(named_nodes)
+            return True
     
-    return False, None
-
+    return False
+    
 
 # corrects subjs (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj) to subjpass,
 # if they are a sibling of auxpass.
 def correct_subj_pass(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [[
+    restriction_lists = \
+    [[
+        Restriction({"nested":
+        [[
             Restriction({"gov": 'auxpass'}),
             Restriction({"gov": "^(nsubj|csubj)$", "name": "subj"})
-        ]])
-        if not is_matched:
-            continue
-        
-        for subj_source, subj_head, subj_rel in ret['subj']:
-            subj_source.replace_edge(subj_rel, re.sub("subj", "subjpass", subj_rel), subj_head, subj_head)
+        ]]})
+    ]]
+    ret = dict()
+    
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    for subj_source, subj_head, subj_rel in ret['subj']:
+        subj_source.replace_edge(subj_rel, re.sub("subj", "subjpass", subj_rel), subj_head, subj_head)
 
 
 # add 'agent' to nmods
 def passive_agent(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [[
-            Restriction({"gov": 'nmod', "name": "mod", "nested": [[
+    restriction_lists = \
+    [[
+        Restriction({"nested":
+        [[
+            Restriction({"gov": 'nmod', "name": "mod", "nested":
+            [[
                 Restriction({"gov": 'case', "form": "^(?i:by)$"})
             ]]}),
             Restriction({"gov": "auxpass"})
-        ]])
-        if not is_matched:
-            continue
-        
-        for mod_source, mod_head, mod_rel in ret['mod']:
-            mod_source.replace_edge(mod_rel,  mod_rel + ":agent", mod_head, mod_head)
+        ]]})
+    ]]
+    ret = dict()
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    for mod_source, mod_head, mod_rel in ret['mod']:
+        mod_source.replace_edge(mod_rel,  mod_rel + ":agent", mod_head, mod_head)
 
 
 def build_strings_to_add(ret):
@@ -143,131 +166,160 @@ def build_strings_to_add(ret):
 
 
 def prep_patterns(sentence, first_gov, second_gov):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [
-        [
-            Restriction({"gov": first_gov, "name": "mod", "nested": [[
-                Restriction({"gov": second_gov, "name": "c1", "nested": [[
+    restriction_lists = \
+    [[
+        Restriction({"name": "gov", "nested":
+        [[
+            Restriction({"gov": first_gov, "name": "mod", "nested":
+            [[
+                Restriction({"gov": second_gov, "name": "c1", "nested":
+                [[
                     Restriction({"gov": 'mwe', "name": "c2"})
                 ]]})
             ]]})
         ],
         [
-            Restriction({"gov": first_gov, "name": "mod", "nested": [[
+            Restriction({"gov": first_gov, "name": "mod", "nested":
+            [[
                 Restriction({"gov": second_gov, "name": "c1", "form": "(?!(^(?i:by)$))."})
             ]]})
-        ]])
-        if not is_matched:
-            continue
-        
+        ]]})
+    ]]
+    ret = dict()
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    for gov_source, _, _ in ret['gov']:
         for mod_source, mod_head, mod_rel in ret['mod']:
             strs_to_add = build_strings_to_add(ret)
             mod_source.remove_edge(mod_rel, mod_head)
             for str_to_add in strs_to_add:
-                mod_source.add_edge(mod_rel + ":" + str_to_add.lower(), token)
+                mod_source.add_edge(mod_rel + ":" + str_to_add.lower(), gov_source)
 
 
 # Adds the type of conjunction to all conjunct relations
 def conj_info(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [[
+    restriction_lists = \
+    [[
+        Restriction({"nested":
+        [[
             Restriction({"gov": "cc", "name": "cc"}),
             Restriction({"gov": "conj", "name": "conj"})
-        ]])
-        if not is_matched or "cc" not in ret or "conj" not in ret:
-            continue
-        
-        cur_form = None
-        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
-            if cc_or_conj_rel == "cc":
-                cur_form = cc_or_conj_source.get_conllu_field('form')
-            else:
-                cc_or_conj_source.replace_edge(cc_or_conj_rel, cc_or_conj_rel + ":" + cur_form, cc_or_conj_head, cc_or_conj_head)
+        ]]})
+    ]]
+    ret = dict()
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    cur_form = None
+    for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
+        if cc_or_conj_rel == "cc":
+            cur_form = cc_or_conj_source.get_conllu_field('form')
+        else:
+            cc_or_conj_source.replace_edge(cc_or_conj_rel, cc_or_conj_rel + ":" + cur_form, cc_or_conj_head, cc_or_conj_head)
 
 
 def conjoined_subj(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [
-            [
-                Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested": [
-                    [
-                        # TODO - I don't fully understand why SC decided to add this rcmod condition, and I belive they have a bug:
-                        #   (rcmodHeads.contains(gov) && rcmodHeads.contains(dep)) should be ||, and so I coded.
-                        Restriction({"gov": "rcmod"}),
-                        Restriction({"gov": ".*conj.*", "name": "dep"})
-                    ],
-                    [
-                        Restriction({"gov": ".*conj.*", "name": "dep", "nested": [[Restriction({"gov": "rcmod"})]]})
-                    ]
-                ]})
+    restriction_lists = \
+    [[
+        Restriction({"nested":
+        [[
+            Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested":
+            [[
+                # TODO - I don't fully understand why SC decided to add this rcmod condition, and I belive they have a bug:
+                #   (rcmodHeads.contains(gov) && rcmodHeads.contains(dep)) should be ||, and so I coded.
+                Restriction({"gov": "rcmod"}),
+                Restriction({"gov": ".*conj.*", "name": "dep"})
             ],
             [
-                Restriction({"gov": "^((?!root|case).)*$", "name": "gov", "nested": [[
-                    Restriction({"no-gov": "rcmod"}),
-                    Restriction({"gov": ".*conj.*", "name": "dep", "nested": [[Restriction({"no-gov": "rcmod"})]]})
+                Restriction({"gov": ".*conj.*", "name": "dep", "nested":
+                [[
+                    Restriction({"gov": "rcmod"})
                 ]]})
-            ]])
-        if not is_matched:
-            continue
-        
-        for _, gov_head, gov_rel in ret['gov']:
-            for dep_source, _, _ in ret['dep']:
-                dep_source.add_edge(gov_rel, gov_head)
+            ]]})
+        ],
+        [
+            Restriction({"gov": "^((?!root|case).)*$", "name": "gov", "nested":
+            [[
+                Restriction({"no-gov": "rcmod"}),
+                Restriction({"gov": ".*conj.*", "name": "dep", "nested":
+                [[
+                    Restriction({"no-gov": "rcmod"})
+                ]]})
+            ]]})
+        ]]})
+    ]]
+    ret = dict()
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    for _, gov_head, gov_rel in ret['gov']:
+        for dep_source, _, _ in ret['dep']:
+            dep_source.add_edge(gov_rel, gov_head)
 
 
 def conjoined_verb(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [
-        [
-            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested": [[
+    restriction_lists = \
+    [[
+        Restriction({"nested":
+        [[
+            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested":
+            [[
                 Restriction({"no-gov": ".subj"}),
                 Restriction({"gov": "auxpass", "name": "auxpass"})
             ]]}),
             Restriction({"gov": ".subj", "name": "subj"})
         ],
         [
-            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested": [[
+            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested":
+            [[
                 Restriction({"no-gov": ".subj|auxpass"})
             ]]}),
             Restriction({"gov": ".subj", "name": "subj"})
-        ]])
-        if not is_matched:
-            continue
-        
-        for subj_source, _, subj_rel in ret['subj']:
-            for conj_source, _, _ in ret['conj']:
-                # TODO - this could be out into restrictions, but it would be a huge add-up,
-                # so rather stay with this small if statement
-                if subj_rel.endswith("subjpass") and \
-                                subj_source.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
-                    subj_rel = subj_rel[:-4]
-                elif subj_rel.endswith("subj") and "auxpass" in ret:
-                    subj_rel += "pass"
-                
-                subj_source.add_edge(subj_rel, conj_source)
-                # TODO - we need to add the aux relation (as SC say they do but not in the code)
-                #   and the obj relation, which they say they do and also coded, but then commented out...
+        ]]})
+    ]]
+    ret = dict()
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    for subj_source, _, subj_rel in ret['subj']:
+        for conj_source, _, _ in ret['conj']:
+            # TODO - this could be out into restrictions, but it would be a huge add-up,
+            # so rather stay with this small if statement
+            if subj_rel.endswith("subjpass") and \
+                            subj_source.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
+                subj_rel = subj_rel[:-4]
+            elif subj_rel.endswith("subj") and "auxpass" in ret:
+                subj_rel += "pass"
+            
+            subj_source.add_edge(subj_rel, conj_source)
+            # TODO - we need to add the aux relation (as SC say they do but not in the code)
+            #   and the obj relation, which they say they do and also coded, but then commented out...
 
 
 def xcomp_propagation_per_type(sentence, restriction):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [
+    restriction_lists = \
+    [[
+        Restriction({"nested":
+        [
             restriction + [Restriction({"gov": "dobj", "name": "obj"})],
             restriction
-        ])
-        if not is_matched:
-            continue
-        
-        if 'obj' in ret:
-            for obj_source, _, obj_rel in ret['obj']:
-                for _, dep_head, _ in ret['dep']:
-                    if dep_head.get_conllu_field('id') not in obj_source.get_parents_ids():
-                        obj_source.add_edge(obj_rel, dep_head)
-        else:
-            for subj_source, _, subj_rel in ret['subj']:
-                for _, dep_head, _ in ret['dep']:
-                    if dep_head.get_conllu_field('id') not in subj_source.get_parents_ids():
-                        subj_source.add_edge(subj_rel, dep_head)
+        ]})
+    ]]
+    ret = dict()
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    if 'obj' in ret:
+        for obj_source, _, obj_rel in ret['obj']:
+            for _, dep_head, _ in ret['dep']:
+                if dep_head.get_conllu_field('id') not in obj_source.get_parents_ids():
+                    obj_source.add_edge(obj_rel, dep_head)
+    else:
+        for subj_source, _, subj_rel in ret['subj']:
+            for _, dep_head, _ in ret['dep']:
+                if dep_head.get_conllu_field('id') not in subj_source.get_parents_ids():
+                    subj_source.add_edge(subj_rel, dep_head)
 
 
 def xcomp_propagation(sentence):
@@ -292,20 +344,6 @@ def xcomp_propagation(sentence):
         xcomp_propagation_per_type(sentence, xcomp_restriction)
 
 
-def validate_mwe(match_list, node1, node2, node3=None):
-    node3_str = ""
-    node3_follows = True
-    if node3:
-        node3_str = "_" + node3['conllu_info'].form
-        node3_follows = node2['conllu_info'].id == node3['conllu_info'].id - 1
-
-    if (node1['conllu_info'].id == node2['conllu_info'].id - 1) and \
-            node3_follows and \
-            ((node1['conllu_info'].form + "_" + node2['conllu_info'].form + node3_str) in match_list):
-        return True
-    return False
-
-
 def process_simple_2wp(sentence):
     for (cur_id, token) in sentence.items():
         is_matched, ret = match(token, [[
@@ -315,9 +353,7 @@ def process_simple_2wp(sentence):
             Restriction({"gov": "advmod", "name": "advmod", "nested": [[
                 Restriction({"no-gov": ".*"})
             ]]})
-
         ]])
-
         if (not is_matched) or ('case' not in ret):
             continue
 
@@ -386,19 +422,30 @@ def process_complex_2wp(sentence):
 
 
 def process_3wp(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [[
-            Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested": [[
-                Restriction({"gov": "(case|mark)", "name": "w2", "nested": [[
-                    Restriction({"no-gov": ".*"})
-                ]]}),
-            ]]}),
-            Restriction({"gov": "case", "name": "w3", "nested": [[
-                    Restriction({"no-gov": ".*"})
+    for w1_form, w2_form, w3_form in [("^" + part_of_prep + "$" for part_of_prep in three_word_prep.split("_")) for three_word_prep in three_word_preps]:
+        restriction_lists = \
+        [[
+            Restriction({"nested":
+            [[
+                Restriction({"name": "w2", "follows": "w1", "form": w2_form, "nested":
+                [[
+                    Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
+                    [[
+                        Restriction({"gov": "(case|mark)", "name": "w1", "form": w1_form, "nested":
+                        [[
+                            Restriction({"no-gov": ".*"})
+                        ]]}),
+                    ]]}),
+                    Restriction({"gov": "case", "name": "w3", "follows": "w2", "form": w3_form, "nested":
+                    [[
+                        Restriction({"no-gov": ".*"})
+                    ]]})
+                ]]})
             ]]})
-        ]])
-        if not is_matched:
-            continue
+        ]]
+        ret = dict()
+        if not match(sentence.values(), restriction_lists, ret):
+            return
         
         for gov2 in ret['gov2']:
             # create a multiword expression
