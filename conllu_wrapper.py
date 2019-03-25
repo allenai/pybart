@@ -1,5 +1,5 @@
 import configuration as conf
-from token import Token
+import graph_token
 
 
 def exchange_pointers(sentence):
@@ -9,13 +9,10 @@ def exchange_pointers(sentence):
         (dict) The parsed sentence.
     """
     for (cur_id, token) in sentence.items():
-        currents_head = token.get_conllu_info()['head']
+        currents_head = token.get_conllu_field('head')
         
         # only if node isn't root
-        if token.is_root():
-            # add the head as the Token itself
-            token.add_parent(sentence[currents_head])
-            
+        if not token.is_root():
             # add to target head, the current node as child
             sentence[currents_head].add_child(token)
 
@@ -64,7 +61,7 @@ def parse_conllu(text):
             xpos = upos if xpos == '_' else xpos
             
             # add current token to current sentence
-            sentence[int(new_id)] = Token(
+            sentence[int(new_id)] = graph_token.Token(
                     int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
         
         # after parsing entire sentence, exchange information between tokens,
@@ -98,11 +95,9 @@ def serialize_conllu(converted, all_comments):
             for field_name, field in token.get_conllu_info():
                 # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
                 # as required by the format.
-                # check if new_deps has changed for at least one token, otherwise,
-                # check if we want to add it to the output or preserve SC behavior.
-                if field_name == 'deps' and (conf.output_unchanged_deps or token.is_new_deps_changed()):
-                        sorted_new_deps = sorted([(str(a) + ":" + b) for (a, b) in token.get_new_deps_pairs()])
-                        text += "|".join(sorted_new_deps) + '\t'
+                if field_name == 'deps':
+                    sorted_new_deps = sorted([(str(a) + ":" + b) for (a, b) in token.get_new_relations()])
+                    text += "|".join(sorted_new_deps) + '\t'
                 # misc is the last one so he needs a spacial case for the new line character.
                 elif field_name == 'misc':
                     text += str(field) + '\n'
