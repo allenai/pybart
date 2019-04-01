@@ -532,7 +532,7 @@ def demote_quantificational_modifiers_2w(sentence):
         demote_2w_per_type(sentence, rl)
  
 
-def add_ref(sentence):
+def add_ref_and_collapse(sentence):
     child_rest = Restriction({"name": "child_ref", "form": relativizing_word_regex})
     grandchild_rest = \
         Restriction({"nested":
@@ -564,6 +564,10 @@ def add_ref(sentence):
             if (not leftmost) or descendant.get_conllu_field('id') < leftmost.get_conllu_field('id'):
                 leftmost = descendant
         
+        for parent, edge in leftmost.get_new_relations():
+            leftmost.remove_edge(edge, parent)
+            gov.add_edge(edge, parent)
+        
         leftmost.add_edge("ref", gov)
 
 
@@ -590,11 +594,10 @@ def convert_sentence(sentence):
     # addConjInformation
     conj_info(sentence)
     
-    # referent
+    # referent: addRef, collapseReferent
     if conf.enhanced_plus_plus:
-        # addRef
-        add_ref(sentence)
-    
+        add_ref_and_collapse(sentence)
+        
     # treatCC
     conjoined_subj(sentence)
     conjoined_verb(sentence)
