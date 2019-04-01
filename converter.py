@@ -488,7 +488,7 @@ def convert_sentence(sentence):
     
     if conf.enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
-        # process_simple_2wp(sentence)
+        process_simple_2wp(sentence)
         process_complex_2wp(sentence)
         process_3wp(sentence)
     
