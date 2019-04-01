@@ -16,6 +16,9 @@ clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "para
 w2_quant_mod_of_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
 w1_quant_mod_of_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
 w1_quant_mod_of_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
+relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
+
+
 class Restriction(object):
         def __init__(self, dictionary):
             self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
@@ -529,6 +532,41 @@ def demote_quantificational_modifiers_2w(sentence):
         demote_2w_per_type(sentence, rl)
  
 
+def add_ref(sentence):
+    child_rest = Restriction({"name": "child_ref", "form": relativizing_word_regex})
+    grandchild_rest = \
+        Restriction({"nested":
+            [[
+                Restriction({"name": "grand_ref", "form": relativizing_word_regex})
+            ]]})
+    restriction_lists = \
+    [[
+        Restriction({"name": "gov", "nested":
+        [[
+            Restriction({"gov": 'acl:relcl', "nested":
+            [
+                [grandchild_rest, child_rest],
+                [grandchild_rest],
+                [child_rest]
+            ]}),
+        ]]})
+    ]]
+    
+    ret = dict()
+    if not match(sentence.values(), restriction_lists, ret):
+        return
+    
+    for gov, gov_head, gov_rel in ret['gov']:
+        leftmost = None
+        descendants = ([d for d, _, _ in ret['grand_ref']] if 'grand_ref' in ret else []) + \
+                     ([d for d, _, _ in ret['child_ref']] if 'child_ref' in ret else [])
+        for descendant in descendants:
+            if (not leftmost) or descendant.get_conllu_field('id') < leftmost.get_conllu_field('id'):
+                leftmost = descendant
+        
+        leftmost.add_edge("ref", gov)
+
+
 def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
@@ -551,6 +589,11 @@ def convert_sentence(sentence):
     
     # addConjInformation
     conj_info(sentence)
+    
+    # referent
+    if conf.enhanced_plus_plus:
+        # addRef
+        add_ref(sentence)
     
     # treatCC
     conjoined_subj(sentence)
