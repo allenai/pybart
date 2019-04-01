@@ -1,8 +1,14 @@
 ###
 # TODO:
-#   1. what new_deps should be lowercased and lematization
-#   2. more docu!
-#   3. recursive (such as conj)
+#   1. urgent: fix possible BUG in match return object logic
+#   1.1 unify similar code of process_complex_2wp and process_3wp (or other similar ones)
+#   2. what new_deps should be lowercased and lematization
+#   3. more docu! with examples, and explaining the restrictions
+#   4. recursive (such as conj)
+#   5. create good test
+#   6. go through SC and see if stuff needs to be validated by Decision makers
+#   7. finish enhanced++ (only copy nodes!)
+#   8. add your awesome enhanced++++ (bad name)
 ###
 
 import regex as re
@@ -114,8 +120,8 @@ def correct_subj_pass(sentence):
             Restriction({"gov": "^(nsubj|csubj)$", "name": "subj"})
         ]]})
     ]]
-    ret = dict()
     
+    ret = dict()
     if not match(sentence.values(), restriction_lists, ret):
         return
     
@@ -590,6 +596,12 @@ def convert_sentence(sentence):
     prep_patterns(sentence, '^nmod$', 'case')
     if not conf.enhance_only_nmods:
         prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
+    
+    # add copy nodes: expandPPConjunctions, expandPrepConjunctions
+    if conf.enhanced_plus_plus:
+        pass
+        # expand_pp_conjunctions(sentence)
+        # expand_prep_conjunctions
     
     # addConjInformation
     conj_info(sentence)
