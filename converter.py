@@ -8,26 +8,24 @@
 import regex as re
 import configuration as conf
 
-# global states
-tag_counter = 0
-
 # constants
 two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", " prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
 two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
 three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
+w2_of_quant_mod = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
 
 
 class Restriction(object):
         def __init__(self, dictionary):
             self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
-                                "form": None, "xpos": None, "follows": None, "nested": None}
+                                "form": None, "xpos": None, "follows": None, "followed": None, "nested": None}
             self._dictionary.update(dictionary)
         
         def __setitem__(self, key, item):
-                if key not in self._dictionary:
-                    raise KeyError("The key {} is not defined.".format(key))
-                self._dictionary[key] = item
+            if key not in self._dictionary:
+                raise KeyError("The key {} is not defined.".format(key))
+            self._dictionary[key] = item
         
         def __getitem__(self, key):
             return self._dictionary[key]
@@ -35,14 +33,13 @@ class Restriction(object):
 
 # ----------------------------------------- matching functions ----------------------------------- #
 
-def match(children, restriction_lists, given_named_nodes, additional_named_nodes=None, head=None):
+def match(children, restriction_lists, given_named_nodes, head=None):
     for restriction_list in restriction_lists:
-        named_nodes = dict(given_named_nodes)
-        
         one_restriction_violated = False
         for restriction in restriction_list:
             restriction_matched = False
             for child in children:
+                named_nodes = dict(given_named_nodes)
                 if restriction["form"]:
                     if not re.match(restriction["form"], child.get_conllu_field('form')):
                         continue
@@ -63,48 +60,41 @@ def match(children, restriction_lists, given_named_nodes, additional_named_nodes
                     if False in [len(grandchild.match_rel(restriction["no-gov"], child)) == 0 for grandchild in child.get_children()]:
                         continue
                 
-                # this is not really a restriction, but a feature, adding a name to a node.
                 if restriction["nested"]:
-                    inner_additional_named_nodes = {
-                        **({restriction["name"]: [(child, head, rel) for rel in relations]} if restriction["name"] else {}),
-                        **(additional_named_nodes if additional_named_nodes else {})}
                     if not match(
                             child.get_children(),
                             restriction["nested"],
                             named_nodes,
-                            additional_named_nodes=inner_additional_named_nodes,
                             head=child):
                         continue
                 
                 if restriction["follows"]:
-                    if restriction["follows"] in named_nodes.keys():
-                        if len(named_nodes[restriction["follows"]]) > 1:
-                            raise Exception("we never excpect to have someone follow more than one named node")
-                        antecedent = named_nodes[restriction["follows"]][0][0]
-                        if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
-                            continue
-                    elif restriction["follows"] in additional_named_nodes.keys():
-                        if len(additional_named_nodes[restriction["follows"]]) > 1:
-                            raise Exception("we never excpect to have someone follow more than one named node")
-                        antecedent = additional_named_nodes[restriction["follows"]][0][0]
-                        if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
-                            continue
-                    else:
-                        raise ValueError("got wrong type of 'follows' restriction")
+                    if len(named_nodes[restriction["follows"]]) > 1:
+                        raise Exception("we never expect to have someone follow more than one named node")
+                    antecedent = named_nodes[restriction["follows"]][0][0]
+                    if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
+                        continue
+                
+                if restriction["followed"]:
+                    if len(named_nodes[restriction["follows"]]) > 1:
+                        raise Exception("we never expect to have someone been followed by more than one named node")
+                    antecedent = named_nodes[restriction["followed"]][0][0]
+                    if child.get_conllu_field('id') + 1 != antecedent.get_conllu_field('id'):
+                        continue
                 
                 if restriction["name"]:
                     if restriction["name"] in named_nodes:
-                        named_nodes[restriction["name"]] += [(child, head, rel) for rel in relations]
+                        named_nodes[restriction["name"]] += [(child, head, rel) for rel in relations if (child, head, rel) not in named_nodes[restriction["name"]]]
                     else:
                         named_nodes[restriction["name"]] = [(child, head, rel) for rel in relations]
                 restriction_matched = True
+                given_named_nodes.update(named_nodes)
             
             if not restriction_matched:
                 one_restriction_violated = True
                 break
         
         if not one_restriction_violated:
-            given_named_nodes.update(named_nodes)
             return True
     
     return False
@@ -351,7 +341,7 @@ def process_simple_2wp(sentence):
             ]]})
         ]]
         ret = dict()
-        if (not match(sentence.values(), restriction_lists, ret)) or ('case' not in ret):
+        if not match(sentence.values(), restriction_lists, ret):
             continue
         
         for gov, _, _ in ret['gov']:
@@ -360,128 +350,133 @@ def process_simple_2wp(sentence):
                 w2.replace_edge(w2_rel, "mwe", w2_head, w1)
 
 
-def fix_2wp(ret, gov=None):
-    for w1, _, w1_rel in ret['w1']:
-        for gov2, gov2_head, gov2_rel in ret['gov2']:
-            # reattach w1 sons to gov2
-            w1_has_cop_child = False
-            gov2.remove_edge(gov2_rel, w1)
-            for child in w1.get_children():
-                for child_head, child_rel in child.get_new_relations(given_head=w1.get_conllu_field('id')):
-                    if child_rel == "cop":
-                        w1_has_cop_child = True
-                    child.replace_edge(child_rel, child_rel, w1, gov2)
-            
-            # replace gov2's governor
-            if not gov:
-                w1.remove_edge("root", None)
-                gov2.add_edge("root", None)
-            else:
-                # Determine the relation to use.
-                rel = gov2_rel
-                if w1_has_cop_child and (w1_rel in clause_relations):
-                    rel = w1_rel
-                
-                w1.remove_edge(w1_rel, gov)
-                gov2.add_edge(rel, gov)
-            
-            for w2, _, _ in ret['w2']:
-                w2.add_edge("case", gov2)
-                w1.add_edge("mwe", w2)
-
-
 def process_complex_2wp(sentence):
     for two_word_prep in two_word_preps_complex:
         w1_form, w2_form = two_word_prep.split("_")
-        inner_restriction = \
-            Restriction({"name": "w1", "form": "^" + w1_form + "$", "nested":
-            [[
-                Restriction({"gov": "nmod", "name": "gov2", "nested":
+        restriction = \
+            Restriction({"name": "gov", "nested": [[
+                Restriction({"name": "w1", "followed": "w2", "form": "^" + w1_form + "$", "nested":
                 [[
-                    Restriction({"gov": "case", "no-gov": ".*", "name": "w2", "follows": "w1", "form": "^" + w2_form + "$"}),
-                ]]}),
+                    Restriction({"gov": "nmod", "name": "gov2", "nested":
+                    [[
+                        Restriction({"gov": "case", "no-gov": ".*", "name": "w2", "form": "^" + w2_form + "$"}),
+                    ]]}),
+                ]]})
             ]]})
-        restriction_lists = \
-        [
-            [Restriction({"name": "gov", "nested": [[inner_restriction]]})],
-            [inner_restriction]
-        ]
+        
         ret = dict()
-        if not match(sentence.values(), restriction_lists, ret):
+        if not match(sentence.values(), [[restriction]], ret):
             continue
         
-        if "gov" in ret:
-            for gov, _, _ in ret['gov']:
-                fix_2wp(ret, gov)
-        else:
-            fix_2wp(ret)
-
-
-def fix_3wp(ret, gov=None):
-    for w2, _, w2_rel in ret['w2']:
-        for gov2, gov2_head, gov2_rel in ret['gov2']:
-            # reattach w2 sons to gov2
-            gov2.remove_edge(gov2_rel, w2)
-            for child in w2.get_children():
-                for child_head, child_rel in child.get_new_relations(given_head=w2.get_conllu_field('id')):
-                    child.replace_edge(child_rel, child_rel, w2, gov2)
-            
-            # replace gov2's governor
-            case = "case"
-            if not gov:
-                w2.remove_edge("root", None)
-                gov2.add_edge("root", None)
-            else:
-                # Determine the relation to use. If it is a relation that can
-                # join two clauses and w1 is the head of a copular construction,
-                # then use the relation of w1 and its parent. Otherwise use the relation of edge.
-                rel = w2_rel
-                if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
-                    rel = gov2_rel
-                    case = "mark"
-                
-                w2.remove_edge(w2_rel, gov)
-                gov2.add_edge(rel, gov)
-            
-            for w1, _, _ in ret['w1']:
-                w1.add_edge(case, gov2)
-                w2.add_edge("mwe", w1)
-                for w3, w3_head, w3_rel in ret['w3']:
-                    w3.replace_edge(w3_rel, "mwe", w3_head, w1)
+        for gov, _, _ in ret['gov']:
+            for gov2, gov2_head, gov2_rel in ret['gov2']:
+                for w1, _, w1_rel in ret['w1']:
+                    # reattach w1 sons to gov2
+                    w1_has_cop_child = False
+                    gov2.remove_edge()
+                    for child in w1.get_children():
+                        for child_head, child_rel in child.get_new_relations(given_head=w1.get_conllu_field('id')):
+                            if child_rel == "cop":
+                                w1_has_cop_child = True
+                            child.replace_edge(child_rel, child_rel, w1, gov2)
+                    
+                    # Determine the relation to use.
+                    rel = w1_rel if w1_has_cop_child and (w1_rel in clause_relations) else gov2_rel
+                    
+                    # replace gov2's governor
+                    w1.remove_edge(w1_rel, gov)
+                    gov2.replace_edge(gov2_rel, rel, w1, gov)
+                    
+                    w1.remove_all_edges()
+                    w1.add_edge("case", gov2)
+                    for w2, _, _ in ret['w2']:
+                        w2.remove_all_edges()
+                        w2.add_edge("mwe", w1)
 
 
 def process_3wp(sentence):
     for three_word_prep in three_word_preps:
         w1_form, w2_form, w3_form = three_word_prep.split("_")
-        inner_restriction = \
-            Restriction({"name": "w2", "follows": "w1", "form": "^" + w2_form + "$", "nested":
+        restriction = \
+            Restriction({"name": "gov", "nested":
             [[
-                Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
+                Restriction({"name": "w2", "followed":"w3", "follows": "w1", "form": "^" + w2_form + "$", "nested":
                 [[
-                    Restriction({"gov": "(case|mark)", "no-gov": ".*", "name": "w3", "follows": "w2", "form": "^" + w3_form + "$"}),
-                ]]}),
-                Restriction({"gov": "case", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"})
+                    Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
+                    [[
+                        Restriction({"gov": "(case|mark)", "no-gov": ".*", "name": "w3", "form": "^" + w3_form + "$"}),
+                    ]]}),
+                    Restriction({"gov": "case", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"})
+                ]]})
             ]]})
-        restriction_lists = \
-        [
-            [Restriction({"name": "gov", "nested": [[inner_restriction]]})],
-            [inner_restriction]
-        ]
+        
         ret = dict()
-        if not match(sentence.values(), restriction_lists, ret):
+        if not match(sentence.values(), [[restriction]], ret):
             continue
         
-        if "gov" in ret:
-            for gov, _, _ in ret['gov']:
-                fix_3wp(ret, gov)
-        else:
-            fix_3wp(ret)
+        for gov2, gov2_head, gov2_rel in ret['gov2']:
+            for w2, w2_head, w2_rel in ret['w2']:
+                # Determine the relation to use. If it is a relation that can
+                # join two clauses and w1 is the head of a copular construction,
+                # then use the relation of w1 and its parent. Otherwise use the relation of edge.
+                case = "case"
+                rel = w2_rel
+                if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
+                    rel = gov2_rel
+                    case = "mark"
+                
+                gov2.replace_edge(gov2_rel, rel, w2, w2_head)
+                # reattach w2 sons to gov2
+                for child in w2.get_children():
+                    for child_head, child_rel in child.get_new_relations(given_head=w2):
+                        child.replace_edge(child_rel, child_rel, w2, gov2)
+                
+                w2.remove_all_edges()
+                
+                for w1, _, _ in ret['w1']:
+                    w1.remove_all_edges()
+                    w1.add_edge(case, gov2)
+                    w2.add_edge("mwe", w1)
+                    for w3, w3_head, w3_rel in ret['w3']:
+                        w3.remove_all_edges()
+                        w3.add_edge("mwe", w1)
+
+
+def demote_quantificational_modifiers(sentence):
+    restriction = \
+        Restriction({"name": "gov", "nested":
+        [[
+            Restriction({"name": "w2", "no-gov": "amod", "follows": "w3", "form": w2_of_quant_mod, "nested":
+            [[
+                Restriction({"gov": "det", "name": "w1", "form": "(?i:an?)"}),
+                Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
+                [[
+                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w3"})
+                ]]})
+            ]]})
+        ]]})
+    
+    ret = dict()
+    if not match(
+            sentence.values(),
+            [[restriction]],
+            ret):
+        return
+    
+    for gov2, gov2_head, gov2_rel in ret['gov2']:
+        for w1, w1_head, w1_rel in ret['w1']:
+            w1.remove_all_edges()
+            w1.add_edge("det:qmod", gov2)
+            for w2, w2_head, w2_rel in ret['w2']:
+                w2.remove_all_edges()
+                gov2.replace_edge(gov2_rel, w2_rel, gov2_head, w2_head)
+                w2.add_edge("mwe", w1)
+                for w3, w3_head, w3_rel in ret['w3']:
+                    w3.remove_all_edges()
+                    w3.add_edge("mwe", w1)
 
 
 def convert_sentence(sentence):
-    global tag_counter
-    tag_counter = 0
-    
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
@@ -491,6 +486,8 @@ def convert_sentence(sentence):
         process_simple_2wp(sentence)
         process_complex_2wp(sentence)
         process_3wp(sentence)
+        # demoteQuantificationalModifiers
+        #demote_quantificational_modifiers(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)

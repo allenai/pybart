@@ -9,12 +9,14 @@ def exchange_pointers(sentence):
         (dict) The parsed sentence.
     """
     for (cur_id, token) in sentence.items():
+        if cur_id == 0:
+            continue
+        
         currents_head = token.get_conllu_field('head')
         
-        # only if node isn't root
-        if not token.is_root():
-            # add to target head, the current node as child
-            sentence[currents_head].add_child(token)
+        # add the head/relation
+        sentence[cur_id].add_edge(token.get_conllu_field('deprel'),
+                                  sentence[currents_head])
 
 
 def parse_conllu(text):
@@ -64,6 +66,9 @@ def parse_conllu(text):
             sentence[int(new_id)] = graph_token.Token(
                     int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
         
+        # add root
+        sentence[0] = graph_token.Token(0, None, None, None, None, None, None, None, None, None)
+        
         # after parsing entire sentence, exchange information between tokens,
         # and add sentence to output list
         exchange_pointers(sentence)
@@ -91,12 +96,15 @@ def serialize_conllu(converted, all_comments):
                 text += comment + '\n'
         
         for (cur_id, token) in sentence.items():
+            if cur_id == 0:
+                continue
+            
             # add every field of the given token
             for field_name, field in token.get_conllu_info():
                 # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
                 # as required by the format.
                 if field_name == 'deps':
-                    sorted_new_deps = sorted([(str(a) + ":" + b) for (a, b) in token.get_new_relations()])
+                    sorted_new_deps = sorted([(str(a.get_conllu_field('id')) + ":" + b) for (a, b) in token.get_new_relations()])
                     text += "|".join(sorted_new_deps) + '\t'
                 # misc is the last one so he needs a spacial case for the new line character.
                 elif field_name == 'misc':
