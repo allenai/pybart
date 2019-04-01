@@ -42,11 +42,6 @@ def match(children, restriction_lists, given_named_nodes, additional_named_nodes
         
         one_restriction_violated = False
         for restriction in restriction_list:
-            # this is separated, because this is the only restriction type that should be met on all kids
-            if restriction["no-gov"]:
-                if False in [len(child.match_rel(restriction["no-gov"], head)) == 0 for child in children]:
-                    break
-            
             restriction_matched = False
             for child in children:
                 if restriction["form"]:
@@ -62,27 +57,39 @@ def match(children, restriction_lists, given_named_nodes, additional_named_nodes
                     relations = child.match_rel(restriction["gov"], head)
                     if len(relations) == 0:
                         continue
+                elif head:
+                    relations = child.match_rel(".*", head)
+                
+                if restriction["no-gov"]:
+                    if False in [len(grandchild.match_rel(restriction["no-gov"], child)) == 0 for grandchild in child.get_children()]:
+                        continue
                 
                 # this is not really a restriction, but a feature, adding a name to a node.
                 if restriction["nested"]:
-                    additional_named_nodes = {
+                    inner_additional_named_nodes = {
                         **({restriction["name"]: [(child, head, rel) for rel in relations]} if restriction["name"] else {}),
                         **(additional_named_nodes if additional_named_nodes else {})}
                     if not match(
                             child.get_children(),
                             restriction["nested"],
                             named_nodes,
-                            additional_named_nodes=additional_named_nodes,
+                            additional_named_nodes=inner_additional_named_nodes,
                             head=child):
                         continue
                 
                 if restriction["follows"]:
-                    if (restriction["follows"] not in named_nodes.keys()) or \
-                            (child.get_conllu_field('id') - 1 != named_nodes[restriction["follows"]][0].get_conllu_field('id')):
-                        continue
-                    elif (restriction["follows"] not in additional_named_nodes.keys()) or \
-                            (child.get_conllu_field('id') - 1 != additional_named_nodes[restriction["follows"]][0].get_conllu_field('id')):
-                        continue
+                    if restriction["follows"] in named_nodes.keys():
+                        if len(named_nodes[restriction["follows"]]) > 1:
+                            raise Exception("we never excpect to have someone follow more than one named node")
+                        antecedent = named_nodes[restriction["follows"]][0][0]
+                        if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
+                            continue
+                    elif restriction["follows"] in additional_named_nodes.keys():
+                        if len(additional_named_nodes[restriction["follows"]]) > 1:
+                            raise Exception("we never excpect to have someone follow more than one named node")
+                        antecedent = additional_named_nodes[restriction["follows"]][0][0]
+                        if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
+                            continue
                     else:
                         raise ValueError("got wrong type of 'follows' restriction")
                 
@@ -226,7 +233,7 @@ def conjoined_subj(sentence):
         [[
             Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested":
             [[
-                # TODO - I don't fully understand why SC decided to add this rcmod condition, and I belive they have a bug:
+                # TODO - I don't fully understand why SC decided to add this rcmod condition, and I believe they have a bug:
                 #   (rcmodHeads.contains(gov) && rcmodHeads.contains(dep)) should be ||, and so I coded.
                 Restriction({"gov": "rcmod"}),
                 Restriction({"gov": ".*conj.*", "name": "dep"})
@@ -239,13 +246,9 @@ def conjoined_subj(sentence):
             ]]})
         ],
         [
-            Restriction({"gov": "^((?!root|case).)*$", "name": "gov", "nested":
+            Restriction({"gov": "^((?!root|case).)*$", "no-gov": "rcmod", "name": "gov", "nested":
             [[
-                Restriction({"no-gov": "rcmod"}),
-                Restriction({"gov": ".*conj.*", "name": "dep", "nested":
-                [[
-                    Restriction({"no-gov": "rcmod"})
-                ]]})
+                Restriction({"gov": ".*conj.*", "no-gov": "rcmod", "name": "dep"})
             ]]})
         ]]})
     ]]
@@ -263,18 +266,14 @@ def conjoined_verb(sentence):
     [[
         Restriction({"nested":
         [[
-            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested":
+            Restriction({"gov": "conj", "no-gov": ".subj", "name": "conj", "xpos": "(VB|JJ)", "nested":
             [[
-                Restriction({"no-gov": ".subj"}),
                 Restriction({"gov": "auxpass", "name": "auxpass"})
             ]]}),
             Restriction({"gov": ".subj", "name": "subj"})
         ],
         [
-            Restriction({"gov": "conj", "name": "conj", "xpos": "(VB|JJ)", "nested":
-            [[
-                Restriction({"no-gov": ".subj|auxpass"})
-            ]]}),
+            Restriction({"gov": "conj", "no-gov": ".subj|auxpass", "name": "conj", "xpos": "(VB|JJ)"}),
             Restriction({"gov": ".subj", "name": "subj"})
         ]]})
     ]]
@@ -325,16 +324,13 @@ def xcomp_propagation_per_type(sentence, restriction):
 def xcomp_propagation(sentence):
     to_xcomp_rest = \
         [
-            Restriction({"gov": "xcomp", "name": "dep", "form": "^(?i:to)$", "nested": [[
-                Restriction({"no-gov": "nsubj.*"}),
-                Restriction({"no-gov": "^(aux|mark)$"})
-            ]]}),
+            Restriction({"gov": "xcomp", "no-gov": "^(nsubj.*|aux|mark)$", "name": "dep", "form": "^(?i:to)$"}),
             Restriction({"gov": "nsubj.*", "name": "subj"}),
         ]
     basic_xcomp_rest = \
          [
-            Restriction({"gov": "xcomp", "name": "dep", "form": "(?!(^(?i:to)$)).", "nested": [[
-                Restriction({"no-gov": "nsubj.*"}),
+            Restriction({"gov": "xcomp", "no-gov": "nsubj.*", "name": "dep", "form": "(?!(^(?i:to)$)).", "nested":
+            [[
                 Restriction({"gov": "^(aux|mark)$"})
             ]]}),
             Restriction({"gov": "nsubj.*", "name": "subj"}),
@@ -370,123 +366,122 @@ def process_simple_2wp(sentence):
                     add_edge(case2, "mwe", head=case1['conllu_info'].id, replace_deprel=True)
 
 
+def fix_2wp(ret, gov=None):
+    for w1, _, w1_rel in ret['w1']:
+        for gov2, gov2_head, gov2_rel in ret['gov2']:
+            # reattach w1 sons to gov2
+            w1_has_cop_child = False
+            gov2.remove_edge(gov2_rel, w1)
+            for child in w1.get_children():
+                for child_head, child_rel in child.get_new_relations(given_head=w1.get_conllu_field('id')):
+                    if child_rel == "cop":
+                        w1_has_cop_child = True
+                    child.replace_edge(child_rel, child_rel, w1, gov2)
+            
+            # replace gov2's governor
+            if not gov:
+                w1.remove_edge("root", None)
+                gov2.add_edge("root", None)
+            else:
+                # Determine the relation to use.
+                rel = gov2_rel
+                if w1_has_cop_child and (w1_rel in clause_relations):
+                    rel = w1_rel
+                
+                w1.remove_edge(w1_rel, gov)
+                gov2.add_edge(rel, gov)
+            
+            for w2, _, _ in ret['w2']:
+                w2.add_edge("case", gov2)
+                w1.add_edge("mwe", w2)
+
+
 def process_complex_2wp(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [[
-            Restriction({"gov": "nmod", "name": "gov2", "nested": [[
-                Restriction({"gov": "case", "name": "w2", "nested": [[
-                    Restriction({"no-gov": ".*"})
+    for two_word_prep in two_word_preps_complex:
+        w1_form, w2_form = two_word_prep.split("_")
+        inner_restriction = \
+            Restriction({"name": "w1", "form": "^" + w1_form + "$", "nested":
+            [[
+                Restriction({"gov": "nmod", "name": "gov2", "nested":
+                [[
+                    Restriction({"gov": "case", "no-gov": ".*", "name": "w2", "follows": "w1", "form": "^" + w2_form + "$"}),
                 ]]}),
-            ]]}),
-            Restriction({"no-gov": "case"})
-        ]])
-        if not is_matched:
+            ]]})
+        restriction_lists = \
+        [
+            [Restriction({"name": "gov", "nested": [[inner_restriction]]})],
+            [inner_restriction]
+        ]
+        ret = dict()
+        if not match(sentence.values(), restriction_lists, ret):
             continue
         
-        for gov2 in ret['gov2']:
-            # create a multiword expression
-            found_valid_mw2 = False
-            for w2 in ret['w2']:
-                if validate_mwe(two_word_preps_complex, token, w2):
-                    add_edge(w2, "mwe", head=case1['conllu_info'].id, replace_deprel=True)
-                    found_valid_mw2 = True
+        if "gov" in ret:
+            for gov, _, _ in ret['gov']:
+                fix_2wp(ret, gov)
+        else:
+            fix_2wp(ret)
 
-            if not found_valid_mw2:
-                continue
 
-            # reattach w1 sons to gov2
-            w1_has_cop_child  = False
-            for child in token.get_children():
-                if child['conllu_info'].deprel == "cop":
-                    w1_has_cop_child = True
-                # TODO - this is not fully correct. in SC they replace either in deprel or deps, depending on where it is attached to w1
-                #   so maybe we need to store new childs when we add edges! and then use it here?
-                # TODO - also we might overrun previous addings, as we only change the deprel and not really adding.
-                #   consider - always adding to the deps instead
-                add_edge(child, gov2['conllu_info'].deprel, head=gov2['conllu_info'].head, replace_deprel=True)
-
+def fix_3wp(ret, gov=None):
+    for w2, _, w2_rel in ret['w2']:
+        for gov2, gov2_head, gov2_rel in ret['gov2']:
+            # reattach w2 sons to gov2
+            gov2.remove_edge(gov2_rel, w2)
+            for child in w2.get_children():
+                for child_head, child_rel in child.get_new_relations(given_head=w2.get_conllu_field('id')):
+                    child.replace_edge(child_rel, child_rel, w2, gov2)
+            
             # replace gov2's governor
-            if token['conllu_info'].head == 0:
-                add_edge(gov2, "root", head=0, replace_deprel=True)
+            case = "case"
+            if not gov:
+                w2.remove_edge("root", None)
+                gov2.add_edge("root", None)
             else:
                 # Determine the relation to use. If it is a relation that can
                 # join two clauses and w1 is the head of a copular construction,
                 # then use the relation of w1 and its parent. Otherwise use the relation of edge.
-                rel = gov2['conllu_info'].deprel
-                if (token['conllu_info'].deprel in clause_relations) and w1_has_cop_child:
-                    rel = token['conllu_info'].deprel
-                add_edge(gov2, rel, head=token['conllu_info'].head, replace_deprel=True)
-
-            # finish creating a multiword expression
-            add_edge(token, "case", head=gov2['conllu_info'].id, replace_deprel=True)
+                rel = w2_rel
+                if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
+                    rel = gov2_rel
+                    case = "mark"
+                
+                w2.remove_edge(w2_rel, gov)
+                gov2.add_edge(rel, gov)
+            
+            for w1, _, _ in ret['w1']:
+                w1.add_edge(case, gov2)
+                w2.add_edge("mwe", w1)
+                for w3, w3_head, w3_rel in ret['w3']:
+                    w3.replace_edge(w3_rel, "mwe", w3_head, w1)
 
 
 def process_3wp(sentence):
-    for w1_form, w2_form, w3_form in [("^" + part_of_prep + "$" for part_of_prep in three_word_prep.split("_")) for three_word_prep in three_word_preps]:
-        restriction_lists = \
-        [[
-            Restriction({"nested":
+    for three_word_prep in three_word_preps:
+        w1_form, w2_form, w3_form = three_word_prep.split("_")
+        inner_restriction = \
+            Restriction({"name": "w2", "follows": "w1", "form": "^" + w2_form + "$", "nested":
             [[
-                Restriction({"name": "w2", "follows": "w1", "form": w2_form, "nested":
+                Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
                 [[
-                    Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
-                    [[
-                        Restriction({"gov": "(case|mark)", "name": "w1", "form": w1_form, "nested":
-                        [[
-                            Restriction({"no-gov": ".*"})
-                        ]]}),
-                    ]]}),
-                    Restriction({"gov": "case", "name": "w3", "follows": "w2", "form": w3_form, "nested":
-                    [[
-                        Restriction({"no-gov": ".*"})
-                    ]]})
-                ]]})
+                    Restriction({"gov": "(case|mark)", "no-gov": ".*", "name": "w3", "follows": "w2", "form": "^" + w3_form + "$"}),
+                ]]}),
+                Restriction({"gov": "case", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"})
             ]]})
-        ]]
+        restriction_lists = \
+        [
+            [Restriction({"name": "gov", "nested": [[inner_restriction]]})],
+            [inner_restriction]
+        ]
         ret = dict()
         if not match(sentence.values(), restriction_lists, ret):
-            return
+            continue
         
-        for gov2 in ret['gov2']:
-            # create a multiword expression
-            found_valid_mw3 = False
-            for w2 in ret['w2']:
-                for w3 in ret['w3']:
-                    if validate_mwe(three_word_preps, w3, token, w2):
-                        add_edge(w2, "mwe", head=case1['conllu_info'].id, replace_deprel=True)
-                        add_edge(w3, "mwe", head=case1['conllu_info'].id, replace_deprel=True)
-                        found_valid_mw3 = True
-
-            if not found_valid_mw3:
-                continue
-
-            # reattach w1 sons to gov2
-            w1_has_cop_child  = False
-            for child in token.get_children():
-                if child['conllu_info'].deprel == "cop":
-                    w1_has_cop_child = True
-                # TODO - this is not fully correct. in SC they replace either in deprel or deps, depending on where it is attached to w1
-                #   so maybe we need to store new childs when we add edges! and then use it here?
-                # TODO - also we might overrun previous addings, as we only change the deprel and not really adding.
-                #   consider - always adding to the deps instead. this is true for many addings here
-                add_edge(child, gov2['conllu_info'].deprel, head=gov2['conllu_info'].head, replace_deprel=True)
-
-            # replace gov2's governor
-            case = "case"
-            if token['conllu_info'].head == 0:
-                add_edge(gov2, "root", head=0, replace_deprel=True)
-            else:
-                # Determine the relation to use. If it is a relation that can
-                # join two clauses and w1 is the head of a copular construction,
-                # then use the relation of w1 and its parent. Otherwise use the relation of edge.
-                rel = token['conllu_info'].deprel
-                if (token['conllu_info'].deprel == "nmod") and (gov2['conllu_info'].deprel in ["acl", "advcl"]):
-                    rel = gov2['conllu_info'].deprel
-                    case = "mark"
-                add_edge(gov2, rel, head=token['conllu_info'].head, replace_deprel=True)
-
-            # finish creating a multiword expression
-            add_edge(token, case, head=gov2['conllu_info'].id, replace_deprel=True)
+        if "gov" in ret:
+            for gov, _, _ in ret['gov']:
+                fix_3wp(ret, gov)
+        else:
+            fix_3wp(ret)
 
 
 def convert_sentence(sentence):
@@ -497,11 +492,11 @@ def convert_sentence(sentence):
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
-    # if conf.enhanced_plus_plus:
-    #     # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
-    #     process_simple_2wp(sentence)
-    #     process_complex_2wp(sentence)
-    #     process_3wp(sentence)
+    if conf.enhanced_plus_plus:
+        # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
+        # process_simple_2wp(sentence)
+        process_complex_2wp(sentence)
+        process_3wp(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
