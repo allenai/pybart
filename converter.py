@@ -1,9 +1,8 @@
 ###
 # TODO:
 #   1. what new_deps should be lowercased and lematization
-#   2. where should we fix the deprel instead of deps
-#   3. more docu!
-#   4. recursive (such as conj)
+#   2. more docu!
+#   3. recursive (such as conj)
 ###
 
 import regex as re
@@ -341,29 +340,24 @@ def xcomp_propagation(sentence):
 
 
 def process_simple_2wp(sentence):
-    for (cur_id, token) in sentence.items():
-        is_matched, ret = match(token, [[
-            Restriction({"gov": "case", "name": "case", "nested": [[
-                Restriction({"no-gov": ".*"})
-            ]]}),
-            Restriction({"gov": "advmod", "name": "advmod", "nested": [[
-                Restriction({"no-gov": ".*"})
+    for two_word_prep in two_word_preps_regular:
+        w1_form, w2_form = two_word_prep.split("_")
+        restriction_lists = \
+        [[
+            Restriction({"name": "gov", "nested":
+            [[
+                Restriction({"gov": "(case|advmod)", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"}),
+                Restriction({"gov": "case", "no-gov": ".*", "follows": "w1", "name": "w2", "form": "^" + w2_form + "$"})
             ]]})
-        ]])
-        if (not is_matched) or ('case' not in ret):
+        ]]
+        ret = dict()
+        if (not match(sentence.values(), restriction_lists, ret)) or ('case' not in ret):
             continue
-
-        if 'advmod' in ret:
-            for advmod in ret['advmod']:
-                for case in ret['case']:
-                    if validate_mwe(two_word_preps_regular, advmod, case):
-                        add_edge(advmod, "case", replace_deprel=True)
-                        add_edge(case, "mwe", head=token['conllu_info'].id, replace_deprel=True)
-        for case1 in ret['case']:
-            for case2 in ret['case']:
-                if validate_mwe(two_word_preps_regular, case1, case2):
-                    add_edge(case1, "case", replace_deprel=True)
-                    add_edge(case2, "mwe", head=case1['conllu_info'].id, replace_deprel=True)
+        
+        for gov, _, _ in ret['gov']:
+            for (w1, w1_head, w1_rel), (w2, w2_head, w2_rel) in zip(ret['w1'], ret['w2']):
+                w1.replace_edge(w1_rel, "case", w1_head, w1_head)
+                w2.replace_edge(w2_rel, "mwe", w2_head, w1)
 
 
 def fix_2wp(ret, gov=None):
