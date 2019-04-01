@@ -13,9 +13,9 @@ two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_fr
 two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
 three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
-w2_of_quant_mod = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
-
-
+w2_quant_mod_of_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
+w1_quant_mod_of_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
+w1_quant_mod_of_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
 class Restriction(object):
         def __init__(self, dictionary):
             self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
@@ -442,11 +442,11 @@ def process_3wp(sentence):
                         w3.add_edge("mwe", w1)
 
 
-def demote_quantificational_modifiers(sentence):
+def demote_quantificational_modifiers_3w(sentence):
     restriction = \
         Restriction({"name": "gov", "nested":
         [[
-            Restriction({"name": "w2", "no-gov": "amod", "follows": "w3", "form": w2_of_quant_mod, "nested":
+            Restriction({"name": "w2", "no-gov": "amod", "follows": "w3", "form": w2_quant_mod_of_3w, "nested":
             [[
                 Restriction({"gov": "det", "name": "w1", "form": "(?i:an?)"}),
                 Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
@@ -476,6 +476,59 @@ def demote_quantificational_modifiers(sentence):
                     w3.add_edge("mwe", w1)
 
 
+def demote_2w_per_type(sentence, rl):
+    ret = dict()
+    if not match(
+            sentence.values(),
+            [[rl]],
+            ret):
+        return
+    
+    for gov2, gov2_head, gov2_rel in ret['gov2']:
+        for w1, w1_head, w1_rel in ret['w1']:
+            w1.remove_all_edges()
+            gov2.replace_edge(gov2_rel, w1_rel, gov2_head, w1_head)
+            w1.add_edge("det:qmod", gov2)
+            for w2, w2_head, w2_rel in ret['w2']:
+                w2.remove_all_edges()
+                w2.add_edge("mwe", w1)
+
+
+def demote_quantificational_modifiers_2w(sentence):
+    restriction = \
+        Restriction({"name": "gov", "nested":
+        [[
+            Restriction({"name": "w1", "followed": "w2", "form": w1_quant_mod_of_2w, "nested":
+            [[
+                Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
+                [[
+                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w2"})
+                ]]})
+            ]]})
+        ]]})
+    restriction_det = \
+        Restriction({"name": "gov", "nested":
+        [[
+            Restriction({"name": "w1", "followed": "w2", "form": w1_quant_mod_of_2w_det, "nested":
+            [[
+                Restriction({"gov": "nmod", "xpos": "(NN.*)", "name": "gov2", "nested":
+                [[
+                    Restriction({"gov": "det", "name": "det"}),
+                    Restriction({"gov": "case", "followed": "det", "form": "(?i:of)", "name": "w2"})
+                ]]})
+            ],
+            [
+                Restriction({"gov": "nmod", "xpos": "(PRP.*)", "name": "gov2", "nested":
+                [[
+                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w2"})
+                ]]})
+            ]]})
+        ]]})
+    
+    for rl in [restriction, restriction_det]:
+        demote_2w_per_type(sentence, rl)
+ 
+
 def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
@@ -487,7 +540,8 @@ def convert_sentence(sentence):
         process_complex_2wp(sentence)
         process_3wp(sentence)
         # demoteQuantificationalModifiers
-        #demote_quantificational_modifiers(sentence)
+        demote_quantificational_modifiers_3w(sentence)
+        demote_quantificational_modifiers_2w(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
