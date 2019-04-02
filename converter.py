@@ -194,12 +194,11 @@ def prep_patterns(sentence, first_gov, second_gov):
     if not match(sentence.values(), restriction_lists, ret):
         return
     
-    for gov_source, _, _ in ret['gov']:
-        for mod_source, mod_head, mod_rel in ret['mod']:
-            strs_to_add = build_strings_to_add(ret)
-            mod_source.remove_edge(mod_rel, mod_head)
-            for str_to_add in strs_to_add:
-                mod_source.add_edge(mod_rel + ":" + str_to_add.lower(), gov_source)
+    for mod_source, mod_head, mod_rel in ret['mod']:
+        strs_to_add = build_strings_to_add(ret)
+        mod_source.remove_edge(mod_rel, mod_head)
+        for str_to_add in strs_to_add:
+            mod_source.add_edge(mod_rel + ":" + str_to_add.lower(), mod_head)
 
 
 # Adds the type of conjunction to all conjunct relations
@@ -580,16 +579,16 @@ def add_ref_and_collapse(sentence):
 def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
-    correct_subj_pass(sentence)
-    
-    if conf.enhanced_plus_plus:
-        # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
-        process_simple_2wp(sentence)
-        process_complex_2wp(sentence)
-        process_3wp(sentence)
-        # demoteQuantificationalModifiers
-        demote_quantificational_modifiers_3w(sentence)
-        demote_quantificational_modifiers_2w(sentence)
+    # correct_subj_pass(sentence)
+    #
+    # if conf.enhanced_plus_plus:
+    #     # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
+    #     process_simple_2wp(sentence)
+    #     process_complex_2wp(sentence)
+    #     process_3wp(sentence)
+    #     # demoteQuantificationalModifiers
+    #     demote_quantificational_modifiers_3w(sentence)
+    #     demote_quantificational_modifiers_2w(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
