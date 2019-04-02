@@ -216,11 +216,13 @@ def conj_info(sentence):
         return
     
     cur_form = None
-    for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
+    for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
+            sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
         if cc_or_conj_rel == "cc":
             cur_form = cc_or_conj_source.get_conllu_field('form')
         else:
-            cc_or_conj_source.replace_edge(cc_or_conj_rel, cc_or_conj_rel + ":" + cur_form, cc_or_conj_head, cc_or_conj_head)
+            cc_or_conj_source.replace_edge(
+                cc_or_conj_rel, cc_or_conj_rel + ":" + cur_form, cc_or_conj_head, cc_or_conj_head)
 
 
 def conjoined_subj(sentence):
@@ -576,6 +578,60 @@ def add_ref_and_collapse(sentence):
         leftmost.add_edge("ref", gov)
 
 
+# Expands prepositions with conjunctions such as in the sentence
+# "Bill flies to and from Serbia." by copying the verb resulting
+# in the following relations:
+#   conj:and(flies, flies') # new
+#   cc(to, and)
+#   conj(to, from)
+#   case(Serbia, to)
+#   nmod(flies, Serbia)
+#   nmod(flies', Serbia) # new
+# The label of the conjunct relation includes the conjunction type
+# because if the verb has multiple cc relations then it can be impossible
+# to infer which coordination marker belongs to which conjuncts.
+def expand_prep_conjunctions(sentence):
+    rl = [[Restriction({"nested": [[
+            Restriction({"nested": [[
+                Restriction({"gov": "case", "name": "gov", "nested": [[
+                    Restriction({"gov": "cc", "name": "cc"}),
+                    Restriction({"gov": "conj", "name": "conj"})
+                ]]})
+            ]]})
+        ]]})
+    ]]
+    ret = dict()
+    
+    if not match(sentence.values(), rl, ret):
+        return
+    for gov, _, _ in ret['gov']:
+        cur_form = None
+        i = 0
+        # sort the cc's and conj's found and iterate them
+        # TODO - some of this code was copied from conj_info and from expand_pp_conjunctions - try to share code
+        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
+                sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
+            if cc_or_conj_rel == "cc":
+                # save cc's form
+                cur_form = cc_or_conj_source.get_conllu_field('form')
+            else:
+                # per parent per grandpa: copy the grandpa and:
+                # add conj:'cc_form'(grandpa, copy_node)
+                # add 'rel':'conj_form'(copy_node, parent)
+                i += 1
+                for parent, _ in gov.get_new_relations():
+                    for grandpa, grandpa_rel in parent.get_new_relations():
+                        new_id = grandpa.get_conllu_field('id') + (0.1 * i)
+                        copy_node = grandpa.copy(
+                            new_id=new_id,
+                            head="_",
+                            deprel="_",
+                            misc="CopyOf=%d" % grandpa.get_conllu_field('id'))
+                        parent.add_edge(grandpa_rel + ":" + cc_or_conj_source.get_conllu_field('form'), copy_node)
+                        copy_node.add_edge("conj:" + cur_form, grandpa)
+                        sentence[new_id] = copy_node
+
+
 # Expands PPs with conjunctions such as in the sentence
 # "Bill flies to France and from Serbia." by copying the verb
 # that governs the prepositional phrase resulting in the following
@@ -605,7 +661,6 @@ def expand_pp_conjunctions(sentence):
     ]]
     
     ret = dict()
-    
     if not match(sentence.values(), rl, ret):
         return
     
@@ -613,22 +668,24 @@ def expand_pp_conjunctions(sentence):
         cur_form = None
         i = 0
         # sort the cc's and conj's found and iterate them
-        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
+        # TODO - some of this code was copied from conj_info - try to share code
+        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
+                sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
             if cc_or_conj_rel == "cc":
-                # save cc's form and remove 'gov' -cc-> 'cc'
+                # save cc's form and remove cc('gov', 'cc')
                 cur_form = cc_or_conj_source.get_conllu_field('form')
                 cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
                 
-                # per parent add 'to_copy' -cc-> cc
+                # per parent add cc('to_copy', cc)
                 for to_copy, rel in gov.get_new_relations():
                     cc_or_conj_source.add_edge("cc", to_copy)
             
             else:
-                # remove 'gov' -conj-> 'conj'
+                # remove conj('gov', 'conj')
                 cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
                 
                 # per parent: create a copy node for the parent,
-                # copy_node -rel-> 'conj', add 'to_copy' -conj:cc_info-> copy_node
+                # rel(copy_node,'conj'), add conj:cc_info('to_copy', copy_node)
                 i += 1
                 for to_copy, rel in gov.get_new_relations():
                     new_id = to_copy.get_conllu_field('id') + (0.1 * i)
@@ -657,7 +714,7 @@ def convert_sentence(sentence):
         demote_quantificational_modifiers_2w(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
         expand_pp_conjunctions(sentence)
-        # expand_prep_conjunctions
+        expand_prep_conjunctions(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
