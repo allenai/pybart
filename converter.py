@@ -208,7 +208,7 @@ def conj_info(sentence):
         Restriction({"nested":
         [[
             Restriction({"gov": "cc", "name": "cc"}),
-            Restriction({"gov": "conj", "name": "conj"})
+            Restriction({"gov": "^conj$", "name": "conj"})
         ]]})
     ]]
     ret = dict()
@@ -576,6 +576,72 @@ def add_ref_and_collapse(sentence):
         leftmost.add_edge("ref", gov)
 
 
+# Expands PPs with conjunctions such as in the sentence
+# "Bill flies to France and from Serbia." by copying the verb
+# that governs the prepositional phrase resulting in the following
+# relations:
+#   conj:and(flies, flies') # new
+#   case(France, to)
+#   cc(flies, and) # new
+#   case(Serbia, from)
+#   nmod(flies, France)
+#   nmod(flies', Serbia) # new
+# while those where removed:
+#   cc(France-4, and-5)
+#   conj(France-4, Serbia-7)
+# The label of the conjunct relation includes the conjunction type
+# because if the verb has multiple cc relations then it can be impossible
+# to infer which coordination marker belongs to which conjuncts.
+def expand_pp_conjunctions(sentence):
+    rl = [[Restriction({"nested": [[
+            Restriction({"gov": "^(nmod|acl|advcl)$", "name": "gov", "nested": [[
+                Restriction({"gov": "case"}),
+                Restriction({"gov": "cc", "name": "cc"}),
+                Restriction({"gov": "conj", "name": "conj", "nested": [[
+                    Restriction({"gov": "case"})
+                ]]})
+            ]]})
+        ]]})
+    ]]
+    
+    ret = dict()
+    
+    if not match(sentence.values(), rl, ret):
+        return
+    
+    for gov, _, _ in ret['gov']:
+        cur_form = None
+        i = 0
+        # sort the cc's and conj's found and iterate them
+        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
+            if cc_or_conj_rel == "cc":
+                # save cc's form and remove 'gov' -cc-> 'cc'
+                cur_form = cc_or_conj_source.get_conllu_field('form')
+                cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
+                
+                # per parent add 'to_copy' -cc-> cc
+                for to_copy, rel in gov.get_new_relations():
+                    cc_or_conj_source.add_edge("cc", to_copy)
+            
+            else:
+                # remove 'gov' -conj-> 'conj'
+                cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
+                
+                # per parent: create a copy node for the parent,
+                # copy_node -rel-> 'conj', add 'to_copy' -conj:cc_info-> copy_node
+                i += 1
+                for to_copy, rel in gov.get_new_relations():
+                    new_id = to_copy.get_conllu_field('id') + (0.1 * i)
+                    copy_node = to_copy.copy(
+                        new_id=new_id,
+                        head="_",
+                        deprel="_",
+                        misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
+                    cc_or_conj_source.add_edge(rel, copy_node)
+                    copy_node.add_edge("conj:" + cur_form, to_copy)
+                    sentence[new_id] = copy_node
+
+
 def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
@@ -589,18 +655,15 @@ def convert_sentence(sentence):
         # demoteQuantificationalModifiers
         demote_quantificational_modifiers_3w(sentence)
         demote_quantificational_modifiers_2w(sentence)
+        # add copy nodes: expandPPConjunctions, expandPrepConjunctions
+        expand_pp_conjunctions(sentence)
+        # expand_prep_conjunctions
     
     # addCaseMarkerInformation
     passive_agent(sentence)
     prep_patterns(sentence, '^nmod$', 'case')
     if not conf.enhance_only_nmods:
         prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
-    
-    # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-    if conf.enhanced_plus_plus:
-        pass
-        # expand_pp_conjunctions(sentence)
-        # expand_prep_conjunctions
     
     # addConjInformation
     conj_info(sentence)

@@ -95,7 +95,8 @@ def serialize_conllu(converted, all_comments):
             for comment in comments:
                 text += comment + '\n'
         
-        for (cur_id, token) in sentence.items():
+        # TODO - fix case of more than 9 copy nodes - needs special ordering
+        for (cur_id, token) in sorted(sentence.items()):
             if cur_id == 0:
                 continue
             
@@ -104,8 +105,8 @@ def serialize_conllu(converted, all_comments):
                 # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
                 # as required by the format.
                 if field_name == 'deps':
-                    sorted_new_deps = sorted([(str(a.get_conllu_field('id')) + ":" + b) for (a, b) in token.get_new_relations()])
-                    text += "|".join(sorted_new_deps) + '\t'
+                    sorted_new_deps = sorted(token.get_new_relations())
+                    text += "|".join([str(a.get_conllu_field('id')) + ":" + b for (a, b) in sorted_new_deps]) + '\t'
                 # misc is the last one so he needs a spacial case for the new line character.
                 elif field_name == 'misc':
                     text += str(field) + '\n'

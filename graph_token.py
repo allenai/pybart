@@ -9,6 +9,19 @@ class Token(object):
         self._children_list = []
         self._new_deps = dict()
     
+    def copy(self, new_id=None, form=None, lemma=None, upos=None, xpos=None, feats=None, head=None, deprel=None, deps=None, misc=None):
+        new_id_copy, form_copy, lemma_copy, upos_copy, xpos_copy, feats_copy, head_copy, deprel_copy, deps_copy, misc_copy = self._conllu_info.values()
+        return Token(new_id if new_id else new_id_copy,
+                     form if form else form_copy,
+                     lemma if lemma else lemma_copy,
+                     upos if upos else upos_copy,
+                     xpos if xpos else xpos_copy,
+                     feats if feats else feats_copy,
+                     head if head else head_copy,
+                     deprel if deprel else deprel_copy,
+                     deps if deps else deps_copy,
+                     misc if misc else misc_copy)
+    
     def add_child(self, child):
         self._children_list.append(child)
     
@@ -23,7 +36,7 @@ class Token(object):
     
     def get_conllu_field(self, field):
         return self._conllu_info[field]
-
+    
     def is_root(self):
         # TODO - maybe we want to validate here (or/and somewhere else) that the root is an only parent
         return 0 in [parent.get_conllu_field('id') for parent in self.get_parents()]
@@ -74,3 +87,6 @@ class Token(object):
     def replace_edge(self, old_rel, new_rel, old_head, new_head):
         self.remove_edge(old_rel, old_head)
         self.add_edge(new_rel, new_head)
+    
+    def __lt__(self, other):
+        return self.get_conllu_field('id') < other.get_conllu_field('id')
