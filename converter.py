@@ -125,8 +125,10 @@ def correct_subj_pass(sentence):
     if not match(sentence.values(), restriction_lists, ret):
         return
     
+    # rewrite graph: for every subject add a 'pass' and replace in graph node
     for subj_source, subj_head, subj_rel in ret['subj']:
-        subj_source.replace_edge(subj_rel, re.sub("subj", "subjpass", subj_rel), subj_head, subj_head)
+        substitute_rel = re.sub("subj", "subjpass", subj_rel)
+        subj_source.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
 
 
 # add 'agent' to nmods
