@@ -579,16 +579,16 @@ def add_ref_and_collapse(sentence):
 def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
-    # correct_subj_pass(sentence)
-    #
-    # if conf.enhanced_plus_plus:
-    #     # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
-    #     process_simple_2wp(sentence)
-    #     process_complex_2wp(sentence)
-    #     process_3wp(sentence)
-    #     # demoteQuantificationalModifiers
-    #     demote_quantificational_modifiers_3w(sentence)
-    #     demote_quantificational_modifiers_2w(sentence)
+    correct_subj_pass(sentence)
+
+    if conf.enhanced_plus_plus:
+        # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
+        process_simple_2wp(sentence)
+        process_complex_2wp(sentence)
+        process_3wp(sentence)
+        # demoteQuantificationalModifiers
+        demote_quantificational_modifiers_3w(sentence)
+        demote_quantificational_modifiers_2w(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
