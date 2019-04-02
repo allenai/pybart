@@ -42,8 +42,7 @@ class Token(object):
         return 0 in [parent.get_conllu_field('id') for parent in self.get_parents()]
     
     def get_parents(self):
-        new_deps_pairs = self.get_new_relations()
-        return [head for (head, edge) in new_deps_pairs]
+        return self._new_deps.keys()
     
     def get_new_relations(self, given_head=None):
         new_deps_pairs = []
