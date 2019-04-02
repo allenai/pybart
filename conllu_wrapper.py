@@ -2,8 +2,8 @@ import configuration as conf
 import graph_token
 
 
-def exchange_pointers(sentence):
-    """Purpose: adds each node to its corresponding parents "children_list".
+def add_basic_edges(sentence):
+    """Purpose: adds each basic deprel relation and the relevant father to its son.
     
     Args:
         (dict) The parsed sentence.
@@ -12,11 +12,9 @@ def exchange_pointers(sentence):
         if cur_id == 0:
             continue
         
-        currents_head = token.get_conllu_field('head')
-        
-        # add the head/relation
+        # add the relation
         sentence[cur_id].add_edge(token.get_conllu_field('deprel'),
-                                  sentence[currents_head])
+                                  sentence[token.get_conllu_field('head')])
 
 
 def parse_conllu(text):
@@ -36,13 +34,16 @@ def parse_conllu(text):
 ]    """
     sentences = []
     all_comments = []
+    
+    # for each sentence
     for sent in text.strip().split('\n\n'):
         lines = sent.strip().split('\n')
         if not lines:
             continue
-        
         comments = []
         sentence = dict()
+        
+        # for each line (either comment or token)
         for line in lines:
             # store comments
             if line.startswith('#'):
@@ -67,11 +68,12 @@ def parse_conllu(text):
                     int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
         
         # add root
+        # TODO - validate if this is needed after fixing the matcher.
         sentence[0] = graph_token.Token(0, None, None, None, None, None, None, None, None, None)
         
-        # after parsing entire sentence, exchange information between tokens,
+        # after parsing entire sentence, add basic deprel edges,
         # and add sentence to output list
-        exchange_pointers(sentence)
+        add_basic_edges(sentence)
         sentences.append(sentence)
         all_comments.append(comments)
     
@@ -95,7 +97,7 @@ def serialize_conllu(converted, all_comments):
             for comment in comments:
                 text += comment + '\n'
         
-        # TODO - fix case of more than 9 copy nodes - needs special ordering
+        # TODO - fix case of more than 9 copy nodes - needs special ordering e.g 1.1 ... 1.9 1.10 and not 1.1 1.10 ... 1.9
         for (cur_id, token) in sorted(sentence.items()):
             if cur_id == 0:
                 continue

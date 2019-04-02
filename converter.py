@@ -1,14 +1,11 @@
 ###
 # TODO:
 #   1. urgent: fix possible BUG in match return object logic
-#   1.1 unify similar code of process_complex_2wp and process_3wp (or other similar ones)
-#   2. what new_deps should be lowercased and lematization
-#   3. more docu! with examples, and explaining the restrictions
-#   4. recursive (such as conj)
+#   2. unify similar code of process_complex_2wp and process_3wp (or other similar ones)
+#   3. what new_deps should be lowercased and lematization
+#   4. more docu! with examples, and explaining the restrictions
 #   5. create good test
-#   6. go through SC and see if stuff needs to be validated by Decision makers
-#   7. finish enhanced++ (only copy nodes!)
-#   8. add your awesome enhanced++++ (bad name)
+#   6. add your awesome enhanced++++ (bad name)
 ###
 
 import regex as re
@@ -26,18 +23,18 @@ relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 
 
 class Restriction(object):
-        def __init__(self, dictionary):
-            self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
-                                "form": None, "xpos": None, "follows": None, "followed": None, "nested": None}
-            self._dictionary.update(dictionary)
-        
-        def __setitem__(self, key, item):
-            if key not in self._dictionary:
-                raise KeyError("The key {} is not defined.".format(key))
-            self._dictionary[key] = item
-        
-        def __getitem__(self, key):
-            return self._dictionary[key]
+    def __init__(self, dictionary):
+        self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
+                            "form": None, "xpos": None, "follows": None, "followed_by": None, "nested": None}
+        self._dictionary.update(dictionary)
+    
+    def __setitem__(self, key, item):
+        if key not in self._dictionary:
+            raise KeyError("The key {} is not defined.".format(key))
+        self._dictionary[key] = item
+    
+    def __getitem__(self, key):
+        return self._dictionary[key]
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
@@ -84,10 +81,10 @@ def match(children, restriction_lists, given_named_nodes, head=None):
                     if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
                         continue
                 
-                if restriction["followed"]:
+                if restriction["followed_by"]:
                     if len(named_nodes[restriction["follows"]]) > 1:
                         raise Exception("we never expect to have someone been followed by more than one named node")
-                    antecedent = named_nodes[restriction["followed"]][0][0]
+                    antecedent = named_nodes[restriction["followed_by"]][0][0]
                     if child.get_conllu_field('id') + 1 != antecedent.get_conllu_field('id'):
                         continue
                 
@@ -368,7 +365,7 @@ def process_complex_2wp(sentence):
         w1_form, w2_form = two_word_prep.split("_")
         restriction = \
             Restriction({"name": "gov", "nested": [[
-                Restriction({"name": "w1", "followed": "w2", "form": "^" + w1_form + "$", "nested":
+                Restriction({"name": "w1", "followed_by": "w2", "form": "^" + w1_form + "$", "nested":
                 [[
                     Restriction({"gov": "nmod", "name": "gov2", "nested":
                     [[
@@ -413,7 +410,7 @@ def process_3wp(sentence):
         restriction = \
             Restriction({"name": "gov", "nested":
             [[
-                Restriction({"name": "w2", "followed":"w3", "follows": "w1", "form": "^" + w2_form + "$", "nested":
+                Restriction({"name": "w2", "followed_by":"w3", "follows": "w1", "form": "^" + w2_form + "$", "nested":
                 [[
                     Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
                     [[
@@ -511,7 +508,7 @@ def demote_quantificational_modifiers_2w(sentence):
     restriction = \
         Restriction({"name": "gov", "nested":
         [[
-            Restriction({"name": "w1", "followed": "w2", "form": w1_quant_mod_of_2w, "nested":
+            Restriction({"name": "w1", "followed_by": "w2", "form": w1_quant_mod_of_2w, "nested":
             [[
                 Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
                 [[
@@ -522,12 +519,12 @@ def demote_quantificational_modifiers_2w(sentence):
     restriction_det = \
         Restriction({"name": "gov", "nested":
         [[
-            Restriction({"name": "w1", "followed": "w2", "form": w1_quant_mod_of_2w_det, "nested":
+            Restriction({"name": "w1", "followed_by": "w2", "form": w1_quant_mod_of_2w_det, "nested":
             [[
                 Restriction({"gov": "nmod", "xpos": "(NN.*)", "name": "gov2", "nested":
                 [[
                     Restriction({"gov": "det", "name": "det"}),
-                    Restriction({"gov": "case", "followed": "det", "form": "(?i:of)", "name": "w2"})
+                    Restriction({"gov": "case", "followed_by": "det", "form": "(?i:of)", "name": "w2"})
                 ]]})
             ],
             [
