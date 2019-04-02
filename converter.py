@@ -131,7 +131,7 @@ def correct_subj_pass(sentence):
         subj_source.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
 
 
-# add 'agent' to nmods
+# add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
 def passive_agent(sentence):
     restriction_lists = \
     [[
@@ -147,7 +147,8 @@ def passive_agent(sentence):
     ret = dict()
     if not match(sentence.values(), restriction_lists, ret):
         return
-    
+
+    # rewrite graph: for every nmod add ':agent' to the graph node relation
     for mod_source, mod_head, mod_rel in ret['mod']:
         mod_source.replace_edge(mod_rel,  mod_rel + ":agent", mod_head, mod_head)
 
