@@ -306,12 +306,12 @@ def xcomp_propagation_per_type(sentence, restriction):
     if 'obj' in ret:
         for obj_source, _, _ in ret['obj']:
             for _, dep_head, _ in ret['dep']:
-                if dep_head.get_conllu_field('id') not in obj_source.get_parents_ids():
+                if dep_head not in obj_source.get_parents():
                     obj_source.add_edge("nsubj:xsubj", dep_head)
     else:
         for subj_source, _, _ in ret['subj']:
             for _, dep_head, _ in ret['dep']:
-                if dep_head.get_conllu_field('id') not in subj_source.get_parents_ids():
+                if dep_head not in subj_source.get_parents():
                     subj_source.add_edge("nsubj:xsubj", dep_head)
 
 
