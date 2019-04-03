@@ -309,15 +309,15 @@ def xcomp_propagation_per_type(sentence, restriction):
         return
     
     if 'obj' in ret:
-        for obj_source, _, obj_rel in ret['obj']:
+        for obj_source, _, _ in ret['obj']:
             for _, dep_head, _ in ret['dep']:
                 if dep_head.get_conllu_field('id') not in obj_source.get_parents_ids():
-                    obj_source.add_edge(obj_rel, dep_head)
+                    obj_source.add_edge("nsubj:xsubj", dep_head)
     else:
-        for subj_source, _, subj_rel in ret['subj']:
+        for subj_source, _, _ in ret['subj']:
             for _, dep_head, _ in ret['dep']:
                 if dep_head.get_conllu_field('id') not in subj_source.get_parents_ids():
-                    subj_source.add_edge(subj_rel, dep_head)
+                    subj_source.add_edge("nsubj:xsubj", dep_head)
 
 
 def xcomp_propagation(sentence):
@@ -327,7 +327,7 @@ def xcomp_propagation(sentence):
             Restriction({"gov": "nsubj.*", "name": "subj"}),
         ]
     basic_xcomp_rest = \
-         [
+        [
             Restriction({"gov": "xcomp", "no-gov": "nsubj.*", "name": "dep", "form": "(?!(^(?i:to)$)).", "nested":
             [[
                 Restriction({"gov": "^(aux|mark)$"})
