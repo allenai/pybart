@@ -1,13 +1,3 @@
-###
-# TODO:
-#   1. urgent: fix possible BUG in match return object logic
-#   2. unify similar code of process_complex_2wp and process_3wp (or other similar ones)
-#   3. what new_deps should be lowercased and lematization
-#   4. more docu! with examples, and explaining the restrictions
-#   5. create good test
-#   6. add your awesome enhanced++++ (bad name)
-###
-
 import regex as re
 import configuration as conf
 
