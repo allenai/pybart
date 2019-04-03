@@ -50,7 +50,7 @@ def match(children, restriction_lists, given_named_nodes, head=None):
                     if len(relations) == 0:
                         continue
                 elif head:
-                    relations = child.match_rel(".*", head)
+                    relations = [b for a, b in child.get_new_relations(head)]
                 
                 if restriction["no-gov"]:
                     if False in [len(grandchild.match_rel(restriction["no-gov"], child)) == 0 for grandchild in child.get_children()]:
