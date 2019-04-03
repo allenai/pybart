@@ -29,13 +29,26 @@ class Restriction(object):
 
 # ----------------------------------------- matching functions ----------------------------------- #
 
-def match(children, restriction_lists, given_named_nodes, head=None):
+def neighbors_restrictions(restriction, child, named_nodes):
+    if restriction["follows"]:
+        follows, _, _ = named_nodes[restriction["follows"]]
+        if child.get_conllu_field('id') - 1 != follows.get_conllu_field('id'):
+            return False
+    
+    if restriction["followed"]:
+        followed, _, _ = named_nodes[restriction["followed"]][0]
+        if child.get_conllu_field('id') + 1 != followed.get_conllu_field('id'):
+            return False
+    return True
+
+
+def match(children, restriction_lists, head=None):
+    ret = []
     for restriction_list in restriction_lists:
         one_restriction_violated = False
         for restriction in restriction_list:
             restriction_matched = False
             for child in children:
-                named_nodes = dict(given_named_nodes)
                 if restriction["form"]:
                     if not re.match(restriction["form"], child.get_conllu_field('form')):
                         continue
@@ -56,44 +69,39 @@ def match(children, restriction_lists, given_named_nodes, head=None):
                     if False in [len(grandchild.match_rel(restriction["no-gov"], child)) == 0 for grandchild in child.get_children()]:
                         continue
                 
+                nested = []
                 if restriction["nested"]:
-                    if not match(
-                            child.get_children(),
-                            restriction["nested"],
-                            named_nodes,
-                            head=child):
-                        continue
-                
-                if restriction["follows"]:
-                    if len(named_nodes[restriction["follows"]]) > 1:
-                        raise Exception("we never expect to have someone follow more than one named node")
-                    antecedent = named_nodes[restriction["follows"]][0][0]
-                    if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
-                        continue
-                
-                if restriction["followed_by"]:
-                    if len(named_nodes[restriction["followed_by"]]) > 1:
-                        raise Exception("we never expect to have someone been followed by more than one named node")
-                    antecedent = named_nodes[restriction["followed_by"]][0][0]
-                    if child.get_conllu_field('id') + 1 != antecedent.get_conllu_field('id'):
+                    nested = match(
+                        child.get_children(),
+                        restriction["nested"],
+                        head=child)
+                    
+                    nested = [named_nodes for named_nodes in nested
+                              if neighbors_restrictions(restriction, child, named_nodes)]
+                    
+                    if not nested:
                         continue
                 
                 if restriction["name"]:
-                    if restriction["name"] in named_nodes:
-                        named_nodes[restriction["name"]] += [(child, head, rel) for rel in relations if (child, head, rel) not in named_nodes[restriction["name"]]]
-                    else:
-                        named_nodes[restriction["name"]] = [(child, head, rel) for rel in relations]
+                    for rel in relations:
+                        if nested:
+                            for d in nested:
+                                d[restriction["name"]] = (child, head, rel)
+                                ret.append(d)
+                        else:
+                            ret.append(dict({restriction["name"]: (child, head, rel)}))
+                else:
+                    ret = nested
                 restriction_matched = True
-                given_named_nodes.update(named_nodes)
             
             if not restriction_matched:
                 one_restriction_violated = True
                 break
         
         if not one_restriction_violated:
-            return True
+            return ret
     
-    return False
+    return ret
     
 
 # corrects subjs (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj) to subjpass,
