@@ -87,5 +87,6 @@ class Token(object):
         self.remove_edge(old_rel, old_head)
         self.add_edge(new_rel, new_head)
     
+    # operator overloading: less than
     def __lt__(self, other):
         return self.get_conllu_field('id') < other.get_conllu_field('id')

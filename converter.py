@@ -151,16 +151,20 @@ def passive_agent(sentence):
 
 
 def build_strings_to_add(ret):
+    # we need to create a concat string for every marker neighbor chain
+    # actually it should never happen that they are separate, but nonetheless we add relation if so,
+    # this might result in multi-graph
+    # e.g 'in front of' should be [in_front_of] if they all follow but [in, front_of],
+    # if only 'front' and 'of' are follow (and 'in' is separated).
     strs_to_add = []
     
     for c1_source, _, _ in ret['c1']:
+        # add the first word
         strs_to_add += [c1_source.get_conllu_field('form')]
         if 'c2' in ret:
-            # we need to create a concat string for every marker neighbor chain
-            # actually it should never happen that they are separate, but nonetheless we add relation if so,
-            # this might result in multi-graph
             prev = c1_source
             for c2_source, _, _ in ret['c2']:
+                # concat every following marker, or start a new string if not
                 if prev.get_conllu_field('id') == c2_source.get_conllu_field('id') - 1:
                     strs_to_add[-1] += '_' + c2_source.get_conllu_field('form')
                 else:
