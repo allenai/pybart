@@ -72,7 +72,7 @@ def match(children, restriction_lists, given_named_nodes, head=None):
                         continue
                 
                 if restriction["followed_by"]:
-                    if len(named_nodes[restriction["follows"]]) > 1:
+                    if len(named_nodes[restriction["followed_by"]]) > 1:
                         raise Exception("we never expect to have someone been followed by more than one named node")
                     antecedent = named_nodes[restriction["followed_by"]][0][0]
                     if child.get_conllu_field('id') + 1 != antecedent.get_conllu_field('id'):
