@@ -1,0 +1,26 @@
+//[[
+//    Restriction({"name": "gov", "nested":
+//    [[
+//        Restriction({"gov": "(case|advmod)", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"}),
+//        Restriction({"gov": "case", "no-gov": ".*", "follows": "w1", "name": "w2", "form": "^" + w2_form + "$"})
+//    ]]})
+//]]
+
+digraph {
+
+    a [label = <<b>$gov</b>>]
+    b [label = <<b>$w1</b> , form = <font color='blue'>X</font>>]
+    b_nogov [color = "red" label = <<font color='red'>*</font>> shape = doubleoctagon]
+    c [label = <<b>$w2</b> , form = <font color='blue'>Y</font>>]
+    c_nogov [color = "red" label = <<font color='red'>*</font>> shape = doubleoctagon]
+
+    a -> b [label = <<i>/(case|advmod/</i>>]
+    b -> b_nogov [color = "red" label = <<font color='red'><i>/.*/</i></font>>]
+    a -> c [label = "case"];
+    c -> c_nogov [color = "red" label = <<font color='red'><i>/.*/</i></font>>]
+
+    {rank=same b c}
+
+    b -> c [color = grey label = <<font color='grey'>next token</font>> constraint=false]
+
+}

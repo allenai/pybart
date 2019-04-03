@@ -1,0 +1,50 @@
+//[[
+//    Restriction({"name": "gov", "nested":
+//    [[
+//        Restriction({"gov": first_gov, "name": "mod", "nested":
+//        [[
+//            Restriction({"gov": second_gov, "name": "c1", "nested":
+//            [[
+//                Restriction({"gov": 'mwe', "name": "c2"})
+//            ]]})
+//        ]]})
+//    ],
+//    [
+//        Restriction({"gov": first_gov, "name": "mod", "nested":
+//        [[
+//            Restriction({"gov": second_gov, "name": "c1", "form": "(?!(^(?i:by)$))."})
+//        ]]})
+//    ]]})
+//]]
+
+digraph {
+
+    a [label = <<b>$gov</b>>];
+
+    a_or [shape=record label="OR"]
+
+    b1 [label = <<b>$mod</b>>];
+    c1 [label = <<b>$c1</b>>];
+    d1 [label = <<b>$c2</b>>]
+
+    b2 [label = <<b>$mod</b>>];
+    c2 [label = <<i>/(?!(^(?i:by)$))./</i> <b>$c1</b>>];
+
+    a -> a_or[label= <<font color='blue'>X</font>>];
+    a_or -> b1;
+    a_or -> b2;
+
+    subgraph cluster_1 {
+        b1 -> c1 [label= <<font color='blue'>Y</font>>];
+        c1 -> d1 [label="mwe"];
+
+        graph[style=dashed];
+    }
+
+    subgraph cluster_2 {
+       b2 -> c2 [label= <<font color='blue'>Y</font>>];
+
+       graph[style=dashed];
+    }
+
+}

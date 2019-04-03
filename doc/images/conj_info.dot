@@ -1,0 +1,15 @@
+//[[
+//    Restriction({"nested":
+//    [[
+//        Restriction({"gov": "cc", "name": "cc"}),
+//        Restriction({"gov": "^conj$", "name": "conj"})
+//    ]]})
+//]]
+
+digraph {
+    a [label = "*"];
+    b [label = <<b>$cc</b>>];
+    c [label = <<b>$conj</b>>];
+    a -> b [label = "cc"];
+    a -> c [label = <<i>/^conj$/</i>>];
+}

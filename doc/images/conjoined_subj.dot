@@ -1,0 +1,86 @@
+//[[
+//    Restriction({"nested":
+//    [[
+//        Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested":
+//        [[
+//            # TODO - I don't fully understand why SC decided to add this rcmod condition, and I believe they have a bug:
+//            #   (rcmodHeads.contains(gov) && rcmodHeads.contains(dep)) should be ||, and so I coded.
+//            Restriction({"gov": "rcmod"}),
+//            Restriction({"gov": ".*conj.*", "name": "dep"})
+//        ],
+//        [
+//            Restriction({"gov": ".*conj.*", "name": "dep", "nested":
+//            [[
+//                Restriction({"gov": "rcmod"})
+//            ]]})
+//        ]]})
+//    ],
+//    [
+//        Restriction({"gov": "^((?!root|case).)*$", "no-gov": "rcmod", "name": "gov", "nested":
+//        [[
+//            Restriction({"gov": ".*conj.*", "no-gov": "rcmod", "name": "dep"})
+//        ]]})
+//    ]]})
+//]]
+
+
+digraph {
+
+    a [label = "*"];
+
+    a_or [shape=record label="OR"]
+
+    b1 [label = <<b>$gov</b>>];
+
+    b1_or [shape=record label="OR"]
+    b1_or_both [shape=point]
+
+    c11 [label = "*"]
+    d11 [label = <<b>$dep</b>>];
+
+
+    c12 [label = <<b>$dep</b>>]
+    d12 [label = "*"]
+
+    b2 [label = <<b>$gov</b>>]; // TODO: how to encode no-gov:rcmod
+    b2_no_gov [color = "red" label = <<font color='red'>*</font>> shape = doubleoctagon]
+
+    c2 [label = <<b>$dep</b>>]; // TODO: how to encode no-gov:rcmod
+    c2_no_gov [color = "red" label = <<font color='red'>*</font>> shape = doubleoctagon]
+
+    a -> a_or
+    a_or -> b1 [label = <<i>/^((?!root|case|nsubj|dobj).)*$/</i>>]
+    a_or -> b2 [label = <<i>/^((?!root|case).)*$/</i>>]
+
+    subgraph cluster_1 {
+
+        b1 -> b1_or
+        b1_or -> c12 [label = <<i>/.*conj.*/</i>>]
+        b1_or -> b1_or_both
+
+        subgraph cluster_11 {
+
+            b1_or_both -> c11 [label = "rcmod"]
+            b1_or_both -> d11 [label = <<i>/.*conj.*/</i>>]
+            graph[style = dashed]
+        }
+
+
+        subgraph cluster_12 {
+            c12 -> d12 [label = "rcmod"]
+
+            graph[style = dashed]
+        }
+        graph[style = dashed]
+    }
+
+    subgraph cluster_2 {
+        b2 -> c2 [label = <<i>/.*conj.*/</i>>]
+
+        b2 -> b2_no_gov [color = "red" label = <<font color='red'>rcmod</font>>]
+        c2 -> c2_no_gov [color = "red" label = <<font color='red'>rcmod</font>>]
+
+        graph[style = dashed]
+    }
+
+}

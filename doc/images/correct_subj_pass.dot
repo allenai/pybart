@@ -1,0 +1,15 @@
+//[[
+//    Restriction({"nested":
+//    [[
+//        Restriction({"gov": 'auxpass'}),
+//        Restriction({"gov": "^(nsubj|csubj)$", "name": "subj"})
+//    ]]})
+//]]
+
+digraph {
+    a [label="*"];
+    b [label="*"];
+    c [label = <<b>$subj</b>>];
+    a -> b [label = "auxpass"];
+    a -> c [label= <<i>/^(nsubj|csubj)$/</i>>];
+}

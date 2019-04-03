@@ -1,0 +1,21 @@
+//    [[
+//        Restriction({"nested":
+//        [[
+//            Restriction({"gov": 'nmod', "name": "mod", "nested":
+//            [[
+//                Restriction({"gov": 'case', "form": "^(?i:by)$"})
+//            ]]}),
+//            Restriction({"gov": "auxpass"})
+//        ]]})
+//    ]]
+
+
+digraph {
+    a [label="*"];
+    b [label = <<b>$mod</b>>];
+    c [label="*"];
+    d [label= <<i>/^(?i:by)$/</i>>];
+    a -> b [label="nmod"];
+    a -> d [label="auxpass"];
+    b -> c [label="case"];
+}

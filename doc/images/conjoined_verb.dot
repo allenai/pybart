@@ -1,0 +1,57 @@
+//[[
+//    Restriction({"nested":
+//    [[
+//        Restriction({"gov": "conj", "no-gov": ".subj", "name": "conj", "xpos": "(VB|JJ)", "nested":
+//        [[
+//            Restriction({"gov": "auxpass", "name": "auxpass"})
+//        ]]}),
+//        Restriction({"gov": ".subj", "name": "subj"})
+//    ],
+//    [
+//        Restriction({"gov": "conj", "no-gov": ".subj|auxpass", "name": "conj", "xpos": "(VB|JJ)"}),
+//        Restriction({"gov": ".subj", "name": "subj"})
+//    ]]})
+//]]
+
+digraph {
+
+    a [label = "*"];
+
+    a_or [shape=record label="OR"]
+
+    a_or_both1 [shape=point]
+    a_or_both2 [shape=point]
+
+    b1 [label = <<b>$conj</b> , xpos:VB|JJ>];
+    b1_nogov [color = "red" label = <<font color='red'>*</font>> shape = doubleoctagon]
+    c1 [label = <<b>$auxpass</b>>];
+    d1 [label = <<b>$subj</b>>]
+
+    b2 [label = <<b>$conj</b> , xpos:VB|JJ>];
+    b2_nogov [color = "red" label = <<font color='red'>*</font>> shape = doubleoctagon]
+    c2 [label = <<b>$subj</b>>];
+
+    a -> a_or;
+    a_or -> a_or_both1;
+    a_or -> a_or_both2;
+
+    subgraph cluster_1 {
+        a_or_both1 -> b1 [label = "conj"];
+        b1 -> c1 [label="auxpass"];
+        b1 -> b1_nogov [color = "red" label = <<font color='red'><i>/.subj/</i></font>>]
+        a_or_both1 -> d1 [label = <<i>/.subj/</i>>];
+
+        graph[style=dashed];
+    }
+
+    subgraph cluster_2 {
+
+         a_or_both2 -> b2 [label = "conj"];
+         b2 -> b2_nogov [color = "red" label = <<font color='red'><i>/.subj|auxpass/</i></font>>]
+         a_or_both2 -> c2 [label = <<i>/.subj/</i>>];
+
+        graph[style=dashed];
+    }
+
+
+}
