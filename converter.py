@@ -114,7 +114,7 @@ def correct_subj_pass(sentence):
         Restriction({"nested":
         [[
             Restriction({"gov": 'auxpass'}),
-            Restriction({"gov": "^(nsubj|csubj)$", "name": "subj"})
+            Restriction({"gov": "^(.subj|.subj:xsubj)$", "name": "subj"})
         ]]})
     ]]
     
