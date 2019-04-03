@@ -209,7 +209,8 @@ def conj_info(sentence):
     if not match(sentence.values(), restriction_lists, ret):
         return
     
-    cur_form = None
+    # this was added to get the first cc, because it should be applied on all conj's that precedes it
+    cur_form = sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"]])[0][1][0].get_conllu_field('form')
     for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
             sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
         if cc_or_conj_rel == "cc":
