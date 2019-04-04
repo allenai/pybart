@@ -11,7 +11,12 @@ Restriction.__new__.__defaults__ = (None,) * len(Restriction._fields)
 # ----------------------------------------- matching functions ----------------------------------- #
 
 
-def named_nodes_restrictions(restriction, child, named_nodes):
+def named_nodes_restrictions(restriction, named_nodes):
+    if restriction.name:
+        child, _, _ = named_nodes[restriction.name]
+    else:
+        return True
+    
     if restriction.follows:
         follows, _, _ = named_nodes[restriction.follows]
         if child.get_conllu_field('id') - 1 != follows.get_conllu_field('id'):
@@ -28,13 +33,6 @@ def named_nodes_restrictions(restriction, child, named_nodes):
             return False
     
     return True
-
-
-def check_nested_restriction(child, restriction):
-    nested = match(child.get_children(), restriction.nested, head=child)
-    
-    return [named_nodes for named_nodes in nested if
-            named_nodes_restrictions(restriction, child, named_nodes)]
 
 
 def match_child(child, restriction, head):
@@ -62,7 +60,7 @@ def match_child(child, restriction, head):
     
     nested = []
     if restriction.nested:
-        nested = check_nested_restriction(child, restriction)
+        nested = match(child.get_children(), restriction.nested, child)
         if not nested:
             return
     
@@ -100,7 +98,6 @@ def match_rest(children, restriction, head):
 
 def match_rl(children, restriction_list, head):
     ret = []
-    rest_rets = []
     for restriction in restriction_list:
         rest_ret = match_rest(children, restriction, head)
         
@@ -108,14 +105,24 @@ def match_rl(children, restriction_list, head):
         if rest_ret is None:
             return None
         
-        rest_rets.append(rest_ret)
-    
-    # every new rest_ret should be merged to any previous rest_ret
-    # we do this here because we are lazy -
-    # we don't want to do this work if one restriction was violated.
-    for rest_ret in rest_rets:
+        # every new rest_ret should be merged to any previous rest_ret
         ret = rest_ret if not ret else \
             [{**ns_ret, **ns_rest_ret} for ns_rest_ret in rest_ret for ns_ret in ret]
+
+        ret_was_empty_beforehand = False
+        if not ret:
+            ret_was_empty_beforehand = True
+        for named_nodes in ret:
+            # this is done here because we want to check cross restrictions
+            # TODO - move this information from here:
+            #   rules regarding the usage of non graph restrictions (follows, followed_by, diff):
+            #   1. must be after sibling rest's that they refer to
+            #       or in the outer rest of a nested that they refer to
+            #   2. must have names for themselves
+            if not named_nodes_restrictions(restriction, named_nodes):
+                ret.remove(named_nodes)
+        if (not ret) and (not ret_was_empty_beforehand):
+            return None
     
     return ret
     
