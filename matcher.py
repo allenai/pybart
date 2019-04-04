@@ -31,10 +31,7 @@ def named_nodes_restrictions(restriction, child, named_nodes):
 
 
 def check_nested_restriction(child, restriction):
-    nested = match(
-        child.get_children(),
-        restriction.nested,
-        head=child)
+    nested = match(child.get_children(), restriction.nested, head=child)
     
     return [named_nodes for named_nodes in nested if
             named_nodes_restrictions(restriction, child, named_nodes)]
