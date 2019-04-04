@@ -17,7 +17,7 @@ def named_nodes_restrictions(restriction, child, named_nodes):
         if child.get_conllu_field('id') - 1 != follows.get_conllu_field('id'):
             return False
     
-    if restriction.followed:
+    if restriction.followed_by:
         followed, _, _ = named_nodes[restriction.followed_by]
         if child.get_conllu_field('id') + 1 != followed.get_conllu_field('id'):
             return False
@@ -40,31 +40,31 @@ def check_nested_restriction(child, restriction):
 def match_child(child, restriction, head):
     if restriction.form:
         if not re.match(restriction.form, child.get_conllu_field('form')):
-            return []
+            return
     
     if restriction.xpos:
         if not re.match(restriction.xpos, child.get_conllu_field('xpos')):
-            return []
+            return
     
     # if no head (first level words)
     relations = [None]
     if restriction.gov:
         relations = child.match_rel(restriction.gov, head)
         if len(relations) == 0:
-            return []
+            return
     elif head:
         relations = [b for a, b in child.get_new_relations(head)]
     
     if restriction.no_sons_of:
         if False in [len(grandchild.match_rel(restriction.no_sons_of, child)) == 0 for grandchild in
                      child.get_children()]:
-            return []
+            return
     
     nested = []
     if restriction.nested:
         nested = check_nested_restriction(child, restriction)
         if not nested:
-            return []
+            return
     
     if restriction.name:
         ret = []
@@ -82,9 +82,19 @@ def match_child(child, restriction, head):
 
 def match_rest(children, restriction, head):
     ret = []
+    restriction_satisfied = False
     for child in children:
-        ret += match_child(child, restriction, head)
+        child_ret = match_child(child, restriction, head)
+        
+        # we check to see for None because empty list is a legit return value
+        if child_ret is None:
+            continue
+        else:
+            restriction_satisfied = True
+        ret += child_ret
     
+    if not restriction_satisfied:
+        return None
     return ret
 
 
@@ -95,8 +105,8 @@ def match_rl(children, restriction_list, head):
         rest_ret = match_rest(children, restriction, head)
         
         # if one restriction was violated, return empty list.
-        if not rest_ret:
-            return []
+        if rest_ret is None:
+            return None
         
         rest_rets.append(rest_ret)
     
