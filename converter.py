@@ -1,3 +1,9 @@
+# conversions as been done by StanfordConverter (a.k.a SC) version TODO
+# global nuances from their converter:
+#   1. we always write to 'deps' (so at first we copy 'head'+'deprel' to 'deps'), while they sometimes write back to 'deprel'.
+#   2. we think like a multi-graph, so we operate on every relation/edge between two nodes, while they on first one found.
+#   3. we look for all fathers as we can have multiple fathers, while in SC they look at first one found.
+
 import regex as re
 
 from matcher import match, Restriction
@@ -14,16 +20,17 @@ w1_quant_mod_of_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|thre
 relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 
 
-# corrects subjs (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj) to subjpass,
-# if they are a sibling of auxpass.
+# This method corrects subjects of verbs for which we identified an auxpass,
+# but didn't identify the subject as passive.
+# (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj)
 def correct_subj_pass(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": 'auxpass'}),
-            Restriction({"gov": "^(.subj|.subj:xsubj)$", "name": "subj"})
-        ]]})
+    restriction_lists = [[
+        Restriction(nested=[[
+            Restriction(gov='auxpass'),
+            # the SC regex (which was "^(nsubj|csubj).*$") was changed here
+            # to avoid the need to filter .subjpass relations in the graph-rewriting part
+            Restriction(gov="^(.subj|.subj:xsubj)$", name="subj")
+        ]])
     ]]
     
     ret = match(sentence.values(), restriction_lists)
@@ -32,9 +39,10 @@ def correct_subj_pass(sentence):
     
     # rewrite graph: for every subject add a 'pass' and replace in graph node
     for matched in ret:
-        subj_source, subj_head, subj_rel = matched['subj']
+        subj, subj_head, subj_rel = matched['subj']
         substitute_rel = re.sub("subj", "subjpass", subj_rel)
-        subj_source.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
+        # in SC they add it to the 'deprel' even if the edge was found in the 'deps' :O
+        subj.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
 
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
@@ -627,42 +635,42 @@ def convert_sentence(sentence):
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
 
-    if conf.enhanced_plus_plus:
-        # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
-        process_simple_2wp(sentence)
-        process_complex_2wp(sentence)
-        process_3wp(sentence)
-        # demoteQuantificationalModifiers
-        demote_quantificational_modifiers_3w(sentence)
-        demote_quantificational_modifiers_2w(sentence)
-        # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-        expand_pp_conjunctions(sentence)
-        expand_prep_conjunctions(sentence)
-    
-    # addCaseMarkerInformation
-    passive_agent(sentence)
-    prep_patterns(sentence, '^nmod$', 'case')
-    if not conf.enhance_only_nmods:
-        prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
-    
-    # addConjInformation
-    conj_info(sentence)
-    
-    # referent: addRef, collapseReferent
-    if conf.enhanced_plus_plus:
-        add_ref_and_collapse(sentence)
-        
-    # treatCC
-    conjoined_subj(sentence)
-    conjoined_verb(sentence)
-    
-    # addExtraNSubj
-    xcomp_propagation(sentence)
-    
-    # correctSubjPass
-    # TODO - why again?
-    correct_subj_pass(sentence)
-    
+    # if conf.enhanced_plus_plus:
+    #     # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
+    #     process_simple_2wp(sentence)
+    #     process_complex_2wp(sentence)
+    #     process_3wp(sentence)
+    #     # demoteQuantificationalModifiers
+    #     demote_quantificational_modifiers_3w(sentence)
+    #     demote_quantificational_modifiers_2w(sentence)
+    #     # add copy nodes: expandPPConjunctions, expandPrepConjunctions
+    #     expand_pp_conjunctions(sentence)
+    #     expand_prep_conjunctions(sentence)
+    #
+    # # addCaseMarkerInformation
+    # passive_agent(sentence)
+    # prep_patterns(sentence, '^nmod$', 'case')
+    # if not conf.enhance_only_nmods:
+    #     prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
+    #
+    # # addConjInformation
+    # conj_info(sentence)
+    #
+    # # referent: addRef, collapseReferent
+    # if conf.enhanced_plus_plus:
+    #     add_ref_and_collapse(sentence)
+    #
+    # # treatCC
+    # conjoined_subj(sentence)
+    # conjoined_verb(sentence)
+    #
+    # # addExtraNSubj
+    # xcomp_propagation(sentence)
+    #
+    # # correctSubjPass
+    # # TODO - why again?
+    # correct_subj_pass(sentence)
+    #
     return sentence
 
 
