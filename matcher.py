@@ -76,8 +76,9 @@ def match_child(child, restriction, head):
                     ret.append(d)
             else:
                 ret.append(dict({restriction["name"]: (child, head, rel)}))
-    else:
-        return nested
+        return ret
+    
+    return nested
     
 
 def match_rest(children, restriction, head):
