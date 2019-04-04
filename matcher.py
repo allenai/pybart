@@ -30,6 +30,16 @@ def named_nodes_restrictions(restriction, child, named_nodes):
     return True
 
 
+def check_nested_restriction(child, restriction):
+    nested = match(
+        child.get_children(),
+        restriction.nested,
+        head=child)
+    
+    return [named_nodes for named_nodes in nested if
+            named_nodes_restrictions(restriction, child, named_nodes)]
+
+
 def match_child(child, restriction, head):
     if restriction.form:
         if not re.match(restriction.form, child.get_conllu_field('form')):
@@ -39,6 +49,7 @@ def match_child(child, restriction, head):
         if not re.match(restriction.xpos, child.get_conllu_field('xpos')):
             return []
     
+    # if no head (first level words)
     relations = [None]
     if restriction.gov:
         relations = child.match_rel(restriction.gov, head)
@@ -54,14 +65,7 @@ def match_child(child, restriction, head):
     
     nested = []
     if restriction.nested:
-        nested = match(
-            child.get_children(),
-            restriction.nested,
-            head=child)
-        
-        nested = [named_nodes for named_nodes in nested
-                  if named_nodes_restrictions(restriction, child, named_nodes)]
-        
+        nested = check_nested_restriction(child, restriction)
         if not nested:
             return []
     
