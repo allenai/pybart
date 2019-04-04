@@ -12,18 +12,18 @@ Restriction.__new__.__defaults__ = (None,) * len(Restriction._fields)
 
 
 def named_nodes_restrictions(restriction, child, named_nodes):
-    if restriction["follows"]:
-        follows, _, _ = named_nodes[restriction["follows"]]
+    if restriction.follows:
+        follows, _, _ = named_nodes[restriction.follows]
         if child.get_conllu_field('id') - 1 != follows.get_conllu_field('id'):
             return False
     
-    if restriction["followed"]:
-        followed, _, _ = named_nodes[restriction["followed_by"]]
+    if restriction.followed:
+        followed, _, _ = named_nodes[restriction.followed_by]
         if child.get_conllu_field('id') + 1 != followed.get_conllu_field('id'):
             return False
     
-    if restriction["diff"]:
-        diff, _, _ = named_nodes[restriction["followed_by"]]
+    if restriction.diff:
+        diff, _, _ = named_nodes[restriction.followed_by]
         if child == diff:
             return False
     
@@ -31,49 +31,49 @@ def named_nodes_restrictions(restriction, child, named_nodes):
 
 
 def match_child(child, restriction, head):
-    if restriction["form"]:
-        if not re.match(restriction["form"], child.get_conllu_field('form')):
+    if restriction.form:
+        if not re.match(restriction.form, child.get_conllu_field('form')):
             return []
     
-    if restriction["xpos"]:
-        if not re.match(restriction["xpos"], child.get_conllu_field('xpos')):
+    if restriction.xpos:
+        if not re.match(restriction.xpos, child.get_conllu_field('xpos')):
             return []
     
     relations = [None]
-    if restriction["gov"]:
-        relations = child.match_rel(restriction["gov"], head)
+    if restriction.gov:
+        relations = child.match_rel(restriction.gov, head)
         if len(relations) == 0:
             return []
     elif head:
         relations = [b for a, b in child.get_new_relations(head)]
     
-    if restriction["no-gov"]:
-        if False in [len(grandchild.match_rel(restriction["no-gov"], child)) == 0 for grandchild in
+    if restriction.no_sons_of:
+        if False in [len(grandchild.match_rel(restriction.no_sons_of, child)) == 0 for grandchild in
                      child.get_children()]:
             return []
     
     nested = []
-    if restriction["nested"]:
+    if restriction.nested:
         nested = match(
             child.get_children(),
-            restriction["nested"],
+            restriction.nested,
             head=child)
         
         nested = [named_nodes for named_nodes in nested
-                  if neighbors_restrictions(restriction, child, named_nodes)]
+                  if named_nodes_restrictions(restriction, child, named_nodes)]
         
         if not nested:
             return []
     
-    if restriction["name"]:
+    if restriction.name:
         ret = []
         for rel in relations:
             if nested:
                 for d in nested:
-                    d[restriction["name"]] = (child, head, rel)
+                    d[restriction.name] = (child, head, rel)
                     ret.append(d)
             else:
-                ret.append(dict({restriction["name"]: (child, head, rel)}))
+                ret.append(dict({restriction.name: (child, head, rel)}))
         return ret
     
     return nested
