@@ -1,34 +1,32 @@
 import regex as re
+from collections import namedtuple
 
-
-class Restriction(object):
-    def __init__(self, dictionary):
-        self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
-                            "form": None, "xpos": None, "follows": None, "followed_by": None, "nested": None}
-        self._dictionary.update(dictionary)
-    
-    def __setitem__(self, key, item):
-        if key not in self._dictionary:
-            raise KeyError("The key {} is not defined.".format(key))
-        self._dictionary[key] = item
-    
-    def __getitem__(self, key):
-        return self._dictionary[key]
+fields = ('name', 'gov', 'no_sons_of', 'form', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
+# TODO - when moving to python 3.7 replace to:
+#   Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
+Restriction = namedtuple("Restriction", fields)
+Restriction.__new__.__defaults__ = (None,) * len(Restriction._fields)
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
 
 
-def neighbors_restrictions(restriction, child, named_nodes):
+def named_nodes_restrictions(restriction, child, named_nodes):
     if restriction["follows"]:
         follows, _, _ = named_nodes[restriction["follows"]]
         if child.get_conllu_field('id') - 1 != follows.get_conllu_field('id'):
             return False
     
     if restriction["followed"]:
-        followed, _, _ = named_nodes[restriction["followed"]][0]
+        followed, _, _ = named_nodes[restriction["followed_by"]]
         if child.get_conllu_field('id') + 1 != followed.get_conllu_field('id'):
             return False
+    
+    if restriction["diff"]:
+        diff, _, _ = named_nodes[restriction["followed_by"]]
+        if child == diff:
+            return False
+    
     return True
 
 
