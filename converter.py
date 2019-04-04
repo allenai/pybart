@@ -116,12 +116,13 @@ def correct_subj_pass(sentence):
         ]]})
     ]]
     
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    ret = match(sentence.values(), restriction_lists)
+    if not ret:
         return
     
     # rewrite graph: for every subject add a 'pass' and replace in graph node
-    for subj_source, subj_head, subj_rel in ret['subj']:
+    for matched in ret:
+        subj_source, subj_head, subj_rel = matched['subj']
         substitute_rel = re.sub("subj", "subjpass", subj_rel)
         subj_source.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
 
@@ -144,32 +145,32 @@ def passive_agent(sentence):
         return
 
     # rewrite graph: for every nmod add ':agent' to the graph node relation
-    for mod_source, mod_head, mod_rel in ret['mod']:
+    for matched in ret:
+        mod_source, mod_head, mod_rel = matched['mod']
         mod_source.replace_edge(mod_rel,  mod_rel + ":agent", mod_head, mod_head)
 
 
-def build_strings_to_add(ret):
-    # we need to create a concat string for every marker neighbor chain
-    # actually it should never happen that they are separate, but nonetheless we add relation if so,
-    # this might result in multi-graph
-    # e.g 'in front of' should be [in_front_of] if they all follow but [in, front_of],
-    # if only 'front' and 'of' are follow (and 'in' is separated).
-    strs_to_add = []
+# we need to create a concat string for every marker neighbor chain
+# actually it should never happen that they are separate, but nonetheless we add relation if so,
+# this might result in multi-graph
+# e.g 'in front of' should be [in_front_of] if they are all sequential, but [in, front_of],
+# if only 'front' and 'of' are sequential (and 'in' is separated).
+def concat_sequential_tokens(c1, c2, c3):
+    # add the first word
+    sequences = [c1.get_conllu_field('form')]
+    prev = c1
+    if not c2:
+        # we return here because if c2 is None, c3 must be as well
+        return sequences
     
-    for c1_source, _, _ in ret['c1']:
-        # add the first word
-        strs_to_add += [c1_source.get_conllu_field('form')]
-        if 'c2' in ret:
-            prev = c1_source
-            for c2_source, _, _ in ret['c2']:
-                # concat every following marker, or start a new string if not
-                if prev.get_conllu_field('id') == c2_source.get_conllu_field('id') - 1:
-                    strs_to_add[-1] += '_' + c2_source.get_conllu_field('form')
-                else:
-                    strs_to_add.append(c2_source.get_conllu_field('form'))
-                prev = c2_source
-    
-    return strs_to_add
+    for ci in [c2, c3]:
+        # concat every following marker, or start a new string if not
+        if prev.get_conllu_field('id') == ci.get_conllu_field('id') - 1:
+            sequences[-1] += '_' + ci.get_conllu_field('form')
+        else:
+            sequences.append(ci.get_conllu_field('form'))
+        prev = ci
+    return sequences
 
 
 def prep_patterns(sentence, first_gov, second_gov):
@@ -181,13 +182,17 @@ def prep_patterns(sentence, first_gov, second_gov):
             [[
                 Restriction({"gov": second_gov, "name": "c1", "nested":
                 [[
-                    Restriction({"gov": 'mwe', "name": "c2"})
+                    Restriction({"gov": 'mwe', "name": "c2"}),
+                    Restriction({"gov": 'mwe', "name": "c3", "diff": "c2"})
                 ]]})
-            ]]})
-        ],
-        [
-            Restriction({"gov": first_gov, "name": "mod", "nested":
-            [[
+            ],
+            [
+                Restriction({"gov": second_gov, "name": "c1", "nested":
+                    [[
+                        Restriction({"gov": 'mwe', "name": "c2"}),
+                    ]]})
+            ],
+            [
                 Restriction({"gov": second_gov, "name": "c1", "form": "(?!(^(?i:by)$))."})
             ]]})
         ]]})
@@ -196,11 +201,16 @@ def prep_patterns(sentence, first_gov, second_gov):
     if not match(sentence.values(), restriction_lists, ret):
         return
     
-    for mod_source, mod_head, mod_rel in ret['mod']:
-        strs_to_add = build_strings_to_add(ret)
-        mod_source.remove_edge(mod_rel, mod_head)
-        for str_to_add in strs_to_add:
-            mod_source.add_edge(mod_rel + ":" + str_to_add.lower(), mod_head)
+    for matched in ret:
+        mod, mod_head, mod_rel = matched['mod']
+        c1, _, _ = matched['c1']
+        c2, _, _ = matched['c2'] if 'c2' in matched else (None, None, None)
+        c3, _, _ = matched['c3'] if 'c3' in matched else (None, None, None)
+    
+        sequences = concat_sequential_tokens(c1, c2, c3)
+        mod.remove_edge(mod_rel, mod_head)
+        for prep_sequence in sequences:
+            mod.add_edge(mod_rel + ":" + prep_sequence.lower(), mod_head)
 
 
 # Adds the type of conjunction to all conjunct relations
