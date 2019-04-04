@@ -10,12 +10,12 @@ def main(sentences_path, out_path=None):
         parsed, all_comments = cw.parse_conllu(sentences_text)
         converted = converter.convert(parsed)
         ready_to_write = cw.serialize_conllu(converted, all_comments)
-
+    
     if out_path:
         with open(out_path, "r") as f:
             f.write(ready_to_write)
     else:
-        print(ready_to_write)
+        return ready_to_write
 
 
 def print_usage():
