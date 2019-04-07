@@ -439,91 +439,55 @@ def process_3wp(sentence):
         create_mwe([w1, w2, w3], gov2, case)
 
 
-def demote_quantificational_modifiers_3w(sentence):
-    restriction = \
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"name": "w2", "no-gov": "amod", "follows": "w3", "form": w2_quant_mod_of_3w, "nested":
-            [[
-                Restriction({"gov": "det", "name": "w1", "form": "(?i:an?)"}),
-                Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w3"})
-                ]]})
-            ]]})
-        ]]})
-    
-    ret = dict()
-    if not match(
-            sentence.values(),
-            [[restriction]],
-            ret):
+def demote_per_type(sentence, rl):
+    ret = match(sentence.values(), [[rl]])
+    if not ret:
         return
+
+    for name_space in ret:
+        w1, _, _ = name_space['w1']
+        w2, w2_head, w2_rel = name_space['w2']
+        gov2, _, gov2_rel = name_space['gov2']
+
+        words = [w1, w2]
+        if 'w3' in name_space:
+            w3, _, _ = name_space['w3']
+            words += [w3]
+            old_gov, old_gov_head, old_gov_rel = name_space['w2']
+        else:
+            old_gov, old_gov_head, old_gov_rel = name_space['w1']
+        
+        gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
+        create_mwe(words, gov2, "det:qmod")
+
+
+def demote_quantificational_modifiers(sentence):
+    quant_3w = Restriction(name="w2", no_sons_of="amod", form=w2_quant_mod_of_3w, followed_by="w3", nested=[[
+        Restriction(name="w1", gov="det", form="(?i:an?)"),
+        Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
+            Restriction(name="w3", gov="case", form="(?i:of)")
+        ]])
+    ]])
+
+    quant_2w = Restriction(name="w1", form=w1_quant_mod_of_2w, followed_by="w2", nested=[[
+        Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
+            Restriction(name="w2", gov="case", form="(?i:of)")
+        ]])
+    ]])
     
-    for gov2, gov2_head, gov2_rel in ret['gov2']:
-        for w1, w1_head, w1_rel in ret['w1']:
-            w1.remove_all_edges()
-            w1.add_edge("det:qmod", gov2)
-            for w2, w2_head, w2_rel in ret['w2']:
-                w2.remove_all_edges()
-                gov2.replace_edge(gov2_rel, w2_rel, gov2_head, w2_head)
-                w2.add_edge("mwe", w1)
-                for w3, w3_head, w3_rel in ret['w3']:
-                    w3.remove_all_edges()
-                    w3.add_edge("mwe", w1)
-
-
-def demote_2w_per_type(sentence, rl):
-    ret = dict()
-    if not match(
-            sentence.values(),
-            [[rl]],
-            ret):
-        return
+    quant_2w_det = Restriction(name="w1", form=w1_quant_mod_of_2w_det, followed_by="w2", nested=[
+        [Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
+            Restriction(name="det", gov="det"),
+            Restriction(name="w2", gov="case", form="(?i:of)", followed_by="det")
+        ]])
+    ],
+        [Restriction(name="gov2", gov="nmod", xpos="(PRP.*)", nested=[[
+            Restriction(name="w2", gov="case", form="(?i:of)")
+        ]])
+    ]])
     
-    for gov2, gov2_head, gov2_rel in ret['gov2']:
-        for w1, w1_head, w1_rel in ret['w1']:
-            w1.remove_all_edges()
-            gov2.replace_edge(gov2_rel, w1_rel, gov2_head, w1_head)
-            w1.add_edge("det:qmod", gov2)
-            for w2, w2_head, w2_rel in ret['w2']:
-                w2.remove_all_edges()
-                w2.add_edge("mwe", w1)
-
-
-def demote_quantificational_modifiers_2w(sentence):
-    restriction = \
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"name": "w1", "followed_by": "w2", "form": w1_quant_mod_of_2w, "nested":
-            [[
-                Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w2"})
-                ]]})
-            ]]})
-        ]]})
-    restriction_det = \
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"name": "w1", "followed_by": "w2", "form": w1_quant_mod_of_2w_det, "nested":
-            [[
-                Restriction({"gov": "nmod", "xpos": "(NN.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "det", "name": "det"}),
-                    Restriction({"gov": "case", "followed_by": "det", "form": "(?i:of)", "name": "w2"})
-                ]]})
-            ],
-            [
-                Restriction({"gov": "nmod", "xpos": "(PRP.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w2"})
-                ]]})
-            ]]})
-        ]]})
-    
-    for rl in [restriction, restriction_det]:
-        demote_2w_per_type(sentence, rl)
+    for rl in [quant_3w, quant_2w, quant_2w_det]:
+        demote_per_type(sentence, rl)
  
 
 def add_ref_and_collapse(sentence):
@@ -696,9 +660,8 @@ def convert_sentence(sentence):
         process_simple_2wp(sentence)
         process_complex_2wp(sentence)
         process_3wp(sentence)
-    #     # demoteQuantificationalModifiers
-    #     demote_quantificational_modifiers_3w(sentence)
-    #     demote_quantificational_modifiers_2w(sentence)
+        # demoteQuantificationalModifiers
+        demote_quantificational_modifiers(sentence)
     #     # add copy nodes: expandPPConjunctions, expandPrepConjunctions
     #     expand_pp_conjunctions(sentence)
     #     expand_prep_conjunctions(sentence)
