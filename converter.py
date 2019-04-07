@@ -270,6 +270,34 @@ def xcomp_propagation(sentence):
         xcomp_propagation_per_type(sentence, xcomp_restriction)
 
 
+def create_mwe(words, head, rel):
+    for i, word in enumerate(words):
+        word.remove_all_edges()
+        word.add_edge(rel, head)
+        if 0 == i:
+            head = word
+            rel = "mwe"
+
+
+def is_prep_seq(words, preps):
+    return "_".join([word.get_conllu_field('form') for word in words]) in preps
+
+
+def reattach_children(old_head, new_head):
+    # store them before we make change to the original list
+    for child in list(old_head.get_children()):
+        # this is only for the multi-graph case
+        for child_head, child_rel in list(child.get_new_relations(given_head=old_head)):
+            child.replace_edge(child_rel, child_rel, old_head, new_head)
+
+
+def split_concats_by_index(prep_list, prep_len):
+    out = list()
+    for i in range(prep_len):
+        out.append("|".join([prep.split("_")[i] for prep in prep_list]))
+    return out
+
+
 # for example The street is across from you.
 # The following relations:
 #   advmod(you-6, across-4)
@@ -278,12 +306,11 @@ def xcomp_propagation(sentence):
 #   case(you-6, across-4)
 #   mwe(across-4, from-5)
 def process_simple_2wp(sentence):
-    w1_forms = "|".join([two_word_prep.split("_")[0] for two_word_prep in two_word_preps_regular])
-    w2_forms = "|".join([two_word_prep.split("_")[1] for two_word_prep in two_word_preps_regular])
+    forms = split_concats_by_index(two_word_preps_regular, 2)
     
     restriction_lists = Restriction(nested=[[
-        Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + w1_forms + "$"),
-        Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + w2_forms + "$")
+        Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + forms[0] + "$"),
+        Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + forms[1] + "$")
     ]])
     ret = match(sentence.values(), [[restriction_lists]])
     if not ret:
@@ -293,14 +320,12 @@ def process_simple_2wp(sentence):
         w1, w1_head, w1_rel = name_space['w1']
         w2, w2_head, w2_rel = name_space['w2']
         
-        if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') not in two_word_preps_regular:
+        # check if words really form a prepositional phrase
+        if not is_prep_seq([w1, w2], two_word_preps_regular):
             continue
         
         # create multi word expression
-        w1.remove_all_edges()
-        w2.remove_all_edges()
-        w1.add_edge("case", w1_head)
-        w2.add_edge("mwe", w1)
+        create_mwe([w1, w2], w1_head, "case")
 
 
 # for example: He is close to me.
@@ -317,15 +342,13 @@ def process_simple_2wp(sentence):
 #   mwe(close-3, to-4)
 #   root(ROOT-0, me-6)
 def process_complex_2wp(sentence):
-    w1_forms = "|".join([two_word_prep.split("_")[0] for two_word_prep in two_word_preps_complex])
-    w2_forms = "|".join([two_word_prep.split("_")[1] for two_word_prep in two_word_preps_complex])
+    forms = split_concats_by_index(two_word_preps_complex, 2)
 
     inner_rest = Restriction(gov="nmod", name="gov2", nested=[[
-        Restriction(name="w2", no_sons_of=".*", form="^" + w2_forms + "$")
+        Restriction(name="w2", no_sons_of=".*", form="^" + forms[1] + "$")
     ]])
-    
     restriction_lists = Restriction(name="gov", nested=[[
-        Restriction(name="w1", followed_by="w2", form="^" + w1_forms + "$", nested=[
+        Restriction(name="w1", followed_by="w2", form="^" + forms[0] + "$", nested=[
             [inner_rest, Restriction(name="cop", gov="cop")],
             [inner_rest]
         ])
@@ -336,13 +359,14 @@ def process_complex_2wp(sentence):
         return
 
     for name_space in ret:
-        w1, w1_head, w1_rel = name_space['w1']
-        w2, w2_head, w2_rel = name_space['w2']
+        w1, _, w1_rel = name_space['w1']
+        w2, _, _ = name_space['w2']
         gov, _, _ = name_space['gov']
-        gov2, gov2_head, gov2_rel = name_space['gov2']
+        gov2, _, gov2_rel = name_space['gov2']
         cop, _, _ = name_space['cop'] if "cop" in name_space else (None, None, None)
         
-        if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') not in two_word_preps_complex:
+        # check if words really form a prepositional phrase
+        if not is_prep_seq([w1, w2], two_word_preps_complex):
             continue
         
         # Determine the relation to use for gov2's governor
@@ -352,17 +376,10 @@ def process_complex_2wp(sentence):
             gov2.replace_edge(gov2_rel, gov2_rel, w1, gov)
         
         # reattach w1 sons to gov2.
-        # store them before we make change to the original list
-        for child in list(w1.get_children()):
-            # this is only for the multi-graph case
-            for child_head, child_rel in list(child.get_new_relations(given_head=w1)):
-                child.replace_edge(child_rel, child_rel, w1, gov2)
+        reattach_children(w1, gov2)
         
         # create multi word expression
-        w1.remove_all_edges()
-        w2.remove_all_edges()
-        w1.add_edge("case", gov2)
-        w2.add_edge("mwe", w1)
+        create_mwe([w1, w2], gov2, "case")
 
 
 # for example: He is close to me.
@@ -381,16 +398,14 @@ def process_complex_2wp(sentence):
 #   mwe(in-3, of-5)
 #   root(ROOT-0, you-6)
 def process_3wp(sentence):
-    w1_forms = "|".join([two_word_prep.split("_")[0] for two_word_prep in three_word_preps])
-    w2_forms = "|".join([two_word_prep.split("_")[1] for two_word_prep in three_word_preps])
-    w3_forms = "|".join([two_word_prep.split("_")[2] for two_word_prep in three_word_preps])
+    forms = split_concats_by_index(three_word_preps, 3)
     
     restriction_lists = Restriction(name="gov", nested=[[
-        Restriction(name="w2", followed_by="w3", follows="w1", form="^" + w2_forms + "$", nested=[[
+        Restriction(name="w2", followed_by="w3", follows="w1", form="^" + forms[1] + "$", nested=[[
             Restriction(name="gov2", gov="(nmod|acl|advcl)", nested=[[
-                Restriction(name="w3", gov="(case|mark)", no_sons_of=".*", form="^" + w3_forms + "$")
+                Restriction(name="w3", gov="(case|mark)", no_sons_of=".*", form="^" + forms[2] + "$")
             ]]),
-            Restriction(name="w1", gov="^(case)$", no_sons_of=".*", form="^" + w1_forms + "$")
+            Restriction(name="w1", gov="^(case)$", no_sons_of=".*", form="^" + forms[0] + "$")
         ]])
     ]])
     
@@ -405,8 +420,8 @@ def process_3wp(sentence):
         gov, _, _ = name_space['gov']
         gov2, _, gov2_rel = name_space['gov2']
         
-        if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') + "_" + w3.get_conllu_field('form') \
-                not in three_word_preps:
+        # check if words really form a prepositional phrase
+        if not is_prep_seq([w1, w2, w3], three_word_preps):
             continue
         
         # Determine the relation to use
@@ -418,18 +433,10 @@ def process_3wp(sentence):
             case = "case"
 
         # reattach w2 sons to gov2
-        # store them before we make change to the original list
-        for child in list(w2.get_children()):
-            for child_head, child_rel in list(child.get_new_relations(given_head=w2)):
-                child.replace_edge(child_rel, child_rel, w2, gov2)
+        reattach_children(w2, gov2)
         
         # create multi word expression
-        w1.remove_all_edges()
-        w2.remove_all_edges()
-        w3.remove_all_edges()
-        w1.add_edge(case, gov2)
-        w2.add_edge("mwe", w1)
-        w3.add_edge("mwe", w1)
+        create_mwe([w1, w2, w3], gov2, case)
 
 
 def demote_quantificational_modifiers_3w(sentence):
