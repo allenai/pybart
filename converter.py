@@ -296,8 +296,11 @@ def process_simple_2wp(sentence):
         if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') not in two_word_preps_regular:
             continue
         
-        w1.replace_edge(w1_rel, "case", w1_head, w1_head)
-        w2.replace_edge(w2_rel, "mwe", w2_head, w1)
+        # create multi word expression
+        w1.remove_all_edges()
+        w2.remove_all_edges()
+        w1.add_edge("case", w1_head)
+        w2.add_edge("mwe", w1)
 
 
 # for example: He is close to me.
@@ -335,8 +338,8 @@ def process_complex_2wp(sentence):
     for name_space in ret:
         w1, w1_head, w1_rel = name_space['w1']
         w2, w2_head, w2_rel = name_space['w2']
-        gov2, gov2_head, gov2_rel = name_space['gov2']
         gov, _, _ = name_space['gov']
+        gov2, gov2_head, gov2_rel = name_space['gov2']
         cop, _, _ = name_space['cop'] if "cop" in name_space else (None, None, None)
         
         if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') not in two_word_preps_complex:
@@ -357,57 +360,76 @@ def process_complex_2wp(sentence):
         
         # create multi word expression
         w1.remove_all_edges()
-        w1.add_edge("case", gov2)
         w2.remove_all_edges()
+        w1.add_edge("case", gov2)
         w2.add_edge("mwe", w1)
 
 
+# for example: He is close to me.
+# The following relations:
+#   nsubj(front-4, I-1)
+#   cop(front-4, am-2)
+#   case(front-4, in-3)
+#   root(ROOT-0, front-4)
+#   case(you-6, of-5)
+#   nmod(front-4, you-6)
+# would be replaced with:
+#   nsubj(you-6, I-1)
+#   cop(you-6, am-2)
+#   case(you-6, in-3)
+#   mwe(in-3, front-4)
+#   mwe(in-3, of-5)
+#   root(ROOT-0, you-6)
 def process_3wp(sentence):
-    for three_word_prep in three_word_preps:
-        w1_form, w2_form, w3_form = three_word_prep.split("_")
-        restriction = \
-            Restriction({"name": "gov", "nested":
-            [[
-                Restriction({"name": "w2", "followed_by":"w3", "follows": "w1", "form": "^" + w2_form + "$", "nested":
-                [[
-                    Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
-                    [[
-                        Restriction({"gov": "(case|mark)", "no-gov": ".*", "name": "w3", "form": "^" + w3_form + "$"}),
-                    ]]}),
-                    Restriction({"gov": "case", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"})
-                ]]})
-            ]]})
+    w1_forms = "|".join([two_word_prep.split("_")[0] for two_word_prep in three_word_preps])
+    w2_forms = "|".join([two_word_prep.split("_")[1] for two_word_prep in three_word_preps])
+    w3_forms = "|".join([two_word_prep.split("_")[2] for two_word_prep in three_word_preps])
+    
+    restriction_lists = Restriction(name="gov", nested=[[
+        Restriction(name="w2", followed_by="w3", follows="w1", form="^" + w2_forms + "$", nested=[[
+            Restriction(name="gov2", gov="(nmod|acl|advcl)", nested=[[
+                Restriction(name="w3", gov="(case|mark)", no_sons_of=".*", form="^" + w3_forms + "$")
+            ]]),
+            Restriction(name="w1", gov="^(case)$", no_sons_of=".*", form="^" + w1_forms + "$")
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[restriction_lists]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        w1, _, _ = name_space['w1']
+        w2, _, w2_rel = name_space['w2']
+        w3, _, _ = name_space['w3']
+        gov, _, _ = name_space['gov']
+        gov2, _, gov2_rel = name_space['gov2']
         
-        ret = dict()
-        if not match(sentence.values(), [[restriction]], ret):
+        if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') + "_" + w3.get_conllu_field('form') \
+                not in three_word_preps:
             continue
         
-        for gov2, gov2_head, gov2_rel in ret['gov2']:
-            for w2, w2_head, w2_rel in ret['w2']:
-                # Determine the relation to use. If it is a relation that can
-                # join two clauses and w1 is the head of a copular construction,
-                # then use the relation of w1 and its parent. Otherwise use the relation of edge.
-                case = "case"
-                rel = w2_rel
-                if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
-                    rel = gov2_rel
-                    case = "mark"
-                
-                gov2.replace_edge(gov2_rel, rel, w2, w2_head)
-                # reattach w2 sons to gov2
-                for child in w2.get_children():
-                    for child_head, child_rel in child.get_new_relations(given_head=w2):
-                        child.replace_edge(child_rel, child_rel, w2, gov2)
-                
-                w2.remove_all_edges()
-                
-                for w1, _, _ in ret['w1']:
-                    w1.remove_all_edges()
-                    w1.add_edge(case, gov2)
-                    w2.add_edge("mwe", w1)
-                    for w3, w3_head, w3_rel in ret['w3']:
-                        w3.remove_all_edges()
-                        w3.add_edge("mwe", w1)
+        # Determine the relation to use
+        if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
+            gov2.replace_edge(gov2_rel, gov2_rel, w2, gov)
+            case = "mark"
+        else:
+            gov2.replace_edge(gov2_rel, w2_rel, w2, gov)
+            case = "case"
+
+        # reattach w2 sons to gov2
+        # store them before we make change to the original list
+        for child in list(w2.get_children()):
+            for child_head, child_rel in list(child.get_new_relations(given_head=w2)):
+                child.replace_edge(child_rel, child_rel, w2, gov2)
+        
+        # create multi word expression
+        w1.remove_all_edges()
+        w2.remove_all_edges()
+        w3.remove_all_edges()
+        w1.add_edge(case, gov2)
+        w2.add_edge("mwe", w1)
+        w3.add_edge("mwe", w1)
 
 
 def demote_quantificational_modifiers_3w(sentence):
@@ -666,7 +688,7 @@ def convert_sentence(sentence):
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
         process_simple_2wp(sentence)
         process_complex_2wp(sentence)
-    #     process_3wp(sentence)
+        process_3wp(sentence)
     #     # demoteQuantificationalModifiers
     #     demote_quantificational_modifiers_3w(sentence)
     #     demote_quantificational_modifiers_2w(sentence)

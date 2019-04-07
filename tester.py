@@ -29,9 +29,9 @@ def test():
         i += 1
     
     if failed_tests > 0:
-        print("\x1b[1m\033[91mFailed tests: %d/%d\033[0m\x1b[21m" % (failed_tests, test_count))
+        print("\x1b[1m\033[91mPassed tests: %d/%d\033[0m\x1b[21m" % (test_count - failed_tests, test_count))
     else:
-        print("\x1b[1m\033[94mGreat success!!!\033[0m\x1b[21m")
+        print("\x1b[1m\033[94mGreat success: %d/%d!!!\033[0m\x1b[21m" % (test_count - failed_tests, test_count))
 
 
 if __name__ == "__main__":
