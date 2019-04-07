@@ -2,3 +2,4 @@
 *.conllu
 *.pyc
 .idea
+*.txt

@@ -270,25 +270,34 @@ def xcomp_propagation(sentence):
         xcomp_propagation_per_type(sentence, xcomp_restriction)
 
 
+# for example The street is across from you.
+# The folllowing relations:
+#   advmod(you-6, across-4)
+#   case(you-6, from-5)
+# would be replaced with:
+#   case(you-6, across-4)
+#   mwe(across-4, from-5)
 def process_simple_2wp(sentence):
-    for two_word_prep in two_word_preps_regular:
-        w1_form, w2_form = two_word_prep.split("_")
-        restriction_lists = \
-        [[
-            Restriction({"name": "gov", "nested":
-            [[
-                Restriction({"gov": "(case|advmod)", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"}),
-                Restriction({"gov": "case", "no-gov": ".*", "follows": "w1", "name": "w2", "form": "^" + w2_form + "$"})
-            ]]})
-        ]]
-        ret = dict()
-        if not match(sentence.values(), restriction_lists, ret):
+    w1_forms = "|".join([two_word_prep.split("_")[0] for two_word_prep in two_word_preps_regular])
+    w2_forms = "|".join([two_word_prep.split("_")[1] for two_word_prep in two_word_preps_regular])
+    
+    restriction_lists = Restriction(nested=[[
+        Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + w1_forms + "$"),
+        Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + w2_forms + "$")
+    ]])
+    ret = match(sentence.values(), [[restriction_lists]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        w1, w1_head, w1_rel = name_space['w1']
+        w2, w2_head, w2_rel = name_space['w2']
+        
+        if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') not in two_word_preps_regular:
             continue
         
-        for gov, _, _ in ret['gov']:
-            for (w1, w1_head, w1_rel), (w2, w2_head, w2_rel) in zip(ret['w1'], ret['w2']):
-                w1.replace_edge(w1_rel, "case", w1_head, w1_head)
-                w2.replace_edge(w2_rel, "mwe", w2_head, w1)
+        w1.replace_edge(w1_rel, "case", w1_head, w1_head)
+        w2.replace_edge(w2_rel, "mwe", w2_head, w1)
 
 
 def process_complex_2wp(sentence):
@@ -635,9 +644,9 @@ def convert_sentence(sentence):
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
 
-    # if conf.enhanced_plus_plus:
-    #     # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
-    #     process_simple_2wp(sentence)
+    if conf.enhanced_plus_plus:
+        # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
+        process_simple_2wp(sentence)
     #     process_complex_2wp(sentence)
     #     process_3wp(sentence)
     #     # demoteQuantificationalModifiers
