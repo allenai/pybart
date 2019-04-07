@@ -37,11 +37,11 @@ def named_nodes_restrictions(restriction, named_nodes):
 
 def match_child(child, restriction, head):
     if restriction.form:
-        if not re.match(restriction.form, child.get_conllu_field('form')):
+        if child.is_root or not re.match(restriction.form, child.get_conllu_field('form')):
             return
     
     if restriction.xpos:
-        if not re.match(restriction.xpos, child.get_conllu_field('xpos')):
+        if child.is_root or not re.match(restriction.xpos, child.get_conllu_field('xpos')):
             return
     
     # if no head (first level words)
