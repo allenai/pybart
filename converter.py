@@ -271,7 +271,7 @@ def xcomp_propagation(sentence):
 
 
 # for example The street is across from you.
-# The folllowing relations:
+# The following relations:
 #   advmod(you-6, across-4)
 #   case(you-6, from-5)
 # would be replaced with:
@@ -300,48 +300,66 @@ def process_simple_2wp(sentence):
         w2.replace_edge(w2_rel, "mwe", w2_head, w1)
 
 
+# for example: He is close to me.
+# The following relations:
+#   nsubj(close-3, He-1)
+#   cop(close-3, is-2)
+#   root(ROOT-0, close-3)
+#   case(me-6, to-4)
+#   nmod(close-3, me-6)
+# would be replaced with:
+#   nsubj(me-6, He-1)
+#   cop(me-6, is-2)
+#   case(me-6, close-3)
+#   mwe(close-3, to-4)
+#   root(ROOT-0, me-6)
 def process_complex_2wp(sentence):
-    for two_word_prep in two_word_preps_complex:
-        w1_form, w2_form = two_word_prep.split("_")
-        restriction = \
-            Restriction({"name": "gov", "nested": [[
-                Restriction({"name": "w1", "followed_by": "w2", "form": "^" + w1_form + "$", "nested":
-                [[
-                    Restriction({"gov": "nmod", "name": "gov2", "nested":
-                    [[
-                        Restriction({"gov": "case", "no-gov": ".*", "name": "w2", "form": "^" + w2_form + "$"}),
-                    ]]}),
-                ]]})
-            ]]})
+    w1_forms = "|".join([two_word_prep.split("_")[0] for two_word_prep in two_word_preps_complex])
+    w2_forms = "|".join([two_word_prep.split("_")[1] for two_word_prep in two_word_preps_complex])
+
+    inner_rest = Restriction(gov="nmod", name="gov2", nested=[[
+        Restriction(name="w2", no_sons_of=".*", form="^" + w2_forms + "$")
+    ]])
+    
+    restriction_lists = Restriction(name="gov", nested=[[
+        Restriction(name="w1", followed_by="w2", form="^" + w1_forms + "$", nested=[
+            [inner_rest, Restriction(name="cop", gov="cop")],
+            [inner_rest]
+        ])
+    ]])
+    
+    ret = match(sentence.values(), [[restriction_lists]])
+    if not ret:
+        return
+
+    for name_space in ret:
+        w1, w1_head, w1_rel = name_space['w1']
+        w2, w2_head, w2_rel = name_space['w2']
+        gov2, gov2_head, gov2_rel = name_space['gov2']
+        gov, _, _ = name_space['gov']
+        cop, _, _ = name_space['cop'] if "cop" in name_space else (None, None, None)
         
-        ret = dict()
-        if not match(sentence.values(), [[restriction]], ret):
+        if w1.get_conllu_field('form') + "_" + w2.get_conllu_field('form') not in two_word_preps_complex:
             continue
         
-        for gov, _, _ in ret['gov']:
-            for gov2, gov2_head, gov2_rel in ret['gov2']:
-                for w1, _, w1_rel in ret['w1']:
-                    # reattach w1 sons to gov2
-                    w1_has_cop_child = False
-                    gov2.remove_edge()
-                    for child in w1.get_children():
-                        for child_head, child_rel in child.get_new_relations(given_head=w1.get_conllu_field('id')):
-                            if child_rel == "cop":
-                                w1_has_cop_child = True
-                            child.replace_edge(child_rel, child_rel, w1, gov2)
-                    
-                    # Determine the relation to use.
-                    rel = w1_rel if w1_has_cop_child and (w1_rel in clause_relations) else gov2_rel
-                    
-                    # replace gov2's governor
-                    w1.remove_edge(w1_rel, gov)
-                    gov2.replace_edge(gov2_rel, rel, w1, gov)
-                    
-                    w1.remove_all_edges()
-                    w1.add_edge("case", gov2)
-                    for w2, _, _ in ret['w2']:
-                        w2.remove_all_edges()
-                        w2.add_edge("mwe", w1)
+        # Determine the relation to use for gov2's governor
+        if (w1_rel == "root") or (cop and (w1_rel in clause_relations)):
+            gov2.replace_edge(gov2_rel, w1_rel, w1, gov)
+        else:
+            gov2.replace_edge(gov2_rel, gov2_rel, w1, gov)
+        
+        # reattach w1 sons to gov2.
+        # store them before we make change to the original list
+        for child in list(w1.get_children()):
+            # this is only for the multi-graph case
+            for child_head, child_rel in list(child.get_new_relations(given_head=w1)):
+                child.replace_edge(child_rel, child_rel, w1, gov2)
+        
+        # create multi word expression
+        w1.remove_all_edges()
+        w1.add_edge("case", gov2)
+        w2.remove_all_edges()
+        w2.add_edge("mwe", w1)
 
 
 def process_3wp(sentence):
@@ -647,7 +665,7 @@ def convert_sentence(sentence):
     if conf.enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
         process_simple_2wp(sentence)
-    #     process_complex_2wp(sentence)
+        process_complex_2wp(sentence)
     #     process_3wp(sentence)
     #     # demoteQuantificationalModifiers
     #     demote_quantificational_modifiers_3w(sentence)
