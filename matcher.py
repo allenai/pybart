@@ -108,7 +108,7 @@ def match_rl(children, restriction_list, head):
         # every new rest_ret should be merged to any previous rest_ret
         ret = rest_ret if not ret else \
             [{**ns_ret, **ns_rest_ret} for ns_rest_ret in rest_ret for ns_ret in ret]
-
+        
         ret_was_empty_beforehand = False
         if not ret:
             ret_was_empty_beforehand = True
