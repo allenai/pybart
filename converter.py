@@ -552,60 +552,6 @@ def add_ref_and_collapse(sentence):
         leftmost.add_edge("ref", gov)
 
 
-# Expands prepositions with conjunctions such as in the sentence
-# "Bill flies to and from Serbia." by copying the verb resulting
-# in the following relations:
-#   conj:and(flies, flies') # new
-#   cc(to, and)
-#   conj(to, from)
-#   case(Serbia, to)
-#   nmod(flies, Serbia)
-#   nmod(flies', Serbia) # new
-# The label of the conjunct relation includes the conjunction type
-# because if the verb has multiple cc relations then it can be impossible
-# to infer which coordination marker belongs to which conjuncts.
-def expand_prep_conjunctions(sentence):
-    rl = [[Restriction({"nested": [[
-            Restriction({"nested": [[
-                Restriction({"gov": "case", "name": "gov", "nested": [[
-                    Restriction({"gov": "cc", "name": "cc"}),
-                    Restriction({"gov": "conj", "name": "conj"})
-                ]]})
-            ]]})
-        ]]})
-    ]]
-    ret = dict()
-    
-    if not match(sentence.values(), rl, ret):
-        return
-    for gov, _, _ in ret['gov']:
-        cur_form = None
-        i = 0
-        # sort the cc's and conj's found and iterate them
-        # TODO - some of this code was copied from conj_info and from expand_pp_conjunctions - try to share code
-        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
-                sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
-            if cc_or_conj_rel == "cc":
-                # save cc's form
-                cur_form = cc_or_conj_source.get_conllu_field('form')
-            else:
-                # per parent per grandpa: copy the grandpa and:
-                # add conj:'cc_form'(grandpa, copy_node)
-                # add 'rel':'conj_form'(copy_node, parent)
-                i += 1
-                for parent, _ in gov.get_new_relations():
-                    for grandpa, grandpa_rel in parent.get_new_relations():
-                        new_id = grandpa.get_conllu_field('id') + (0.1 * i)
-                        copy_node = grandpa.copy(
-                            new_id=new_id,
-                            head="_",
-                            deprel="_",
-                            misc="CopyOf=%d" % grandpa.get_conllu_field('id'))
-                        parent.add_edge(grandpa_rel + ":" + cc_or_conj_source.get_conllu_field('form'), copy_node)
-                        copy_node.add_edge("conj:" + cur_form, grandpa)
-                        sentence[new_id] = copy_node
-
-
 def assign_ccs_to_conjs(ret):
     cc_assignments = []
     ccs = []
@@ -623,32 +569,10 @@ def assign_ccs_to_conjs(ret):
     return cc_assignments
 
 
-# Expands PPs with conjunctions such as in the sentence
-# "Bill flies to France and from Serbia." by copying the verb
-# that governs the prepositional phrase resulting in the following
-# relations:
-#   conj:and(flies, flies') # new
-#   case(France, to)
-#   cc(flies, and) # new
-#   case(Serbia, from)
-#   nmod(flies, France)
-#   nmod(flies', Serbia) # new
-# while those where removed:
-#   cc(France-4, and-5)
-#   conj(France-4, Serbia-7)
 # The label of the conjunct relation includes the conjunction type
 # because if the verb has multiple cc relations then it can be impossible
 # to infer which coordination marker belongs to which conjuncts.
-def expand_pp_conjunctions(sentence):
-    restriction = Restriction(name="to_copy", nested=[[
-        Restriction(name="gov", gov="^(nmod|acl|advcl)$", nested=[[
-            Restriction(gov="case"),
-            Restriction(name="cc", gov="cc"),
-            Restriction(name="conj", gov="conj", nested=[[
-                Restriction(gov="case")
-            ]])
-        ]])
-    ]])
+def expand_per_type(sentence, restriction, is_pp):
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
@@ -663,14 +587,11 @@ def expand_pp_conjunctions(sentence):
         to_copy, _, _ = name_space['to_copy']
         cc, cc_head, cc_rel = name_space['cc']
         conj, conj_head, conj_rel = name_space['conj']
+        
         if ((conj, conj_head, conj_rel), (cc, cc_head, cc_rel)) not in cc_assignments:
             continue
         
-        # replace cc('gov', 'cc') with cc('to_copy', 'cc')
-        # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
-        cc.replace_edge(cc_rel, cc_rel, cc_head, to_copy)
-        
-        # create a copy node for the parent,
+        # create a copy node,
         # add conj:cc_info('to_copy', copy_node)
         nodes_copied = 1 if to_copy.get_conllu_field('id') != last_copy_id else nodes_copied + 1
         last_copy_id = to_copy.get_conllu_field('id')
@@ -683,8 +604,55 @@ def expand_pp_conjunctions(sentence):
         copy_node.add_edge("conj:" + cc.get_conllu_field('form'), to_copy)
         sentence[new_id] = copy_node
         
-        # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
-        conj.replace_edge(conj_rel, gov_rel, conj_head, copy_node)
+        if is_pp:
+            # replace cc('gov', 'cc') with cc('to_copy', 'cc')
+            # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
+            cc.replace_edge(cc_rel, cc_rel, cc_head, to_copy)
+            
+            # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
+            conj.replace_edge(conj_rel, gov_rel, conj_head, copy_node)
+        else:
+            # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
+            modifier, _, modifier_rel = name_space['modifier']
+            modifier.add_edge(modifier_rel + ":" + conj.get_conllu_field('form'), copy_node)
+
+
+# Expands PPs with conjunctions such as in the sentence
+# "Bill flies to France and from Serbia." by copying the verb
+# that governs the prepositional phrase resulting in the following new or changed relations:
+#   conj:and(flies, flies')
+#   cc(flies, and)
+#   nmod(flies', Serbia)
+# while those where removed:
+#   cc(France-4, and-5)
+#   conj(France-4, Serbia-7)
+# After that, expands prepositions with conjunctions such as in the sentence
+# "Bill flies to and from Serbia." by copying the verb resulting
+# in the following new relations:
+#   conj:and(flies, flies')
+#   nmod(flies', Serbia)
+def expand_pp_or_prep_conjunctions(sentence):
+    pp_restriction = Restriction(name="to_copy", nested=[[
+        Restriction(name="gov", gov="^(nmod|acl|advcl)$", nested=[[
+            Restriction(gov="case"),
+            Restriction(name="cc", gov="cc"),
+            Restriction(name="conj", gov="conj", nested=[[
+                Restriction(gov="case")
+            ]])
+        ]])
+    ]])
+    
+    prep_restriction = Restriction(name="to_copy", nested=[[
+        Restriction(name="modifier", nested=[[
+            Restriction(name="gov", gov="case", nested=[[
+                Restriction(name="cc", gov="cc"),
+                Restriction(name="conj", gov="conj")
+            ]])
+        ]])
+    ]])
+    
+    for rl, is_pp in [(pp_restriction, True), (prep_restriction, False)]:
+        expand_per_type(sentence, rl, is_pp)
 
 
 def convert_sentence(sentence):
@@ -700,9 +668,8 @@ def convert_sentence(sentence):
         # demoteQuantificationalModifiers
         demote_quantificational_modifiers(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-        expand_pp_conjunctions(sentence)
-    #     expand_prep_conjunctions(sentence)
-    #
+        expand_pp_or_prep_conjunctions(sentence)
+    
     # # addCaseMarkerInformation
     # passive_agent(sentence)
     # prep_patterns(sentence, '^nmod$', 'case')
