@@ -657,6 +657,7 @@ def expand_pp_conjunctions(sentence):
     cc_assignments = assign_ccs_to_conjs(ret)
     
     nodes_copied = 0
+    last_copy_id = -1
     for name_space in ret:
         gov, _, gov_rel = name_space['gov']
         to_copy, _, _ = name_space['to_copy']
@@ -671,7 +672,8 @@ def expand_pp_conjunctions(sentence):
         
         # create a copy node for the parent,
         # add conj:cc_info('to_copy', copy_node)
-        nodes_copied += 1
+        nodes_copied = 1 if to_copy.get_conllu_field('id') != last_copy_id else nodes_copied + 1
+        last_copy_id = to_copy.get_conllu_field('id')
         new_id = to_copy.get_conllu_field('id') + (0.1 * nodes_copied)
         copy_node = to_copy.copy(
             new_id=new_id,
