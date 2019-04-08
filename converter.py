@@ -439,6 +439,19 @@ def process_3wp(sentence):
         create_mwe([w1, w2, w3], gov2, case)
 
 
+# The following two methods corrects Partitives and light noun constructions,
+# by making it a multi word expression with head of det:qmod.
+# for example: A couple of people.
+# The following relations:
+#   det(couple-2, A-1)
+#   root(ROOT-0, couple-2)
+#   case(people-4, of-3)
+#   nmod(couple-2, people-4)
+# would be replaced with:
+#   det:qmod(people-4, A-1)
+#   mwe(A-1, couple-2,)
+#   mwe(A-1, of-3)
+#   root(ROOT-0, people-4)
 def demote_per_type(sentence, rl):
     ret = match(sentence.values(), [[rl]])
     if not ret:
@@ -462,27 +475,33 @@ def demote_per_type(sentence, rl):
 
 
 def demote_quantificational_modifiers(sentence):
-    quant_3w = Restriction(name="w2", no_sons_of="amod", form=w2_quant_mod_of_3w, followed_by="w3", nested=[[
-        Restriction(name="w1", gov="det", form="(?i:an?)"),
-        Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
-            Restriction(name="w3", gov="case", form="(?i:of)")
-        ]])
-    ]])
-
-    quant_2w = Restriction(name="w1", form=w1_quant_mod_of_2w, followed_by="w2", nested=[[
-        Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
-            Restriction(name="w2", gov="case", form="(?i:of)")
+    quant_3w = Restriction(nested=[[
+        Restriction(name="w2", no_sons_of="amod", form=w2_quant_mod_of_3w, followed_by="w3", nested=[[
+            Restriction(name="w1", gov="det", form="(?i:an?)"),
+            Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
+                Restriction(name="w3", gov="case", form="(?i:of)")
+            ]])
         ]])
     ]])
     
-    quant_2w_det = Restriction(name="w1", form=w1_quant_mod_of_2w_det, followed_by="w2", nested=[
-        [Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
-            Restriction(name="det", gov="det"),
-            Restriction(name="w2", gov="case", form="(?i:of)", followed_by="det")
+    quant_2w = Restriction(nested=[[
+        Restriction(name="w1", form=w1_quant_mod_of_2w, followed_by="w2", nested=[[
+            Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
+                Restriction(name="w2", gov="case", form="(?i:of)")
+            ]])
         ]])
-    ],
-        [Restriction(name="gov2", gov="nmod", xpos="(PRP.*)", nested=[[
-            Restriction(name="w2", gov="case", form="(?i:of)")
+    ]])
+    
+    quant_2w_det = Restriction(nested=[[
+        Restriction(name="w1", form=w1_quant_mod_of_2w_det, followed_by="w2", nested=[
+            [Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
+                Restriction(name="det", gov="det"),
+                Restriction(name="w2", gov="case", form="(?i:of)", followed_by="det")
+            ]])
+        ],
+            [Restriction(name="gov2", gov="nmod", xpos="(PRP.*)", nested=[[
+                Restriction(name="w2", gov="case", form="(?i:of)")
+            ]])
         ]])
     ]])
     
