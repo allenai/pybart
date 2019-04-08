@@ -14,9 +14,9 @@ two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_fr
 two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
 three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
-w2_quant_mod_of_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
-w1_quant_mod_of_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
-w1_quant_mod_of_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
+quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
+quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
+quant_mod_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
 relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 
 
@@ -458,17 +458,21 @@ def demote_per_type(sentence, rl):
         return
 
     for name_space in ret:
-        w1, _, _ = name_space['w1']
+        old_gov, old_gov_head, old_gov_rel = name_space['w1']
         w2, w2_head, w2_rel = name_space['w2']
         gov2, _, gov2_rel = name_space['gov2']
-
-        words = [w1, w2]
+        
+        words = [old_gov, w2]
         if 'w3' in name_space:
             w3, _, _ = name_space['w3']
             words += [w3]
+            # run over what we 'though' to be the old_gov, as this is a 3-word mwe
             old_gov, old_gov_head, old_gov_rel = name_space['w2']
-        else:
-            old_gov, old_gov_head, old_gov_rel = name_space['w1']
+        elif 'det' in name_space:
+            # NOTE: this is not done in SC, but should have been by THE PAPER.
+            # adding the following determiner to the mwe.
+            det, _, _ = name_space['det']
+            words += [det]
         
         gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
         create_mwe(words, gov2, "det:qmod")
@@ -476,7 +480,7 @@ def demote_per_type(sentence, rl):
 
 def demote_quantificational_modifiers(sentence):
     quant_3w = Restriction(nested=[[
-        Restriction(name="w2", no_sons_of="amod", form=w2_quant_mod_of_3w, followed_by="w3", nested=[[
+        Restriction(name="w2", no_sons_of="amod", form=quant_mod_3w, followed_by="w3", nested=[[
             Restriction(name="w1", gov="det", form="(?i:an?)"),
             Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
                 Restriction(name="w3", gov="case", form="(?i:of)")
@@ -485,7 +489,7 @@ def demote_quantificational_modifiers(sentence):
     ]])
     
     quant_2w = Restriction(nested=[[
-        Restriction(name="w1", form=w1_quant_mod_of_2w, followed_by="w2", nested=[[
+        Restriction(name="w1", form=quant_mod_2w, followed_by="w2", nested=[[
             Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
                 Restriction(name="w2", gov="case", form="(?i:of)")
             ]])
@@ -493,7 +497,7 @@ def demote_quantificational_modifiers(sentence):
     ]])
     
     quant_2w_det = Restriction(nested=[[
-        Restriction(name="w1", form=w1_quant_mod_of_2w_det, followed_by="w2", nested=[
+        Restriction(name="w1", form=quant_mod_2w_det, followed_by="w2", nested=[
             [Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
                 Restriction(name="det", gov="det"),
                 Restriction(name="w2", gov="case", form="(?i:of)", followed_by="det")
