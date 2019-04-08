@@ -652,6 +652,7 @@ def expand_pp_conjunctions(sentence):
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
+    
     # assign ccs to conjs according to precedence
     cc_assignments = assign_ccs_to_conjs(ret)
     
@@ -661,10 +662,9 @@ def expand_pp_conjunctions(sentence):
         to_copy, _, _ = name_space['to_copy']
         cc, cc_head, cc_rel = name_space['cc']
         conj, conj_head, conj_rel = name_space['conj']
-        
         if ((conj, conj_head, conj_rel), (cc, cc_head, cc_rel)) not in cc_assignments:
             continue
-
+        
         # replace cc('gov', 'cc') with cc('to_copy', 'cc')
         # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
         cc.replace_edge(cc_rel, cc_rel, cc_head, to_copy)
