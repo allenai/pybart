@@ -61,7 +61,7 @@ def match_child(child, restriction, head):
     nested = []
     if restriction.nested:
         nested = match(child.get_children(), restriction.nested, child)
-        if not nested:
+        if nested is None:
             return
     
     if restriction.name:
@@ -130,6 +130,6 @@ def match_rl(children, restriction_list, head):
 def match(children, restriction_lists, head=None):
     for restriction_list in restriction_lists:
         ret = match_rl(children, restriction_list, head)
-        if ret:
+        if ret is not None:
             return ret
-    return []
+    return

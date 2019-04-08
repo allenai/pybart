@@ -606,6 +606,23 @@ def expand_prep_conjunctions(sentence):
                         sentence[new_id] = copy_node
 
 
+def assign_ccs_to_conjs(ret):
+    cc_assignments = []
+    ccs = []
+    conjs = []
+    for name_space in ret:
+        ccs.append((name_space['cc'][0].get_conllu_field('id'), name_space['cc']))
+        conjs.append((name_space['conj'][0].get_conllu_field('id'), name_space['conj']))
+    sorted_ccs_and_conjs = sorted(ccs + conjs)
+    _, cur_cc = sorted(ccs)[0]
+    for _, (cc_or_conj, head, rel) in sorted_ccs_and_conjs:
+        if rel == "cc":
+            cur_cc = (cc_or_conj, head, rel)
+        else:
+            cc_assignments.append(((cc_or_conj, head, rel), cur_cc))
+    return cc_assignments
+
+
 # Expands PPs with conjunctions such as in the sentence
 # "Bill flies to France and from Serbia." by copying the verb
 # that governs the prepositional phrase resulting in the following
@@ -623,54 +640,49 @@ def expand_prep_conjunctions(sentence):
 # because if the verb has multiple cc relations then it can be impossible
 # to infer which coordination marker belongs to which conjuncts.
 def expand_pp_conjunctions(sentence):
-    rl = [[Restriction({"nested": [[
-            Restriction({"gov": "^(nmod|acl|advcl)$", "name": "gov", "nested": [[
-                Restriction({"gov": "case"}),
-                Restriction({"gov": "cc", "name": "cc"}),
-                Restriction({"gov": "conj", "name": "conj", "nested": [[
-                    Restriction({"gov": "case"})
-                ]]})
-            ]]})
-        ]]})
-    ]]
-    
-    ret = dict()
-    if not match(sentence.values(), rl, ret):
+    restriction = Restriction(name="to_copy", nested=[[
+        Restriction(name="gov", gov="^(nmod|acl|advcl)$", nested=[[
+            Restriction(gov="case"),
+            Restriction(name="cc", gov="cc"),
+            Restriction(name="conj", gov="conj", nested=[[
+                Restriction(gov="case")
+            ]])
+        ]])
+    ]])
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
+    # assign ccs to conjs according to precedence
+    cc_assignments = assign_ccs_to_conjs(ret)
     
-    for gov, _, _ in ret['gov']:
-        cur_form = None
-        i = 0
-        # sort the cc's and conj's found and iterate them
-        # TODO - some of this code was copied from conj_info - try to share code
-        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
-                sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
-            if cc_or_conj_rel == "cc":
-                # save cc's form and remove cc('gov', 'cc')
-                cur_form = cc_or_conj_source.get_conllu_field('form')
-                cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
-                
-                # per parent add cc('to_copy', cc)
-                for to_copy, rel in gov.get_new_relations():
-                    cc_or_conj_source.add_edge("cc", to_copy)
-            
-            else:
-                # remove conj('gov', 'conj')
-                cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
-                
-                # per parent: create a copy node for the parent,
-                # rel(copy_node,'conj'), add conj:cc_info('to_copy', copy_node)
-                i += 1
-                for to_copy, rel in gov.get_new_relations():
-                    new_id = to_copy.get_conllu_field('id') + (0.1 * i)
-                    copy_node = to_copy.copy(
-                        new_id=new_id,
-                        head="_",
-                        deprel="_",
-                        misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
-                    cc_or_conj_source.add_edge(rel, copy_node)
-                    copy_node.add_edge("conj:" + cur_form, to_copy)
-                    sentence[new_id] = copy_node
+    nodes_copied = 0
+    for name_space in ret:
+        gov, _, gov_rel = name_space['gov']
+        to_copy, _, _ = name_space['to_copy']
+        cc, cc_head, cc_rel = name_space['cc']
+        conj, conj_head, conj_rel = name_space['conj']
+        
+        if ((conj, conj_head, conj_rel), (cc, cc_head, cc_rel)) not in cc_assignments:
+            continue
+
+        # replace cc('gov', 'cc') with cc('to_copy', 'cc')
+        # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
+        cc.replace_edge(cc_rel, cc_rel, cc_head, to_copy)
+        
+        # create a copy node for the parent,
+        # add conj:cc_info('to_copy', copy_node)
+        nodes_copied += 1
+        new_id = to_copy.get_conllu_field('id') + (0.1 * nodes_copied)
+        copy_node = to_copy.copy(
+            new_id=new_id,
+            head="_",
+            deprel="_",
+            misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
+        copy_node.add_edge("conj:" + cc.get_conllu_field('form'), to_copy)
+        sentence[new_id] = copy_node
+        
+        # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
+        conj.replace_edge(conj_rel, gov_rel, conj_head, copy_node)
 
 
 def convert_sentence(sentence):
@@ -685,8 +697,8 @@ def convert_sentence(sentence):
         process_3wp(sentence)
         # demoteQuantificationalModifiers
         demote_quantificational_modifiers(sentence)
-    #     # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-    #     expand_pp_conjunctions(sentence)
+        # add copy nodes: expandPPConjunctions, expandPrepConjunctions
+        expand_pp_conjunctions(sentence)
     #     expand_prep_conjunctions(sentence)
     #
     # # addCaseMarkerInformation
@@ -708,11 +720,10 @@ def convert_sentence(sentence):
     #
     # # addExtraNSubj
     # xcomp_propagation(sentence)
-    #
-    # # correctSubjPass
-    # # TODO - why again?
-    # correct_subj_pass(sentence)
-    #
+
+    # correctSubjPass
+    correct_subj_pass(sentence)
+
     return sentence
 
 
