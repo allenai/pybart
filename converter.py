@@ -24,8 +24,7 @@ relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 # but didn't identify the subject as passive.
 # (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj)
 def correct_subj_pass(sentence):
-    restriction_lists = [[
-        Restriction(nested=[[
+    restriction_lists = [[Restriction(nested=[[
             Restriction(gov='auxpass'),
             # the SC regex (which was "^(nsubj|csubj).*$") was changed here
             # to avoid the need to filter .subjpass relations in the graph-rewriting part
@@ -38,8 +37,8 @@ def correct_subj_pass(sentence):
         return
     
     # rewrite graph: for every subject add a 'pass' and replace in graph node
-    for matched in ret:
-        subj, subj_head, subj_rel = matched['subj']
+    for name_space in ret:
+        subj, subj_head, subj_rel = name_space['subj']
         substitute_rel = re.sub("subj", "subjpass", subj_rel)
         # in SC they add it to the 'deprel' even if the edge was found in the 'deps' :O
         subj.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
@@ -47,25 +46,22 @@ def correct_subj_pass(sentence):
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
 def passive_agent(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": 'nmod', "name": "mod", "nested":
-            [[
-                Restriction({"gov": 'case', "form": "^(?i:by)$"})
-            ]]}),
-            Restriction({"gov": "auxpass"})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(gov='auxpass'),
+        Restriction(name="mod", gov="nmod", nested=[[
+            Restriction(gov='case', form="^(?i:by)$")
+        ]])
+    ]])
+
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
 
     # rewrite graph: for every nmod add ':agent' to the graph node relation
-    for matched in ret:
-        mod_source, mod_head, mod_rel = matched['mod']
-        mod_source.replace_edge(mod_rel,  mod_rel + ":agent", mod_head, mod_head)
+    for name_space in ret:
+        gov, _, _ = name_space['gov']
+        mod, _, mod_rel = name_space['mod']
+        mod.replace_edge(mod_rel,  mod_rel + ":agent", gov, gov)
 
 
 # we need to create a concat string for every marker neighbor chain
@@ -670,8 +666,8 @@ def convert_sentence(sentence):
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
         expand_pp_or_prep_conjunctions(sentence)
     
-    # # addCaseMarkerInformation
-    # passive_agent(sentence)
+    # addCaseMarkerInformation
+    passive_agent(sentence)
     # prep_patterns(sentence, '^nmod$', 'case')
     # if not conf.enhance_only_nmods:
     #     prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
