@@ -77,9 +77,11 @@ def concat_sequential_tokens(c1, c2, c3):
         # we return here because if c2 is None, c3 must be as well
         return sequences
     
-    for ci in [c2, c3]:
+    for ci in ([c2, c3] if c3 else [c2]):
+        if prev.get_conllu_field('id') > ci.get_conllu_field('id'):
+            return
         # concat every following marker, or start a new string if not
-        if prev.get_conllu_field('id') == ci.get_conllu_field('id') - 1:
+        elif prev.get_conllu_field('id') == ci.get_conllu_field('id') - 1:
             sequences[-1] += '_' + ci.get_conllu_field('form')
         else:
             sequences.append(ci.get_conllu_field('form'))
@@ -88,40 +90,34 @@ def concat_sequential_tokens(c1, c2, c3):
 
 
 def prep_patterns(sentence, first_gov, second_gov):
-    restriction_lists = \
-    [[
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"gov": first_gov, "name": "mod", "nested":
-            [[
-                Restriction({"gov": second_gov, "name": "c1", "nested":
-                [[
-                    Restriction({"gov": 'mwe', "name": "c2"}),
-                    Restriction({"gov": 'mwe', "name": "c3", "diff": "c2"})
-                ]]})
-            ],
-            [
-                Restriction({"gov": second_gov, "name": "c1", "nested":
-                    [[
-                        Restriction({"gov": 'mwe', "name": "c2"}),
-                    ]]})
-            ],
-            [
-                Restriction({"gov": second_gov, "name": "c1", "form": "(?!(^(?i:by)$))."})
-            ]]})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov=first_gov, nested=[
+            [Restriction(name="c1", gov=second_gov, nested=[[
+                Restriction(name="c2", gov="mwe"),
+                Restriction(name="c3", gov="mwe", diff="c2")
+            ]])],
+            [Restriction(name="c1", gov=second_gov, nested=[[
+                Restriction(name="c2", gov="mwe")
+            ]])],
+            # TODO - comment regarding 'by'
+            [Restriction(name="c1", gov=second_gov)
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    for matched in ret:
-        mod, mod_head, mod_rel = matched['mod']
-        c1, _, _ = matched['c1']
-        c2, _, _ = matched['c2'] if 'c2' in matched else (None, None, None)
-        c3, _, _ = matched['c3'] if 'c3' in matched else (None, None, None)
-    
+    for name_space in ret:
+        mod, mod_head, mod_rel = name_space['mod']
+        c1, _, _ = name_space['c1']
+        c2, _, _ = name_space['c2'] if 'c2' in name_space else (None, None, None)
+        c3, _, _ = name_space['c3'] if 'c3' in name_space else (None, None, None)
+        
         sequences = concat_sequential_tokens(c1, c2, c3)
+        if not sequences:
+            continue
+        
         mod.remove_edge(mod_rel, mod_head)
         for prep_sequence in sequences:
             mod.add_edge(mod_rel + ":" + prep_sequence.lower(), mod_head)
@@ -668,10 +664,10 @@ def convert_sentence(sentence):
     
     # addCaseMarkerInformation
     passive_agent(sentence)
-    # prep_patterns(sentence, '^nmod$', 'case')
-    # if not conf.enhance_only_nmods:
-    #     prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
-    #
+    prep_patterns(sentence, '^nmod$', 'case')
+    if not conf.enhance_only_nmods:
+        prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
+    
     # # addConjInformation
     # conj_info(sentence)
     #

@@ -28,7 +28,7 @@ def named_nodes_restrictions(restriction, named_nodes):
             return False
     
     if restriction.diff:
-        diff, _, _ = named_nodes[restriction.followed_by]
+        diff, _, _ = named_nodes[restriction.diff]
         if child == diff:
             return False
     
