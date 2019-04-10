@@ -51,7 +51,7 @@ def correct_subj_pass(sentence):
 def passive_agent(sentence):
     restriction = Restriction(name="gov", nested=[[
         Restriction(gov='auxpass'),
-        Restriction(name="mod", gov="nmod", nested=[[
+        Restriction(name="mod", gov="^(nmod)$", nested=[[
             Restriction(gov='case', form="^(?i:by)$")
         ]])
     ]])
