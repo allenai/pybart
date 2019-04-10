@@ -89,21 +89,7 @@ def concat_sequential_tokens(c1, c2, c3):
     return sequences
 
 
-def prep_patterns(sentence, first_gov, second_gov):
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov=first_gov, nested=[
-            [Restriction(name="c1", gov=second_gov, nested=[[
-                Restriction(name="c2", gov="mwe"),
-                Restriction(name="c3", gov="mwe", diff="c2")
-            ]])],
-            [Restriction(name="c1", gov=second_gov, nested=[[
-                Restriction(name="c2", gov="mwe")
-            ]])],
-            # TODO - comment regarding 'by'
-            [Restriction(name="c1", gov=second_gov)
-        ]])
-    ]])
-    
+def prep_patterns_per_type(sentence, restriction):
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
@@ -121,6 +107,37 @@ def prep_patterns(sentence, first_gov, second_gov):
         mod.remove_edge(mod_rel, mod_head)
         for prep_sequence in sequences:
             mod.add_edge(mod_rel + ":" + prep_sequence.lower(), mod_head)
+
+
+def prep_patterns(sentence, first_gov, second_gov):
+    restriction_3w = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov=first_gov, nested=[[
+            Restriction(name="c1", gov=second_gov, nested=[[
+                Restriction(name="c2", gov="mwe"),
+                Restriction(name="c3", gov="mwe", diff="c2")
+            ]])
+        ]])
+    ]])
+    restriction_2w = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov=first_gov, nested=[[
+            Restriction(name="c1", gov=second_gov, nested=[[
+                Restriction(name="c2", gov="mwe")
+            ]])
+        ]])
+    ]])
+    restriction_1w = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov=first_gov, nested=[[
+            # here we want to find any one word that marks a modifier,
+            # except cases in which 'by' was used for 'agent' identification,
+            # but the exact notation will prevent those from being caught
+            Restriction(name="c1", gov=second_gov)
+        ]])
+    ]])
+    
+    # NOTE: in SC since they replace the modifier (nmod/advcl/acl) it won't come up again in future matches,
+    # as they use the exact (^$) symbols. and so we imitate this behavior.
+    for rest in [restriction_3w, restriction_2w, restriction_1w]:
+        prep_patterns_per_type(sentence, rest)
 
 
 # Adds the type of conjunction to all conjunct relations
