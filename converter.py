@@ -498,45 +498,60 @@ def demote_quantificational_modifiers(sentence):
     
     for rl in [quant_3w, quant_2w, quant_2w_det]:
         demote_per_type(sentence, rl)
- 
 
-def add_ref_and_collapse(sentence):
-    child_rest = Restriction({"name": "child_ref", "form": relativizing_word_regex})
-    grandchild_rest = \
-        Restriction({"nested":
-            [[
-                Restriction({"name": "grand_ref", "form": relativizing_word_regex})
-            ]]})
-    restriction_lists = \
-    [[
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"gov": 'acl:relcl', "nested":
-            [
-                [grandchild_rest, child_rest],
-                [grandchild_rest],
-                [child_rest]
-            ]}),
-        ]]})
-    ]]
+
+def assign_refs(ret):
+    ref_assignments = dict()
+    descendents = dict()
+    for name_space in ret:
+        for level in ['child_ref', 'grand_ref']:
+            if level in name_space:
+                mods_descendent = (name_space[level][0].get_conllu_field('id'), name_space[level])
+                if name_space['mod'] in descendents:
+                    descendents[name_space['mod']].append(mods_descendent)
+                else:
+                    descendents[name_space['mod']] = [mods_descendent]
     
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    for mod, mods_descendents in descendents.items():
+        leftmost_descendent = sorted(mods_descendents)[0]
+        ref_assignments[mod] = leftmost_descendent[1]
+    
+    return ref_assignments
+
+
+# Look for ref rules for a given word. We look through the
+# children and grandchildren of the acl:relcl dependency, and if any
+# children or grandchildren is a that/what/which/etc word,
+# we take the leftmost that/what/which/etc word as the dependent
+# for the ref TypedDependency.
+# Then we collapse the referent relation such as follows. e.g.:
+# "The man that I love ... " ref(man, that) dobj(love, that) -> ref(man, that) dobj(love, man)
+def add_ref_and_collapse(sentence):
+    child_rest = Restriction(name="child_ref", form=relativizing_word_regex)
+    grandchild_rest = Restriction(nested=[[
+        Restriction(name="grand_ref", form=relativizing_word_regex)
+    ]])
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov='acl:relcl', nested=[
+            [grandchild_rest, child_rest],
+            [grandchild_rest],
+            [child_rest
+        ]]),
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    for gov, gov_head, gov_rel in ret['gov']:
-        leftmost = None
-        descendants = ([d for d, _, _ in ret['grand_ref']] if 'grand_ref' in ret else []) + \
-                     ([d for d, _, _ in ret['child_ref']] if 'child_ref' in ret else [])
-        for descendant in descendants:
-            if (not leftmost) or descendant.get_conllu_field('id') < leftmost.get_conllu_field('id'):
-                leftmost = descendant
+    ref_assignments = assign_refs(ret)
+    
+    for name_space in ret:
+        gov, gov_head, gov_rel = name_space['gov']
+        leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
         
-        for parent, edge in leftmost.get_new_relations():
-            leftmost.remove_edge(edge, parent)
-            gov.add_edge(edge, parent)
-        
-        leftmost.add_edge("ref", gov)
+        if gov not in leftmost.get_parents():
+            leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
+            gov.add_edge(leftmost_rel, leftmost_head)
 
 
 # resolves the following multi word conj phrases:
@@ -719,10 +734,10 @@ def convert_sentence(sentence):
     # addConjInformation
     conj_info(sentence)
 
-    # # referent: addRef, collapseReferent
-    # if conf.enhanced_plus_plus:
-    #     add_ref_and_collapse(sentence)
-    #
+    # referent: addRef, collapseReferent
+    if conf.enhanced_plus_plus:
+        add_ref_and_collapse(sentence)
+
     # # treatCC
     # conjoined_subj(sentence)
     # conjoined_verb(sentence)
