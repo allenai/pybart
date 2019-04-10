@@ -18,6 +18,9 @@ quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew
 quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
 quant_mod_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
 relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
+neg_conjp_prev = ["but_not", "if_not", "but_rather"]
+neg_conjp_next = ["instead_of", "rather_than"]
+and_conjp_next = ["as_well", "but_also"]
 
 
 # This method corrects subjects of verbs for which we identified an auxpass,
@@ -138,31 +141,6 @@ def prep_patterns(sentence, first_gov, second_gov):
     # as they use the exact (^$) symbols. and so we imitate this behavior.
     for rest in [restriction_3w, restriction_2w, restriction_1w]:
         prep_patterns_per_type(sentence, rest)
-
-
-# Adds the type of conjunction to all conjunct relations
-def conj_info(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": "cc", "name": "cc"}),
-            Restriction({"gov": "^conj$", "name": "conj"})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
-        return
-    
-    # this was added to get the first cc, because it should be applied on all conj's that precedes it
-    cur_form = sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"]])[0][1][0].get_conllu_field('form')
-    for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
-            sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
-        if cc_or_conj_rel == "cc":
-            cur_form = cc_or_conj_source.get_conllu_field('form')
-        else:
-            cc_or_conj_source.replace_edge(
-                cc_or_conj_rel, cc_or_conj_rel + ":" + cur_form, cc_or_conj_head, cc_or_conj_head)
 
 
 def conjoined_subj(sentence):
@@ -561,21 +539,73 @@ def add_ref_and_collapse(sentence):
         leftmost.add_edge("ref", gov)
 
 
-def assign_ccs_to_conjs(ret):
-    cc_assignments = []
+# resolves the following multi word conj phrases:
+# but not(cc), if not(cc), instead(cc) of, rather(cc) than, but rather(cc) GO TO negcc
+# as(cc) well as, but(cc) also, not to mention, & GO TO and
+# NOTE: for now we won't catch '&' and 'not to mention' as none of their words would be tagged as 'cc',
+#   as happening in SC. Moreover, we catch 'but rather' and 'not if' which SC has a BUG trying to catch those.
+#   (their BUG happens as they assume the wrong word to be the 'cc').
+# NOTE - in SC they check only for 'as well' without the last 'as'.
+def get_assignment(sentence, cc):
+    cc_cur_id = cc.get_conllu_field('id')
+    prev_forms = "_".join([info.get_conllu_field('form') for (id, info) in sentence.items()
+                           if cc_cur_id - 1 == id or cc_cur_id == id])
+    next_forms = "_".join([info.get_conllu_field('form') for (id, info) in sentence.items()
+                           if cc_cur_id + 1 == id or cc_cur_id == id])
+    if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
+        return "negcc"
+    elif next_forms in and_conjp_next:
+        return "and"
+    else:
+        return cc.get_conllu_field('form')
+
+
+# In case multiple coordination marker depend on the same governor
+# the one that precedes the conjunct is appended to the conjunction relation or the
+# first one if no preceding marker exists.
+def assign_ccs_to_conjs(sentence, ret):
+    cc_assignments = dict()
     ccs = []
     conjs = []
     for name_space in ret:
         ccs.append((name_space['cc'][0].get_conllu_field('id'), name_space['cc']))
         conjs.append((name_space['conj'][0].get_conllu_field('id'), name_space['conj']))
+    
     sorted_ccs_and_conjs = sorted(ccs + conjs)
     _, cur_cc = sorted(ccs)[0]
     for _, (cc_or_conj, head, rel) in sorted_ccs_and_conjs:
         if rel == "cc":
             cur_cc = (cc_or_conj, head, rel)
         else:
-            cc_assignments.append(((cc_or_conj, head, rel), cur_cc))
+            cc_assignments[((cc_or_conj, head, rel), cur_cc)] = get_assignment(sentence, cur_cc[0])
     return cc_assignments
+
+
+# Adds the type of conjunction to all conjunct relations
+# Some multi-word coordination markers are collapsed to conj:and or conj:negcc
+def conj_info(sentence):
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="cc", gov="cc"),
+        Restriction(name="conj", gov="^conj$")
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+
+    # assign ccs to conjs according to precedence
+    cc_assignments = assign_ccs_to_conjs(sentence, ret)
+    
+    for name_space in ret:
+        gov, _, _ = name_space['gov']
+        cc, _, cc_rel = name_space['cc']
+        conj, _, conj_rel = name_space['conj']
+
+        if ((conj, gov, conj_rel), (cc, gov, cc_rel)) not in cc_assignments:
+            continue
+        cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
+        
+        conj.replace_edge(conj_rel, conj_rel + ":" + cc_assignment, gov, gov)
 
 
 # The label of the conjunct relation includes the conjunction type
@@ -587,7 +617,7 @@ def expand_per_type(sentence, restriction, is_pp):
         return
     
     # assign ccs to conjs according to precedence
-    cc_assignments = assign_ccs_to_conjs(ret)
+    cc_assignments = assign_ccs_to_conjs(sentence, ret)
     
     nodes_copied = 0
     last_copy_id = -1
@@ -599,6 +629,7 @@ def expand_per_type(sentence, restriction, is_pp):
         
         if ((conj, conj_head, conj_rel), (cc, cc_head, cc_rel)) not in cc_assignments:
             continue
+        cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
         
         # create a copy node,
         # add conj:cc_info('to_copy', copy_node)
@@ -610,7 +641,7 @@ def expand_per_type(sentence, restriction, is_pp):
             head="_",
             deprel="_",
             misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
-        copy_node.add_edge("conj:" + cc.get_conllu_field('form'), to_copy)
+        copy_node.add_edge("conj:" + cc_assignment, to_copy)
         sentence[new_id] = copy_node
         
         if is_pp:
@@ -685,9 +716,9 @@ def convert_sentence(sentence):
     if not conf.enhance_only_nmods:
         prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
     
-    # # addConjInformation
-    # conj_info(sentence)
-    #
+    # addConjInformation
+    conj_info(sentence)
+
     # # referent: addRef, collapseReferent
     # if conf.enhanced_plus_plus:
     #     add_ref_and_collapse(sentence)
