@@ -174,17 +174,6 @@ def heads_of_conjuncts(sentence):
             dep.add_edge(gov_rel, gov_head)
 
 
-def xcomp_propagation_per_type(sentence, restriction):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [
-            restriction + [Restriction({"gov": "dobj", "name": "obj"})],
-            restriction
-        ]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
 def subj_of_conjoined_verbs(sentence):
     restriction = Restriction(name="gov", nested=[[
         Restriction(name="conj", gov="conj", no_sons_of=".subj", xpos="(VB|JJ)"),
@@ -207,6 +196,38 @@ def subj_of_conjoined_verbs(sentence):
         subj.add_edge(subj_rel, conj)
 
 
+def xcomp_propagation_per_type(sentence, restriction):
+    restrictions = Restriction(nested=[
+        [restriction, Restriction(name="new_subj", gov="dobj")],
+        [restriction, Restriction(name="new_subj", gov="nsubj.*")]
+    ])
+    
+    ret = match(sentence.values(), [[restrictions]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        new_subj, _, _ = name_space['new_subj']
+        dep, _, _ = name_space['dep']
+        new_subj.add_edge("nsubj:xsubj", dep)
+
+
+# Add extra nsubj dependencies when collapsing basic dependencies.
+# Some notes copied from SC:
+# 1. In the general case, we look for an aux modifier under an xcomp
+#   modifier, and assuming there aren't already associated nsubj
+#   dependencies as daughters of the original xcomp dependency, we
+#   add nsubj dependencies for each nsubj daughter of the governor.
+# 2. There is also a special case for "to" words, in which case we add
+#   a dependency if and only if there is no nsubj associated with the
+#   xcomp AND there is no other aux dependency. This accounts for
+#   sentences such as "he decided not to." with no following verb.
+# 3. In general, we find that the objects of the verb are better
+#   for extra nsubj than the original nsubj of the verb.  For example,
+#   "Many investors wrote asking the SEC to require ..."
+#   There is no nsubj of asking, but the dobj, SEC, is the extra nsubj of require.
+#   Similarly, "The law tells them when to do so"
+#   Instead of nsubj(do, law) we want nsubj(do, them)
 def xcomp_propagation(sentence):
     to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
     basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
@@ -697,13 +718,13 @@ def convert_sentence(sentence):
     # referent: addRef, collapseReferent
     if conf.enhanced_plus_plus:
         add_ref_and_collapse(sentence)
-    # # addExtraNSubj
-    # xcomp_propagation(sentence)
     
     # treatCC
     heads_of_conjuncts(sentence)
     subj_of_conjoined_verbs(sentence)
     
+    # addExtraNSubj
+    xcomp_propagation(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
