@@ -1,5 +1,4 @@
 
-*.conllu
 *.pyc
 .idea
 *.txt
