@@ -15,7 +15,8 @@ def main_internal(f):
 def main(sentences_path, out_path=None):
     # best effort: lets try the most trivial encoding, then, if not successful find the correct encoding.
     try:
-        with open(sentences_path, "r", encoding="utf8") as f:
+        encoding = "utf8"
+        with open(sentences_path, "r", encoding=encoding) as f:
             ready_to_write = main_internal(f)
     except UnicodeDecodeError:
         encoding = chardet.detect(open(sentences_path, 'rb').read())['encoding']
@@ -23,7 +24,7 @@ def main(sentences_path, out_path=None):
             ready_to_write = main_internal(f)
     
     if out_path:
-        with open(out_path, "r") as f:
+        with open(out_path, "w", encoding=encoding) as f:
             f.write(ready_to_write)
     else:
         return ready_to_write

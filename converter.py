@@ -580,14 +580,14 @@ def assign_ccs_to_conjs(sentence, ret):
 # Some multi-word coordination markers are collapsed to conj:and or conj:negcc
 def conj_info(sentence):
     restriction = Restriction(name="gov", nested=[[
-        Restriction(name="cc", gov="cc"),
-        Restriction(name="conj", gov="^conj$")
+        Restriction(name="cc", gov="^(cc)$"),
+        Restriction(name="conj", gov="^(conj)$")
     ]])
     
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
-
+    
     # assign ccs to conjs according to precedence
     cc_assignments = assign_ccs_to_conjs(sentence, ret)
     
@@ -670,7 +670,7 @@ def expand_pp_or_prep_conjunctions(sentence):
     pp_restriction = Restriction(name="to_copy", nested=[[
         Restriction(name="gov", gov="^(nmod|acl|advcl)$", nested=[[
             Restriction(gov="case"),
-            Restriction(name="cc", gov="cc"),
+            Restriction(name="cc", gov="^(cc)$"),
             Restriction(name="conj", gov="conj", nested=[[
                 Restriction(gov="case")
             ]])
@@ -680,7 +680,7 @@ def expand_pp_or_prep_conjunctions(sentence):
     prep_restriction = Restriction(name="to_copy", nested=[[
         Restriction(name="modifier", nested=[[
             Restriction(name="gov", gov="case", nested=[[
-                Restriction(name="cc", gov="cc"),
+                Restriction(name="cc", gov="^(cc)$"),
                 Restriction(name="conj", gov="conj")
             ]])
         ]])
@@ -701,7 +701,7 @@ def convert_sentence(sentence):
         process_complex_2wp(sentence)
         process_3wp(sentence)
         # demoteQuantificationalModifiers
-        demote_quantificational_modifiers(sentence)
+        # demote_quantificational_modifiers(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
         expand_pp_or_prep_conjunctions(sentence)
     
@@ -731,8 +731,10 @@ def convert_sentence(sentence):
     return sentence
 
 
+import time
 def convert(parsed):
     converted_sentences = []
     for sentence in parsed:
         converted_sentences.append(convert_sentence(sentence))
+    print("failed= %s" % str(failed))
     return converted_sentences

@@ -2,7 +2,7 @@ from main import main
 
 
 def test():
-    out = main("blackbox.conllu")
+    out = main("handcrafted_tests.conllu")
     print(out)
     print("------------- TESTS ---------------------------------------------------------------------------\n")
     out_lines = out.split('\n')
@@ -11,7 +11,7 @@ def test():
     last_failed_test = ""
     failed_tests = 0
     test_count = 0
-    for gold_line in open("expected_blackbox_output.conllu", 'r').readlines():
+    for gold_line in open("expected_handcrafted_tests_output.conllu", 'r').readlines():
         if gold_line.startswith('#'):
             if gold_line.split(":")[0] == "# test":
                 test_name = gold_line.split(":")[1].strip()
