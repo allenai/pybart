@@ -5,7 +5,7 @@ import converter
 
 
 def main(sentences_path, out_path=None):
-    with open(sentences_path, "r") as f:
+    with open(sentences_path, "r", encoding="utf-8") as f:
         sentences_text = f.read()
         parsed, all_comments = cw.parse_conllu(sentences_text)
         converted = converter.convert(parsed)
