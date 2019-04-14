@@ -19,7 +19,6 @@ def main(sentences_path, out_path=None):
             ready_to_write = main_internal(f)
     except UnicodeDecodeError:
         encoding = chardet.detect(open(sentences_path, 'rb').read())['encoding']
-        import pdb;pdb.set_trace()
         with open(sentences_path, "r", encoding=encoding) as f:
             ready_to_write = main_internal(f)
     
