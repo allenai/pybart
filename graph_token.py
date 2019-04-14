@@ -41,7 +41,7 @@ class Token(object):
         return 0 == self.get_conllu_field('id')
     
     def is_root_rel(self):
-        # TODO - maybe we want to validate here (or/and somewhere else) that the root is an only parent
+        # TODO - maybe we want to validate here (or/and somewhere else) that a root is an only parent
         return 0 in [parent.get_conllu_field('id') for parent in self.get_parents()]
     
     def get_parents(self):

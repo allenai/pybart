@@ -114,7 +114,7 @@ def match_rl(children, restriction_list, head):
             ret_was_empty_beforehand = True
         for named_nodes in ret:
             # this is done here because we want to check cross restrictions
-            # TODO - move this information from here:
+            # TODO - move the following information from here:
             #   rules regarding the usage of non graph restrictions (follows, followed_by, diff):
             #   1. must be after sibling rest's that they refer to
             #       or in the outer rest of a nested that they refer to

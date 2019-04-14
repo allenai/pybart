@@ -27,15 +27,14 @@ and_conjp_next = ["as_well", "but_also"]
 # but didn't identify the subject as passive.
 # (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj)
 def correct_subj_pass(sentence):
-    restriction_lists = [[Restriction(nested=[[
-            Restriction(gov='auxpass'),
-            # the SC regex (which was "^(nsubj|csubj).*$") was changed here
-            # to avoid the need to filter .subjpass relations in the graph-rewriting part
-            Restriction(gov="^(.subj|.subj:xsubj)$", name="subj")
-        ]])
-    ]]
+    restriction = Restriction(nested=[[
+        Restriction(gov='auxpass'),
+        # the SC regex (which was "^(nsubj|csubj).*$") was changed here
+        # to avoid the need to filter .subjpass relations in the graph-rewriting part
+        Restriction(gov="^(.subj|.subj:xsubj)$", name="subj")
+    ]])
     
-    ret = match(sentence.values(), restriction_lists)
+    ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
     
@@ -197,12 +196,12 @@ def subj_of_conjoined_verbs(sentence):
 
 
 def xcomp_propagation_per_type(sentence, restriction):
-    restrictions = Restriction(nested=[
+    restriction = Restriction(nested=[
         [restriction, Restriction(name="new_subj", gov="dobj")],
         [restriction, Restriction(name="new_subj", gov="nsubj.*")]
     ])
     
-    ret = match(sentence.values(), [[restrictions]])
+    ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
     
@@ -276,11 +275,11 @@ def split_concats_by_index(prep_list, prep_len):
 def process_simple_2wp(sentence):
     forms = split_concats_by_index(two_word_preps_regular, 2)
     
-    restriction_lists = Restriction(nested=[[
+    restriction = Restriction(nested=[[
         Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + forms[0] + "$"),
         Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + forms[1] + "$")
     ]])
-    ret = match(sentence.values(), [[restriction_lists]])
+    ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
     
@@ -315,14 +314,14 @@ def process_complex_2wp(sentence):
     inner_rest = Restriction(gov="nmod", name="gov2", nested=[[
         Restriction(name="w2", no_sons_of=".*", form="^" + forms[1] + "$")
     ]])
-    restriction_lists = Restriction(name="gov", nested=[[
+    restriction = Restriction(name="gov", nested=[[
         Restriction(name="w1", followed_by="w2", form="^" + forms[0] + "$", nested=[
             [inner_rest, Restriction(name="cop", gov="cop")],
             [inner_rest]
         ])
     ]])
     
-    ret = match(sentence.values(), [[restriction_lists]])
+    ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
 
@@ -368,7 +367,7 @@ def process_complex_2wp(sentence):
 def process_3wp(sentence):
     forms = split_concats_by_index(three_word_preps, 3)
     
-    restriction_lists = Restriction(name="gov", nested=[[
+    restriction = Restriction(name="gov", nested=[[
         Restriction(name="w2", followed_by="w3", follows="w1", form="^" + forms[1] + "$", nested=[[
             Restriction(name="gov2", gov="(nmod|acl|advcl)", nested=[[
                 Restriction(name="w3", gov="(case|mark)", no_sons_of=".*", form="^" + forms[2] + "$")
@@ -377,7 +376,7 @@ def process_3wp(sentence):
         ]])
     ]])
     
-    ret = match(sentence.values(), [[restriction_lists]])
+    ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
     
@@ -420,8 +419,8 @@ def process_3wp(sentence):
 #   mwe(A-1, couple-2,)
 #   mwe(A-1, of-3)
 #   root(ROOT-0, people-4)
-def demote_per_type(sentence, rl):
-    ret = match(sentence.values(), [[rl]])
+def demote_per_type(sentence, restriction):
+    ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
 
@@ -465,8 +464,8 @@ def demote_quantificational_modifiers(sentence):
     ]])
     
     quant_2w_det = Restriction(nested=[[
-        Restriction(name="w1", form=quant_mod_2w_det, followed_by="w2", nested=[
-            [Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
+        Restriction(name="w1", form=quant_mod_2w_det, followed_by="w2", nested=[[
+            Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
                 Restriction(name="det", gov="det"),
                 Restriction(name="w2", gov="case", form="(?i:of)", followed_by="det")
             ]])
@@ -516,8 +515,8 @@ def add_ref_and_collapse(sentence):
         Restriction(name="mod", gov='acl:relcl', nested=[
             [grandchild_rest, child_rest],
             [grandchild_rest],
-            [child_rest
-        ]]),
+            [child_rest]
+        ]),
     ]])
     
     ret = match(sentence.values(), [[restriction]])
@@ -544,10 +543,10 @@ def add_ref_and_collapse(sentence):
 # NOTE - in SC they check only for 'as well' without the last 'as'.
 def get_assignment(sentence, cc):
     cc_cur_id = cc.get_conllu_field('id')
-    prev_forms = "_".join([info.get_conllu_field('form') for (id, info) in sentence.items()
-                           if cc_cur_id - 1 == id or cc_cur_id == id])
-    next_forms = "_".join([info.get_conllu_field('form') for (id, info) in sentence.items()
-                           if cc_cur_id + 1 == id or cc_cur_id == id])
+    prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
+                           if cc_cur_id - 1 == iid or cc_cur_id == iid])
+    next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
+                           if cc_cur_id + 1 == iid or cc_cur_id == iid])
     if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
         return "negcc"
     elif next_forms in and_conjp_next:
@@ -693,7 +692,7 @@ def expand_pp_or_prep_conjunctions(sentence):
 
 def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
-    # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
+    # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
     if conf.enhanced_plus_plus:

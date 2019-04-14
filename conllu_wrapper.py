@@ -68,7 +68,6 @@ def parse_conllu(text):
                     int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
         
         # add root
-        # TODO - validate if this is needed after fixing the matcher.
         sentence[0] = graph_token.Token(0, None, None, None, None, None, None, None, None, None)
         
         # after parsing entire sentence, add basic deprel edges,
