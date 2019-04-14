@@ -544,7 +544,7 @@ def add_ref_and_collapse(sentence):
 def get_assignment(sentence, cc):
     cc_cur_id = cc.get_conllu_field('id')
     prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
-                           if cc_cur_id - 1 == iid or cc_cur_id == iid])
+                           if iid != 0 and (cc_cur_id - 1 == iid or cc_cur_id == iid)])
     next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
                            if cc_cur_id + 1 == iid or cc_cur_id == iid])
     if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
