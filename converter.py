@@ -143,74 +143,35 @@ def prep_patterns(sentence, first_gov, second_gov):
         prep_patterns_per_type(sentence, rest)
 
 
-def conjoined_subj(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested":
-            [[
-                # TODO - I don't fully understand why SC decided to add this rcmod condition, and I believe they have a bug:
-                #   (rcmodHeads.contains(gov) && rcmodHeads.contains(dep)) should be ||, and so I coded.
-                Restriction({"gov": "rcmod"}),
-                Restriction({"gov": ".*conj.*", "name": "dep"})
-            ],
-            [
-                Restriction({"gov": ".*conj.*", "name": "dep", "nested":
-                [[
-                    Restriction({"gov": "rcmod"})
-                ]]})
-            ]]})
-        ],
-        [
-            Restriction({"gov": "^((?!root|case).)*$", "no-gov": "rcmod", "name": "gov", "nested":
-            [[
-                Restriction({"gov": ".*conj.*", "no-gov": "rcmod", "name": "dep"})
-            ]]})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+def heads_of_conjuncts(sentence):
+    restriction = Restriction(name="new_gov", nested=[[
+        Restriction(name="gov", gov="^((?!root|case).)*$", nested=[[
+             Restriction(name="dep", gov=".*conj.*")
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    for _, gov_head, gov_rel in ret['gov']:
-        for dep_source, _, _ in ret['dep']:
-            dep_source.add_edge(gov_rel, gov_head)
-
-
-def conjoined_verb(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": "conj", "no-gov": ".subj", "name": "conj", "xpos": "(VB|JJ)", "nested":
-            [[
-                Restriction({"gov": "auxpass", "name": "auxpass"})
-            ]]}),
-            Restriction({"gov": ".subj", "name": "subj"})
-        ],
-        [
-            Restriction({"gov": "conj", "no-gov": ".subj|auxpass", "name": "conj", "xpos": "(VB|JJ)"}),
-            Restriction({"gov": ".subj", "name": "subj"})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
-        return
-    
-    for subj_source, _, subj_rel in ret['subj']:
-        for conj_source, _, _ in ret['conj']:
-            # TODO - this could be out into restrictions, but it would be a huge add-up,
-            # so rather stay with this small if statement
-            if subj_rel.endswith("subjpass") and \
-                            subj_source.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
-                subj_rel = subj_rel[:-4]
-            elif subj_rel.endswith("subj") and "auxpass" in ret:
-                subj_rel += "pass"
-            
-            subj_source.add_edge(subj_rel, conj_source)
-            # TODO - we need to add the aux relation (as SC say they do but not in the code)
-            #   and the obj relation, which they say they do and also coded, but then commented out...
+    for name_space in ret:
+        gov, gov_head, gov_rel = name_space['gov']
+        dep, _, _ = name_space['dep']
+        
+        # find if they both are relcl heads and if the relation to the grandpa is nsubj or dobj
+        # because then we don't want to propagate the relation
+        # NOTE: actually this is partly true, as we only dont want to propagate
+        #   the relcl-subj relation (as enhanced by add_ref), nut do want the regular subjs.
+        #   We should add it in the future, but know we imitate SC.
+        both_relcl = \
+            True in [relation == "acl:relcl" for child in dep.get_children() for _, relation in child.get_new_relations(dep)] and \
+            True in [relation == "acl:relcl" for child in gov.get_children() for _, relation in child.get_new_relations(gov)]
+        
+        # only if the dependant of the conj is not the head of the head of the conj,
+        # and they dont fall under the relcl problem, propagate the relation
+        if (not both_relcl or (gov_rel != "nsubj" and gov_rel != "dobj")) and \
+                gov_head != dep:
+            dep.add_edge(gov_rel, gov_head)
 
 
 def xcomp_propagation_per_type(sentence, restriction):
@@ -224,34 +185,33 @@ def xcomp_propagation_per_type(sentence, restriction):
     ]]
     ret = dict()
     if not match(sentence.values(), restriction_lists, ret):
+def subj_of_conjoined_verbs(sentence):
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="conj", gov="conj", no_sons_of=".subj", xpos="(VB|JJ)"),
+        Restriction(name="subj", gov=".subj")
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    if 'obj' in ret:
-        for obj_source, _, _ in ret['obj']:
-            for _, dep_head, _ in ret['dep']:
-                if dep_head not in obj_source.get_parents():
-                    obj_source.add_edge("nsubj:xsubj", dep_head)
-    else:
-        for subj_source, _, _ in ret['subj']:
-            for _, dep_head, _ in ret['dep']:
-                if dep_head not in subj_source.get_parents():
-                    subj_source.add_edge("nsubj:xsubj", dep_head)
+    for name_space in ret:
+        subj, _, subj_rel = name_space['subj']
+        conj, _, _ = name_space['conj']
+        
+        if subj_rel.endswith("subjpass") and conj.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
+            subj_rel = subj_rel[:-4]
+        elif subj_rel.endswith("subj") and "auxpass" in [relation for child in conj.get_children() for relation in child.get_new_relations(conj)]:
+            subj_rel += "pass"
+        
+        subj.add_edge(subj_rel, conj)
 
 
 def xcomp_propagation(sentence):
-    to_xcomp_rest = \
-        [
-            Restriction({"gov": "xcomp", "no-gov": "^(nsubj.*|aux|mark)$", "name": "dep", "form": "^(?i:to)$"}),
-            Restriction({"gov": "nsubj.*", "name": "subj"}),
-        ]
-    basic_xcomp_rest = \
-        [
-            Restriction({"gov": "xcomp", "no-gov": "nsubj.*", "name": "dep", "form": "(?!(^(?i:to)$)).", "nested":
-            [[
-                Restriction({"gov": "^(aux|mark)$"})
-            ]]}),
-            Restriction({"gov": "nsubj.*", "name": "subj"}),
-        ]
+    to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
+    basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
+        Restriction(gov="^(aux|mark)$")
+    ]])
 
     for xcomp_restriction in [to_xcomp_rest, basic_xcomp_rest]:
         xcomp_propagation_per_type(sentence, xcomp_restriction)
@@ -714,7 +674,7 @@ def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
-
+    
     if conf.enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
         process_simple_2wp(sentence)
@@ -733,21 +693,21 @@ def convert_sentence(sentence):
     
     # addConjInformation
     conj_info(sentence)
-
+    
     # referent: addRef, collapseReferent
     if conf.enhanced_plus_plus:
         add_ref_and_collapse(sentence)
-
-    # # treatCC
-    # conjoined_subj(sentence)
-    # conjoined_verb(sentence)
-    #
     # # addExtraNSubj
     # xcomp_propagation(sentence)
-
+    
+    # treatCC
+    heads_of_conjuncts(sentence)
+    subj_of_conjoined_verbs(sentence)
+    
+    
     # correctSubjPass
     correct_subj_pass(sentence)
-
+    
     return sentence
 
 
