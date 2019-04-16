@@ -41,7 +41,7 @@ def correct_subj_pass(sentence):
     # rewrite graph: for every subject add a 'pass' and replace in graph node
     for name_space in ret:
         subj, subj_head, subj_rel = name_space['subj']
-        substitute_rel = re.sub("subj", "subjpass", subj_rel)
+        substitute_rel = re.sub("(?<!x)subj", "subjpass", subj_rel)
         # in SC they add it to the 'deprel' even if the edge was found in the 'deps' :O
         subj.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
 
@@ -423,7 +423,7 @@ def demote_per_type(sentence, restriction):
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
-
+    
     for name_space in ret:
         old_gov, old_gov_head, old_gov_rel = name_space['w1']
         w2, w2_head, w2_rel = name_space['w2']
@@ -701,7 +701,7 @@ def convert_sentence(sentence):
         process_complex_2wp(sentence)
         process_3wp(sentence)
         # demoteQuantificationalModifiers
-        # demote_quantificational_modifiers(sentence)
+        demote_quantificational_modifiers(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
         expand_pp_or_prep_conjunctions(sentence)
     
