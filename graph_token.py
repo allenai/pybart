@@ -31,8 +31,11 @@ class Token(object):
     def get_children(self):
         return self._children_list
     
-    def get_conllu_info(self):
-        return self._conllu_info.items()
+    def get_conllu_string(self):
+        # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
+        # as required by the format.
+        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + b for (a, b) in sorted(self.get_new_relations())])
+        return "\t".join([str(v) for v in self._conllu_info.values()])
     
     def get_conllu_field(self, field):
         return self._conllu_info[field]

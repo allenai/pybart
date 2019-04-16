@@ -88,34 +88,14 @@ def serialize_conllu(converted, all_comments):
     returns:
         (str) the text corresponding to the sentence list in the CoNLL-U format.
      """
-    text = ''
-    
-    for (sentence, comments) in zip(converted, all_comments):
+    text = []
+    comments = []
+    for (sentence, per_sent_comments) in zip(converted, all_comments):
         # recover comments from original file
         if conf.preserve_comments:
-            for comment in comments:
-                text += comment + '\n'
+            comments = ["\n".join(per_sent_comments)]
         
         # TODO - fix case of more than 9 copy nodes - needs special ordering e.g 1.1 ... 1.9 1.10 and not 1.1 1.10 ... 1.9
-        for (cur_id, token) in sorted(sentence.items()):
-            if cur_id == 0:
-                continue
-            
-            # add every field of the given token
-            for field_name, field in token.get_conllu_info():
-                # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
-                # as required by the format.
-                if field_name == 'deps':
-                    sorted_new_deps = sorted(token.get_new_relations())
-                    text += "|".join([str(a.get_conllu_field('id')) + ":" + b for (a, b) in sorted_new_deps]) + '\t'
-                # misc is the last one so he needs a spacial case for the new line character.
-                elif field_name == 'misc':
-                    text += str(field) + '\n'
-                # simply add the rest of the fields with a tab separator.
-                else:
-                    text += str(field) + '\t'
-        
-        # add an empty line after a sequence of tokens, that is after finishing a complete sentence.
-        text += '\n'
+        text.append(comments + [token.get_conllu_string() for (cur_id, token) in sorted(sentence.items()) if cur_id != 0])
     
-    return text
+    return "\n".join(["\n".join(sent) + "\n" for sent in text])
