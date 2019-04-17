@@ -731,10 +731,8 @@ def convert_sentence(sentence):
     return sentence
 
 
-import time
 def convert(parsed):
     converted_sentences = []
     for sentence in parsed:
         converted_sentences.append(convert_sentence(sentence))
-    print("failed= %s" % str(failed))
     return converted_sentences
