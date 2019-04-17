@@ -1,4 +1,12 @@
+# conversions as been done by StanfordConverter (a.k.a SC) version TODO
+# global nuances from their converter:
+#   1. we always write to 'deps' (so at first we copy 'head'+'deprel' to 'deps'), while they sometimes write back to 'deprel'.
+#   2. we think like a multi-graph, so we operate on every relation/edge between two nodes, while they on first one found.
+#   3. we look for all fathers as we can have multiple fathers, while in SC they look at first one found.
+
 import regex as re
+
+from matcher import match, Restriction
 import configuration as conf
 
 # constants
@@ -6,710 +14,696 @@ two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_fr
 two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
 three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
-w2_quant_mod_of_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
-w1_quant_mod_of_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
-w1_quant_mod_of_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
+quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
+quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
+quant_mod_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
 relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
+neg_conjp_prev = ["but_not", "if_not", "but_rather"]
+neg_conjp_next = ["instead_of", "rather_than"]
+and_conjp_next = ["as_well", "but_also"]
 
 
-class Restriction(object):
-    def __init__(self, dictionary):
-        self._dictionary = {"name": None, "gov": None, "no-gov": None, "diff": None,
-                            "form": None, "xpos": None, "follows": None, "followed_by": None, "nested": None}
-        self._dictionary.update(dictionary)
-    
-    def __setitem__(self, key, item):
-        if key not in self._dictionary:
-            raise KeyError("The key {} is not defined.".format(key))
-        self._dictionary[key] = item
-    
-    def __getitem__(self, key):
-        return self._dictionary[key]
-
-
-# ----------------------------------------- matching functions ----------------------------------- #
-
-def match(children, restriction_lists, given_named_nodes, head=None):
-    for restriction_list in restriction_lists:
-        one_restriction_violated = False
-        for restriction in restriction_list:
-            restriction_matched = False
-            for child in children:
-                named_nodes = dict(given_named_nodes)
-                if restriction["form"]:
-                    if not re.match(restriction["form"], child.get_conllu_field('form')):
-                        continue
-                
-                if restriction["xpos"]:
-                    if not re.match(restriction["xpos"], child.get_conllu_field('xpos')):
-                        continue
-                
-                relations = [None]
-                if restriction["gov"]:
-                    relations = child.match_rel(restriction["gov"], head)
-                    if len(relations) == 0:
-                        continue
-                elif head:
-                    relations = [b for a, b in child.get_new_relations(head)]
-                
-                if restriction["no-gov"]:
-                    if False in [len(grandchild.match_rel(restriction["no-gov"], child)) == 0 for grandchild in child.get_children()]:
-                        continue
-                
-                if restriction["nested"]:
-                    if not match(
-                            child.get_children(),
-                            restriction["nested"],
-                            named_nodes,
-                            head=child):
-                        continue
-                
-                if restriction["follows"]:
-                    if len(named_nodes[restriction["follows"]]) > 1:
-                        raise Exception("we never expect to have someone follow more than one named node")
-                    antecedent = named_nodes[restriction["follows"]][0][0]
-                    if child.get_conllu_field('id') - 1 != antecedent.get_conllu_field('id'):
-                        continue
-                
-                if restriction["followed_by"]:
-                    if len(named_nodes[restriction["followed_by"]]) > 1:
-                        raise Exception("we never expect to have someone been followed by more than one named node")
-                    antecedent = named_nodes[restriction["followed_by"]][0][0]
-                    if child.get_conllu_field('id') + 1 != antecedent.get_conllu_field('id'):
-                        continue
-                
-                if restriction["name"]:
-                    if restriction["name"] in named_nodes:
-                        named_nodes[restriction["name"]] += [(child, head, rel) for rel in relations if (child, head, rel) not in named_nodes[restriction["name"]]]
-                    else:
-                        named_nodes[restriction["name"]] = [(child, head, rel) for rel in relations]
-                restriction_matched = True
-                given_named_nodes.update(named_nodes)
-            
-            if not restriction_matched:
-                one_restriction_violated = True
-                break
-        
-        if not one_restriction_violated:
-            return True
-    
-    return False
-    
-
-# corrects subjs (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj) to subjpass,
-# if they are a sibling of auxpass.
+# This method corrects subjects of verbs for which we identified an auxpass,
+# but didn't identify the subject as passive.
+# (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj)
 def correct_subj_pass(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": 'auxpass'}),
-            Restriction({"gov": "^(.subj|.subj:xsubj)$", "name": "subj"})
-        ]]})
-    ]]
+    restriction = Restriction(nested=[[
+        Restriction(gov='auxpass'),
+        # the SC regex (which was "^(nsubj|csubj).*$") was changed here
+        # to avoid the need to filter .subjpass relations in the graph-rewriting part
+        Restriction(gov="^(.subj|.subj:xsubj)$", name="subj")
+    ]])
     
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
     # rewrite graph: for every subject add a 'pass' and replace in graph node
-    for subj_source, subj_head, subj_rel in ret['subj']:
-        substitute_rel = re.sub("subj", "subjpass", subj_rel)
-        subj_source.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
+    for name_space in ret:
+        subj, subj_head, subj_rel = name_space['subj']
+        substitute_rel = re.sub("(?<!x)subj", "subjpass", subj_rel)
+        # in SC they add it to the 'deprel' even if the edge was found in the 'deps' :O
+        subj.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
 
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
 def passive_agent(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": 'nmod', "name": "mod", "nested":
-            [[
-                Restriction({"gov": 'case', "form": "^(?i:by)$"})
-            ]]}),
-            Restriction({"gov": "auxpass"})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(gov='auxpass'),
+        Restriction(name="mod", gov="^(nmod)$", nested=[[
+            Restriction(gov='case', form="^(?i:by)$")
+        ]])
+    ]])
+
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
 
     # rewrite graph: for every nmod add ':agent' to the graph node relation
-    for mod_source, mod_head, mod_rel in ret['mod']:
-        mod_source.replace_edge(mod_rel,  mod_rel + ":agent", mod_head, mod_head)
+    for name_space in ret:
+        gov, _, _ = name_space['gov']
+        mod, _, mod_rel = name_space['mod']
+        mod.replace_edge(mod_rel,  mod_rel + ":agent", gov, gov)
 
 
-def build_strings_to_add(ret):
-    # we need to create a concat string for every marker neighbor chain
-    # actually it should never happen that they are separate, but nonetheless we add relation if so,
-    # this might result in multi-graph
-    # e.g 'in front of' should be [in_front_of] if they all follow but [in, front_of],
-    # if only 'front' and 'of' are follow (and 'in' is separated).
-    strs_to_add = []
+# we need to create a concat string for every marker neighbor chain
+# actually it should never happen that they are separate, but nonetheless we add relation if so,
+# this might result in multi-graph
+# e.g 'in front of' should be [in_front_of] if they are all sequential, but [in, front_of],
+# if only 'front' and 'of' are sequential (and 'in' is separated).
+def concat_sequential_tokens(c1, c2, c3):
+    # add the first word
+    sequences = [c1.get_conllu_field('form')]
+    prev = c1
+    if not c2:
+        # we return here because if c2 is None, c3 must be as well
+        return sequences
     
-    for c1_source, _, _ in ret['c1']:
-        # add the first word
-        strs_to_add += [c1_source.get_conllu_field('form')]
-        if 'c2' in ret:
-            prev = c1_source
-            for c2_source, _, _ in ret['c2']:
-                # concat every following marker, or start a new string if not
-                if prev.get_conllu_field('id') == c2_source.get_conllu_field('id') - 1:
-                    strs_to_add[-1] += '_' + c2_source.get_conllu_field('form')
-                else:
-                    strs_to_add.append(c2_source.get_conllu_field('form'))
-                prev = c2_source
+    for ci in ([c2, c3] if c3 else [c2]):
+        if prev.get_conllu_field('id') > ci.get_conllu_field('id'):
+            return
+        # concat every following marker, or start a new string if not
+        elif prev.get_conllu_field('id') == ci.get_conllu_field('id') - 1:
+            sequences[-1] += '_' + ci.get_conllu_field('form')
+        else:
+            sequences.append(ci.get_conllu_field('form'))
+        prev = ci
+    return sequences
+
+
+def prep_patterns_per_type(sentence, restriction):
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
     
-    return strs_to_add
+    for name_space in ret:
+        mod, mod_head, mod_rel = name_space['mod']
+        c1, _, _ = name_space['c1']
+        c2, _, _ = name_space['c2'] if 'c2' in name_space else (None, None, None)
+        c3, _, _ = name_space['c3'] if 'c3' in name_space else (None, None, None)
+        
+        sequences = concat_sequential_tokens(c1, c2, c3)
+        if not sequences:
+            continue
+        
+        mod.remove_edge(mod_rel, mod_head)
+        for prep_sequence in sequences:
+            mod.add_edge(mod_rel + ":" + prep_sequence.lower(), mod_head)
 
 
 def prep_patterns(sentence, first_gov, second_gov):
-    restriction_lists = \
-    [[
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"gov": first_gov, "name": "mod", "nested":
-            [[
-                Restriction({"gov": second_gov, "name": "c1", "nested":
-                [[
-                    Restriction({"gov": 'mwe', "name": "c2"})
-                ]]})
-            ]]})
-        ],
-        [
-            Restriction({"gov": first_gov, "name": "mod", "nested":
-            [[
-                Restriction({"gov": second_gov, "name": "c1", "form": "(?!(^(?i:by)$))."})
-            ]]})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    restriction_3w = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov=first_gov, nested=[[
+            Restriction(name="c1", gov=second_gov, nested=[[
+                Restriction(name="c2", gov="mwe"),
+                Restriction(name="c3", gov="mwe", diff="c2")
+            ]])
+        ]])
+    ]])
+    restriction_2w = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov=first_gov, nested=[[
+            Restriction(name="c1", gov=second_gov, nested=[[
+                Restriction(name="c2", gov="mwe")
+            ]])
+        ]])
+    ]])
+    restriction_1w = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov=first_gov, nested=[[
+            # here we want to find any one word that marks a modifier,
+            # except cases in which 'by' was used for 'agent' identification,
+            # but the exact notation will prevent those from being caught
+            Restriction(name="c1", gov=second_gov)
+        ]])
+    ]])
+    
+    # NOTE: in SC since they replace the modifier (nmod/advcl/acl) it won't come up again in future matches,
+    # as they use the exact (^$) symbols. and so we imitate this behavior.
+    for rest in [restriction_3w, restriction_2w, restriction_1w]:
+        prep_patterns_per_type(sentence, rest)
+
+
+def heads_of_conjuncts(sentence):
+    restriction = Restriction(name="new_gov", nested=[[
+        Restriction(name="gov", gov="^((?!root|case).)*$", nested=[[
+             Restriction(name="dep", gov=".*conj.*")
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    for mod_source, mod_head, mod_rel in ret['mod']:
-        strs_to_add = build_strings_to_add(ret)
-        mod_source.remove_edge(mod_rel, mod_head)
-        for str_to_add in strs_to_add:
-            mod_source.add_edge(mod_rel + ":" + str_to_add.lower(), mod_head)
+    for name_space in ret:
+        gov, gov_head, gov_rel = name_space['gov']
+        dep, _, _ = name_space['dep']
+        
+        # find if they both are relcl heads and if the relation to the grandpa is nsubj or dobj
+        # because then we don't want to propagate the relation
+        # NOTE: actually this is partly true, as we only dont want to propagate
+        #   the relcl-subj relation (as enhanced by add_ref), nut do want the regular subjs.
+        #   We should add it in the future, but know we imitate SC.
+        both_relcl = \
+            True in [relation == "acl:relcl" for child in dep.get_children() for _, relation in child.get_new_relations(dep)] and \
+            True in [relation == "acl:relcl" for child in gov.get_children() for _, relation in child.get_new_relations(gov)]
+        
+        # only if the dependant of the conj is not the head of the head of the conj,
+        # and they dont fall under the relcl problem, propagate the relation
+        if (not both_relcl or (gov_rel != "nsubj" and gov_rel != "dobj")) and \
+                gov_head != dep:
+            dep.add_edge(gov_rel, gov_head)
 
 
-# Adds the type of conjunction to all conjunct relations
-def conj_info(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": "cc", "name": "cc"}),
-            Restriction({"gov": "^conj$", "name": "conj"})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+def subj_of_conjoined_verbs(sentence):
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="conj", gov="conj", no_sons_of=".subj", xpos="(VB|JJ)"),
+        Restriction(name="subj", gov=".subj")
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    # this was added to get the first cc, because it should be applied on all conj's that precedes it
-    cur_form = sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"]])[0][1][0].get_conllu_field('form')
-    for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
-            sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
-        if cc_or_conj_rel == "cc":
-            cur_form = cc_or_conj_source.get_conllu_field('form')
-        else:
-            cc_or_conj_source.replace_edge(
-                cc_or_conj_rel, cc_or_conj_rel + ":" + cur_form, cc_or_conj_head, cc_or_conj_head)
-
-
-def conjoined_subj(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": "^((?!root|case|nsubj|dobj).)*$", "name": "gov", "nested":
-            [[
-                # TODO - I don't fully understand why SC decided to add this rcmod condition, and I believe they have a bug:
-                #   (rcmodHeads.contains(gov) && rcmodHeads.contains(dep)) should be ||, and so I coded.
-                Restriction({"gov": "rcmod"}),
-                Restriction({"gov": ".*conj.*", "name": "dep"})
-            ],
-            [
-                Restriction({"gov": ".*conj.*", "name": "dep", "nested":
-                [[
-                    Restriction({"gov": "rcmod"})
-                ]]})
-            ]]})
-        ],
-        [
-            Restriction({"gov": "^((?!root|case).)*$", "no-gov": "rcmod", "name": "gov", "nested":
-            [[
-                Restriction({"gov": ".*conj.*", "no-gov": "rcmod", "name": "dep"})
-            ]]})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
-        return
-    
-    for _, gov_head, gov_rel in ret['gov']:
-        for dep_source, _, _ in ret['dep']:
-            dep_source.add_edge(gov_rel, gov_head)
-
-
-def conjoined_verb(sentence):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [[
-            Restriction({"gov": "conj", "no-gov": ".subj", "name": "conj", "xpos": "(VB|JJ)", "nested":
-            [[
-                Restriction({"gov": "auxpass", "name": "auxpass"})
-            ]]}),
-            Restriction({"gov": ".subj", "name": "subj"})
-        ],
-        [
-            Restriction({"gov": "conj", "no-gov": ".subj|auxpass", "name": "conj", "xpos": "(VB|JJ)"}),
-            Restriction({"gov": ".subj", "name": "subj"})
-        ]]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
-        return
-    
-    for subj_source, _, subj_rel in ret['subj']:
-        for conj_source, _, _ in ret['conj']:
-            # TODO - this could be out into restrictions, but it would be a huge add-up,
-            # so rather stay with this small if statement
-            if subj_rel.endswith("subjpass") and \
-                            subj_source.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
-                subj_rel = subj_rel[:-4]
-            elif subj_rel.endswith("subj") and "auxpass" in ret:
-                subj_rel += "pass"
-            
-            subj_source.add_edge(subj_rel, conj_source)
-            # TODO - we need to add the aux relation (as SC say they do but not in the code)
-            #   and the obj relation, which they say they do and also coded, but then commented out...
+    for name_space in ret:
+        subj, _, subj_rel = name_space['subj']
+        conj, _, _ = name_space['conj']
+        
+        if subj_rel.endswith("subjpass") and conj.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
+            subj_rel = subj_rel[:-4]
+        elif subj_rel.endswith("subj") and "auxpass" in [relation for child in conj.get_children() for relation in child.get_new_relations(conj)]:
+            subj_rel += "pass"
+        
+        subj.add_edge(subj_rel, conj)
 
 
 def xcomp_propagation_per_type(sentence, restriction):
-    restriction_lists = \
-    [[
-        Restriction({"nested":
-        [
-            restriction + [Restriction({"gov": "dobj", "name": "obj"})],
-            restriction
-        ]})
-    ]]
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    restriction = Restriction(nested=[
+        [restriction, Restriction(name="new_subj", gov="dobj")],
+        [restriction, Restriction(name="new_subj", gov="nsubj.*")]
+    ])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    if 'obj' in ret:
-        for obj_source, _, _ in ret['obj']:
-            for _, dep_head, _ in ret['dep']:
-                if dep_head not in obj_source.get_parents():
-                    obj_source.add_edge("nsubj:xsubj", dep_head)
-    else:
-        for subj_source, _, _ in ret['subj']:
-            for _, dep_head, _ in ret['dep']:
-                if dep_head not in subj_source.get_parents():
-                    subj_source.add_edge("nsubj:xsubj", dep_head)
+    for name_space in ret:
+        new_subj, _, _ = name_space['new_subj']
+        dep, _, _ = name_space['dep']
+        new_subj.add_edge("nsubj:xsubj", dep)
 
 
+# Add extra nsubj dependencies when collapsing basic dependencies.
+# Some notes copied from SC:
+# 1. In the general case, we look for an aux modifier under an xcomp
+#   modifier, and assuming there aren't already associated nsubj
+#   dependencies as daughters of the original xcomp dependency, we
+#   add nsubj dependencies for each nsubj daughter of the governor.
+# 2. There is also a special case for "to" words, in which case we add
+#   a dependency if and only if there is no nsubj associated with the
+#   xcomp AND there is no other aux dependency. This accounts for
+#   sentences such as "he decided not to." with no following verb.
+# 3. In general, we find that the objects of the verb are better
+#   for extra nsubj than the original nsubj of the verb.  For example,
+#   "Many investors wrote asking the SEC to require ..."
+#   There is no nsubj of asking, but the dobj, SEC, is the extra nsubj of require.
+#   Similarly, "The law tells them when to do so"
+#   Instead of nsubj(do, law) we want nsubj(do, them)
 def xcomp_propagation(sentence):
-    to_xcomp_rest = \
-        [
-            Restriction({"gov": "xcomp", "no-gov": "^(nsubj.*|aux|mark)$", "name": "dep", "form": "^(?i:to)$"}),
-            Restriction({"gov": "nsubj.*", "name": "subj"}),
-        ]
-    basic_xcomp_rest = \
-        [
-            Restriction({"gov": "xcomp", "no-gov": "nsubj.*", "name": "dep", "form": "(?!(^(?i:to)$)).", "nested":
-            [[
-                Restriction({"gov": "^(aux|mark)$"})
-            ]]}),
-            Restriction({"gov": "nsubj.*", "name": "subj"}),
-        ]
+    to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
+    basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
+        Restriction(gov="^(aux|mark)$")
+    ]])
 
     for xcomp_restriction in [to_xcomp_rest, basic_xcomp_rest]:
         xcomp_propagation_per_type(sentence, xcomp_restriction)
 
 
+def create_mwe(words, head, rel):
+    for i, word in enumerate(words):
+        word.remove_all_edges()
+        word.add_edge(rel, head)
+        if 0 == i:
+            head = word
+            rel = "mwe"
+
+
+def is_prep_seq(words, preps):
+    return "_".join([word.get_conllu_field('form') for word in words]) in preps
+
+
+def reattach_children(old_head, new_head):
+    # store them before we make change to the original list
+    for child in list(old_head.get_children()):
+        # this is only for the multi-graph case
+        for child_head, child_rel in list(child.get_new_relations(given_head=old_head)):
+            child.replace_edge(child_rel, child_rel, old_head, new_head)
+
+
+def split_concats_by_index(prep_list, prep_len):
+    out = list()
+    for i in range(prep_len):
+        out.append("|".join([prep.split("_")[i] for prep in prep_list]))
+    return out
+
+
+# for example The street is across from you.
+# The following relations:
+#   advmod(you-6, across-4)
+#   case(you-6, from-5)
+# would be replaced with:
+#   case(you-6, across-4)
+#   mwe(across-4, from-5)
 def process_simple_2wp(sentence):
-    for two_word_prep in two_word_preps_regular:
-        w1_form, w2_form = two_word_prep.split("_")
-        restriction_lists = \
-        [[
-            Restriction({"name": "gov", "nested":
-            [[
-                Restriction({"gov": "(case|advmod)", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"}),
-                Restriction({"gov": "case", "no-gov": ".*", "follows": "w1", "name": "w2", "form": "^" + w2_form + "$"})
-            ]]})
-        ]]
-        ret = dict()
-        if not match(sentence.values(), restriction_lists, ret):
+    forms = split_concats_by_index(two_word_preps_regular, 2)
+    
+    restriction = Restriction(nested=[[
+        Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + forms[0] + "$"),
+        Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + forms[1] + "$")
+    ]])
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        w1, w1_head, w1_rel = name_space['w1']
+        w2, w2_head, w2_rel = name_space['w2']
+        
+        # check if words really form a prepositional phrase
+        if not is_prep_seq([w1, w2], two_word_preps_regular):
             continue
         
-        for gov, _, _ in ret['gov']:
-            for (w1, w1_head, w1_rel), (w2, w2_head, w2_rel) in zip(ret['w1'], ret['w2']):
-                w1.replace_edge(w1_rel, "case", w1_head, w1_head)
-                w2.replace_edge(w2_rel, "mwe", w2_head, w1)
+        # create multi word expression
+        create_mwe([w1, w2], w1_head, "case")
 
 
+# for example: He is close to me.
+# The following relations:
+#   nsubj(close-3, He-1)
+#   cop(close-3, is-2)
+#   root(ROOT-0, close-3)
+#   case(me-6, to-4)
+#   nmod(close-3, me-6)
+# would be replaced with:
+#   nsubj(me-6, He-1)
+#   cop(me-6, is-2)
+#   case(me-6, close-3)
+#   mwe(close-3, to-4)
+#   root(ROOT-0, me-6)
 def process_complex_2wp(sentence):
-    for two_word_prep in two_word_preps_complex:
-        w1_form, w2_form = two_word_prep.split("_")
-        restriction = \
-            Restriction({"name": "gov", "nested": [[
-                Restriction({"name": "w1", "followed_by": "w2", "form": "^" + w1_form + "$", "nested":
-                [[
-                    Restriction({"gov": "nmod", "name": "gov2", "nested":
-                    [[
-                        Restriction({"gov": "case", "no-gov": ".*", "name": "w2", "form": "^" + w2_form + "$"}),
-                    ]]}),
-                ]]})
-            ]]})
+    forms = split_concats_by_index(two_word_preps_complex, 2)
+
+    inner_rest = Restriction(gov="nmod", name="gov2", nested=[[
+        Restriction(name="w2", no_sons_of=".*", form="^" + forms[1] + "$")
+    ]])
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="w1", followed_by="w2", form="^" + forms[0] + "$", nested=[
+            [inner_rest, Restriction(name="cop", gov="cop")],
+            [inner_rest]
+        ])
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+
+    for name_space in ret:
+        w1, _, w1_rel = name_space['w1']
+        w2, _, _ = name_space['w2']
+        gov, _, _ = name_space['gov']
+        gov2, _, gov2_rel = name_space['gov2']
+        cop, _, _ = name_space['cop'] if "cop" in name_space else (None, None, None)
         
-        ret = dict()
-        if not match(sentence.values(), [[restriction]], ret):
+        # check if words really form a prepositional phrase
+        if not is_prep_seq([w1, w2], two_word_preps_complex):
             continue
         
-        for gov, _, _ in ret['gov']:
-            for gov2, gov2_head, gov2_rel in ret['gov2']:
-                for w1, _, w1_rel in ret['w1']:
-                    # reattach w1 sons to gov2
-                    w1_has_cop_child = False
-                    gov2.remove_edge()
-                    for child in w1.get_children():
-                        for child_head, child_rel in child.get_new_relations(given_head=w1.get_conllu_field('id')):
-                            if child_rel == "cop":
-                                w1_has_cop_child = True
-                            child.replace_edge(child_rel, child_rel, w1, gov2)
-                    
-                    # Determine the relation to use.
-                    rel = w1_rel if w1_has_cop_child and (w1_rel in clause_relations) else gov2_rel
-                    
-                    # replace gov2's governor
-                    w1.remove_edge(w1_rel, gov)
-                    gov2.replace_edge(gov2_rel, rel, w1, gov)
-                    
-                    w1.remove_all_edges()
-                    w1.add_edge("case", gov2)
-                    for w2, _, _ in ret['w2']:
-                        w2.remove_all_edges()
-                        w2.add_edge("mwe", w1)
+        # Determine the relation to use for gov2's governor
+        if (w1_rel == "root") or (cop and (w1_rel in clause_relations)):
+            gov2.replace_edge(gov2_rel, w1_rel, w1, gov)
+        else:
+            gov2.replace_edge(gov2_rel, gov2_rel, w1, gov)
+        
+        # reattach w1 sons to gov2.
+        reattach_children(w1, gov2)
+        
+        # create multi word expression
+        create_mwe([w1, w2], gov2, "case")
 
 
+# for example: He is close to me.
+# The following relations:
+#   nsubj(front-4, I-1)
+#   cop(front-4, am-2)
+#   case(front-4, in-3)
+#   root(ROOT-0, front-4)
+#   case(you-6, of-5)
+#   nmod(front-4, you-6)
+# would be replaced with:
+#   nsubj(you-6, I-1)
+#   cop(you-6, am-2)
+#   case(you-6, in-3)
+#   mwe(in-3, front-4)
+#   mwe(in-3, of-5)
+#   root(ROOT-0, you-6)
 def process_3wp(sentence):
-    for three_word_prep in three_word_preps:
-        w1_form, w2_form, w3_form = three_word_prep.split("_")
-        restriction = \
-            Restriction({"name": "gov", "nested":
-            [[
-                Restriction({"name": "w2", "followed_by":"w3", "follows": "w1", "form": "^" + w2_form + "$", "nested":
-                [[
-                    Restriction({"gov": "(nmod|acl|advcl)", "name": "gov2", "nested":
-                    [[
-                        Restriction({"gov": "(case|mark)", "no-gov": ".*", "name": "w3", "form": "^" + w3_form + "$"}),
-                    ]]}),
-                    Restriction({"gov": "case", "no-gov": ".*", "name": "w1", "form": "^" + w1_form + "$"})
-                ]]})
-            ]]})
+    forms = split_concats_by_index(three_word_preps, 3)
+    
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="w2", followed_by="w3", follows="w1", form="^" + forms[1] + "$", nested=[[
+            Restriction(name="gov2", gov="(nmod|acl|advcl)", nested=[[
+                Restriction(name="w3", gov="(case|mark)", no_sons_of=".*", form="^" + forms[2] + "$")
+            ]]),
+            Restriction(name="w1", gov="^(case)$", no_sons_of=".*", form="^" + forms[0] + "$")
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        w1, _, _ = name_space['w1']
+        w2, _, w2_rel = name_space['w2']
+        w3, _, _ = name_space['w3']
+        gov, _, _ = name_space['gov']
+        gov2, _, gov2_rel = name_space['gov2']
         
-        ret = dict()
-        if not match(sentence.values(), [[restriction]], ret):
+        # check if words really form a prepositional phrase
+        if not is_prep_seq([w1, w2, w3], three_word_preps):
             continue
         
-        for gov2, gov2_head, gov2_rel in ret['gov2']:
-            for w2, w2_head, w2_rel in ret['w2']:
-                # Determine the relation to use. If it is a relation that can
-                # join two clauses and w1 is the head of a copular construction,
-                # then use the relation of w1 and its parent. Otherwise use the relation of edge.
-                case = "case"
-                rel = w2_rel
-                if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
-                    rel = gov2_rel
-                    case = "mark"
-                
-                gov2.replace_edge(gov2_rel, rel, w2, w2_head)
-                # reattach w2 sons to gov2
-                for child in w2.get_children():
-                    for child_head, child_rel in child.get_new_relations(given_head=w2):
-                        child.replace_edge(child_rel, child_rel, w2, gov2)
-                
-                w2.remove_all_edges()
-                
-                for w1, _, _ in ret['w1']:
-                    w1.remove_all_edges()
-                    w1.add_edge(case, gov2)
-                    w2.add_edge("mwe", w1)
-                    for w3, w3_head, w3_rel in ret['w3']:
-                        w3.remove_all_edges()
-                        w3.add_edge("mwe", w1)
+        # Determine the relation to use
+        if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
+            gov2.replace_edge(gov2_rel, gov2_rel, w2, gov)
+            case = "mark"
+        else:
+            gov2.replace_edge(gov2_rel, w2_rel, w2, gov)
+            case = "case"
+
+        # reattach w2 sons to gov2
+        reattach_children(w2, gov2)
+        
+        # create multi word expression
+        create_mwe([w1, w2, w3], gov2, case)
 
 
-def demote_quantificational_modifiers_3w(sentence):
-    restriction = \
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"name": "w2", "no-gov": "amod", "follows": "w3", "form": w2_quant_mod_of_3w, "nested":
-            [[
-                Restriction({"gov": "det", "name": "w1", "form": "(?i:an?)"}),
-                Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w3"})
-                ]]})
-            ]]})
-        ]]})
-    
-    ret = dict()
-    if not match(
-            sentence.values(),
-            [[restriction]],
-            ret):
+# The following two methods corrects Partitives and light noun constructions,
+# by making it a multi word expression with head of det:qmod.
+# for example: A couple of people.
+# The following relations:
+#   det(couple-2, A-1)
+#   root(ROOT-0, couple-2)
+#   case(people-4, of-3)
+#   nmod(couple-2, people-4)
+# would be replaced with:
+#   det:qmod(people-4, A-1)
+#   mwe(A-1, couple-2,)
+#   mwe(A-1, of-3)
+#   root(ROOT-0, people-4)
+def demote_per_type(sentence, restriction):
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    for gov2, gov2_head, gov2_rel in ret['gov2']:
-        for w1, w1_head, w1_rel in ret['w1']:
-            w1.remove_all_edges()
-            w1.add_edge("det:qmod", gov2)
-            for w2, w2_head, w2_rel in ret['w2']:
-                w2.remove_all_edges()
-                gov2.replace_edge(gov2_rel, w2_rel, gov2_head, w2_head)
-                w2.add_edge("mwe", w1)
-                for w3, w3_head, w3_rel in ret['w3']:
-                    w3.remove_all_edges()
-                    w3.add_edge("mwe", w1)
+    for name_space in ret:
+        old_gov, old_gov_head, old_gov_rel = name_space['w1']
+        w2, w2_head, w2_rel = name_space['w2']
+        gov2, _, gov2_rel = name_space['gov2']
+        
+        words = [old_gov, w2]
+        if 'w3' in name_space:
+            w3, _, _ = name_space['w3']
+            words += [w3]
+            # run over what we 'though' to be the old_gov, as this is a 3-word mwe
+            old_gov, old_gov_head, old_gov_rel = name_space['w2']
+        elif 'det' in name_space:
+            # NOTE: this is not done in SC, but should have been by THE PAPER.
+            # adding the following determiner to the mwe.
+            det, _, _ = name_space['det']
+            words += [det]
+        
+        gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
+        create_mwe(words, gov2, "det:qmod")
 
 
-def demote_2w_per_type(sentence, rl):
-    ret = dict()
-    if not match(
-            sentence.values(),
-            [[rl]],
-            ret):
-        return
+def demote_quantificational_modifiers(sentence):
+    quant_3w = Restriction(nested=[[
+        Restriction(name="w2", no_sons_of="amod", form=quant_mod_3w, followed_by="w3", nested=[[
+            Restriction(name="w1", gov="det", form="(?i:an?)"),
+            Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
+                Restriction(name="w3", gov="case", form="(?i:of)")
+            ]])
+        ]])
+    ]])
     
-    for gov2, gov2_head, gov2_rel in ret['gov2']:
-        for w1, w1_head, w1_rel in ret['w1']:
-            w1.remove_all_edges()
-            gov2.replace_edge(gov2_rel, w1_rel, gov2_head, w1_head)
-            w1.add_edge("det:qmod", gov2)
-            for w2, w2_head, w2_rel in ret['w2']:
-                w2.remove_all_edges()
-                w2.add_edge("mwe", w1)
-
-
-def demote_quantificational_modifiers_2w(sentence):
-    restriction = \
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"name": "w1", "followed_by": "w2", "form": w1_quant_mod_of_2w, "nested":
-            [[
-                Restriction({"gov": "nmod", "xpos": "(NN.*|PRP.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w2"})
-                ]]})
-            ]]})
-        ]]})
-    restriction_det = \
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"name": "w1", "followed_by": "w2", "form": w1_quant_mod_of_2w_det, "nested":
-            [[
-                Restriction({"gov": "nmod", "xpos": "(NN.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "det", "name": "det"}),
-                    Restriction({"gov": "case", "followed_by": "det", "form": "(?i:of)", "name": "w2"})
-                ]]})
-            ],
-            [
-                Restriction({"gov": "nmod", "xpos": "(PRP.*)", "name": "gov2", "nested":
-                [[
-                    Restriction({"gov": "case", "form": "(?i:of)", "name": "w2"})
-                ]]})
-            ]]})
-        ]]})
+    quant_2w = Restriction(nested=[[
+        Restriction(name="w1", form=quant_mod_2w, followed_by="w2", nested=[[
+            Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
+                Restriction(name="w2", gov="case", form="(?i:of)")
+            ]])
+        ]])
+    ]])
     
-    for rl in [restriction, restriction_det]:
-        demote_2w_per_type(sentence, rl)
- 
+    quant_2w_det = Restriction(nested=[[
+        Restriction(name="w1", form=quant_mod_2w_det, followed_by="w2", nested=[[
+            Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
+                Restriction(name="det", gov="det"),
+                Restriction(name="w2", gov="case", form="(?i:of)", followed_by="det")
+            ]])
+        ],
+            [Restriction(name="gov2", gov="nmod", xpos="(PRP.*)", nested=[[
+                Restriction(name="w2", gov="case", form="(?i:of)")
+            ]])
+        ]])
+    ]])
+    
+    for rl in [quant_3w, quant_2w, quant_2w_det]:
+        demote_per_type(sentence, rl)
 
+
+def assign_refs(ret):
+    ref_assignments = dict()
+    descendents = dict()
+    for name_space in ret:
+        for level in ['child_ref', 'grand_ref']:
+            if level in name_space:
+                mods_descendent = (name_space[level][0].get_conllu_field('id'), name_space[level])
+                if name_space['mod'] in descendents:
+                    descendents[name_space['mod']].append(mods_descendent)
+                else:
+                    descendents[name_space['mod']] = [mods_descendent]
+    
+    for mod, mods_descendents in descendents.items():
+        leftmost_descendent = sorted(mods_descendents)[0]
+        ref_assignments[mod] = leftmost_descendent[1]
+    
+    return ref_assignments
+
+
+# Look for ref rules for a given word. We look through the
+# children and grandchildren of the acl:relcl dependency, and if any
+# children or grandchildren is a that/what/which/etc word,
+# we take the leftmost that/what/which/etc word as the dependent
+# for the ref TypedDependency.
+# Then we collapse the referent relation such as follows. e.g.:
+# "The man that I love ... " ref(man, that) dobj(love, that) -> ref(man, that) dobj(love, man)
 def add_ref_and_collapse(sentence):
-    child_rest = Restriction({"name": "child_ref", "form": relativizing_word_regex})
-    grandchild_rest = \
-        Restriction({"nested":
-            [[
-                Restriction({"name": "grand_ref", "form": relativizing_word_regex})
-            ]]})
-    restriction_lists = \
-    [[
-        Restriction({"name": "gov", "nested":
-        [[
-            Restriction({"gov": 'acl:relcl', "nested":
-            [
-                [grandchild_rest, child_rest],
-                [grandchild_rest],
-                [child_rest]
-            ]}),
-        ]]})
-    ]]
+    child_rest = Restriction(name="child_ref", form=relativizing_word_regex)
+    grandchild_rest = Restriction(nested=[[
+        Restriction(name="grand_ref", form=relativizing_word_regex)
+    ]])
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov='acl:relcl', nested=[
+            [grandchild_rest, child_rest],
+            [grandchild_rest],
+            [child_rest]
+        ]),
+    ]])
     
-    ret = dict()
-    if not match(sentence.values(), restriction_lists, ret):
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
     
-    for gov, gov_head, gov_rel in ret['gov']:
-        leftmost = None
-        descendants = ([d for d, _, _ in ret['grand_ref']] if 'grand_ref' in ret else []) + \
-                     ([d for d, _, _ in ret['child_ref']] if 'child_ref' in ret else [])
-        for descendant in descendants:
-            if (not leftmost) or descendant.get_conllu_field('id') < leftmost.get_conllu_field('id'):
-                leftmost = descendant
+    ref_assignments = assign_refs(ret)
+    
+    for name_space in ret:
+        gov, gov_head, gov_rel = name_space['gov']
+        leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
         
-        for parent, edge in leftmost.get_new_relations():
-            leftmost.remove_edge(edge, parent)
-            gov.add_edge(edge, parent)
-        
-        leftmost.add_edge("ref", gov)
+        if gov not in leftmost.get_parents():
+            leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
+            gov.add_edge(leftmost_rel, leftmost_head)
 
 
-# Expands prepositions with conjunctions such as in the sentence
-# "Bill flies to and from Serbia." by copying the verb resulting
-# in the following relations:
-#   conj:and(flies, flies') # new
-#   cc(to, and)
-#   conj(to, from)
-#   case(Serbia, to)
-#   nmod(flies, Serbia)
-#   nmod(flies', Serbia) # new
+# resolves the following multi word conj phrases:
+# but not(cc), if not(cc), instead(cc) of, rather(cc) than, but rather(cc) GO TO negcc
+# as(cc) well as, but(cc) also, not to mention, & GO TO and
+# NOTE: for now we won't catch '&' and 'not to mention' as none of their words would be tagged as 'cc',
+#   as happening in SC. Moreover, we catch 'but rather' and 'not if' which SC has a BUG trying to catch those.
+#   (their BUG happens as they assume the wrong word to be the 'cc').
+# NOTE - in SC they check only for 'as well' without the last 'as'.
+def get_assignment(sentence, cc):
+    cc_cur_id = cc.get_conllu_field('id')
+    prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
+                           if iid != 0 and (cc_cur_id - 1 == iid or cc_cur_id == iid)])
+    next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
+                           if cc_cur_id + 1 == iid or cc_cur_id == iid])
+    if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
+        return "negcc"
+    elif next_forms in and_conjp_next:
+        return "and"
+    else:
+        return cc.get_conllu_field('form')
+
+
+# In case multiple coordination marker depend on the same governor
+# the one that precedes the conjunct is appended to the conjunction relation or the
+# first one if no preceding marker exists.
+def assign_ccs_to_conjs(sentence, ret):
+    cc_assignments = dict()
+    ccs = []
+    conjs = []
+    for name_space in ret:
+        ccs.append((name_space['cc'][0].get_conllu_field('id'), name_space['cc']))
+        conjs.append((name_space['conj'][0].get_conllu_field('id'), name_space['conj']))
+    
+    sorted_ccs_and_conjs = sorted(ccs + conjs)
+    _, cur_cc = sorted(ccs)[0]
+    for _, (cc_or_conj, head, rel) in sorted_ccs_and_conjs:
+        if rel == "cc":
+            cur_cc = (cc_or_conj, head, rel)
+        else:
+            cc_assignments[((cc_or_conj, head, rel), cur_cc)] = get_assignment(sentence, cur_cc[0])
+    return cc_assignments
+
+
+# Adds the type of conjunction to all conjunct relations
+# Some multi-word coordination markers are collapsed to conj:and or conj:negcc
+def conj_info(sentence):
+    restriction = Restriction(name="gov", nested=[[
+        Restriction(name="cc", gov="^(cc)$"),
+        Restriction(name="conj", gov="^(conj)$")
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+    
+    # assign ccs to conjs according to precedence
+    cc_assignments = assign_ccs_to_conjs(sentence, ret)
+    
+    for name_space in ret:
+        gov, _, _ = name_space['gov']
+        cc, _, cc_rel = name_space['cc']
+        conj, _, conj_rel = name_space['conj']
+
+        if ((conj, gov, conj_rel), (cc, gov, cc_rel)) not in cc_assignments:
+            continue
+        cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
+        
+        conj.replace_edge(conj_rel, conj_rel + ":" + cc_assignment, gov, gov)
+
+
 # The label of the conjunct relation includes the conjunction type
 # because if the verb has multiple cc relations then it can be impossible
 # to infer which coordination marker belongs to which conjuncts.
-def expand_prep_conjunctions(sentence):
-    rl = [[Restriction({"nested": [[
-            Restriction({"nested": [[
-                Restriction({"gov": "case", "name": "gov", "nested": [[
-                    Restriction({"gov": "cc", "name": "cc"}),
-                    Restriction({"gov": "conj", "name": "conj"})
-                ]]})
-            ]]})
-        ]]})
-    ]]
-    ret = dict()
-    
-    if not match(sentence.values(), rl, ret):
+def expand_per_type(sentence, restriction, is_pp):
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
         return
-    for gov, _, _ in ret['gov']:
-        cur_form = None
-        i = 0
-        # sort the cc's and conj's found and iterate them
-        # TODO - some of this code was copied from conj_info and from expand_pp_conjunctions - try to share code
-        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
-                sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
-            if cc_or_conj_rel == "cc":
-                # save cc's form
-                cur_form = cc_or_conj_source.get_conllu_field('form')
-            else:
-                # per parent per grandpa: copy the grandpa and:
-                # add conj:'cc_form'(grandpa, copy_node)
-                # add 'rel':'conj_form'(copy_node, parent)
-                i += 1
-                for parent, _ in gov.get_new_relations():
-                    for grandpa, grandpa_rel in parent.get_new_relations():
-                        new_id = grandpa.get_conllu_field('id') + (0.1 * i)
-                        copy_node = grandpa.copy(
-                            new_id=new_id,
-                            head="_",
-                            deprel="_",
-                            misc="CopyOf=%d" % grandpa.get_conllu_field('id'))
-                        parent.add_edge(grandpa_rel + ":" + cc_or_conj_source.get_conllu_field('form'), copy_node)
-                        copy_node.add_edge("conj:" + cur_form, grandpa)
-                        sentence[new_id] = copy_node
+    
+    # assign ccs to conjs according to precedence
+    cc_assignments = assign_ccs_to_conjs(sentence, ret)
+    
+    nodes_copied = 0
+    last_copy_id = -1
+    for name_space in ret:
+        gov, _, gov_rel = name_space['gov']
+        to_copy, _, _ = name_space['to_copy']
+        cc, cc_head, cc_rel = name_space['cc']
+        conj, conj_head, conj_rel = name_space['conj']
+        
+        if ((conj, conj_head, conj_rel), (cc, cc_head, cc_rel)) not in cc_assignments:
+            continue
+        cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
+        
+        # create a copy node,
+        # add conj:cc_info('to_copy', copy_node)
+        nodes_copied = 1 if to_copy.get_conllu_field('id') != last_copy_id else nodes_copied + 1
+        last_copy_id = to_copy.get_conllu_field('id')
+        new_id = to_copy.get_conllu_field('id') + (0.1 * nodes_copied)
+        copy_node = to_copy.copy(
+            new_id=new_id,
+            head="_",
+            deprel="_",
+            misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
+        copy_node.add_edge("conj:" + cc_assignment, to_copy)
+        sentence[new_id] = copy_node
+        
+        if is_pp:
+            # replace cc('gov', 'cc') with cc('to_copy', 'cc')
+            # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
+            cc.replace_edge(cc_rel, cc_rel, cc_head, to_copy)
+            
+            # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
+            conj.replace_edge(conj_rel, gov_rel, conj_head, copy_node)
+        else:
+            # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
+            modifier, _, modifier_rel = name_space['modifier']
+            modifier.add_edge(modifier_rel + ":" + conj.get_conllu_field('form'), copy_node)
 
 
 # Expands PPs with conjunctions such as in the sentence
 # "Bill flies to France and from Serbia." by copying the verb
-# that governs the prepositional phrase resulting in the following
-# relations:
-#   conj:and(flies, flies') # new
-#   case(France, to)
-#   cc(flies, and) # new
-#   case(Serbia, from)
-#   nmod(flies, France)
-#   nmod(flies', Serbia) # new
+# that governs the prepositional phrase resulting in the following new or changed relations:
+#   conj:and(flies, flies')
+#   cc(flies, and)
+#   nmod(flies', Serbia)
 # while those where removed:
 #   cc(France-4, and-5)
 #   conj(France-4, Serbia-7)
-# The label of the conjunct relation includes the conjunction type
-# because if the verb has multiple cc relations then it can be impossible
-# to infer which coordination marker belongs to which conjuncts.
-def expand_pp_conjunctions(sentence):
-    rl = [[Restriction({"nested": [[
-            Restriction({"gov": "^(nmod|acl|advcl)$", "name": "gov", "nested": [[
-                Restriction({"gov": "case"}),
-                Restriction({"gov": "cc", "name": "cc"}),
-                Restriction({"gov": "conj", "name": "conj", "nested": [[
-                    Restriction({"gov": "case"})
-                ]]})
-            ]]})
-        ]]})
-    ]]
+# After that, expands prepositions with conjunctions such as in the sentence
+# "Bill flies to and from Serbia." by copying the verb resulting
+# in the following new relations:
+#   conj:and(flies, flies')
+#   nmod(flies', Serbia)
+def expand_pp_or_prep_conjunctions(sentence):
+    pp_restriction = Restriction(name="to_copy", nested=[[
+        Restriction(name="gov", gov="^(nmod|acl|advcl)$", nested=[[
+            Restriction(gov="case"),
+            Restriction(name="cc", gov="^(cc)$"),
+            Restriction(name="conj", gov="conj", nested=[[
+                Restriction(gov="case")
+            ]])
+        ]])
+    ]])
     
-    ret = dict()
-    if not match(sentence.values(), rl, ret):
-        return
+    prep_restriction = Restriction(name="to_copy", nested=[[
+        Restriction(name="modifier", nested=[[
+            Restriction(name="gov", gov="case", nested=[[
+                Restriction(name="cc", gov="^(cc)$"),
+                Restriction(name="conj", gov="conj")
+            ]])
+        ]])
+    ]])
     
-    for gov, _, _ in ret['gov']:
-        cur_form = None
-        i = 0
-        # sort the cc's and conj's found and iterate them
-        # TODO - some of this code was copied from conj_info - try to share code
-        for (_, (cc_or_conj_source, cc_or_conj_head, cc_or_conj_rel)) in \
-                sorted([(triplet[0].get_conllu_field('id'), triplet) for triplet in ret["cc"] + ret["conj"]]):
-            if cc_or_conj_rel == "cc":
-                # save cc's form and remove cc('gov', 'cc')
-                cur_form = cc_or_conj_source.get_conllu_field('form')
-                cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
-                
-                # per parent add cc('to_copy', cc)
-                for to_copy, rel in gov.get_new_relations():
-                    cc_or_conj_source.add_edge("cc", to_copy)
-            
-            else:
-                # remove conj('gov', 'conj')
-                cc_or_conj_source.remove_edge(cc_or_conj_rel, cc_or_conj_head)
-                
-                # per parent: create a copy node for the parent,
-                # rel(copy_node,'conj'), add conj:cc_info('to_copy', copy_node)
-                i += 1
-                for to_copy, rel in gov.get_new_relations():
-                    new_id = to_copy.get_conllu_field('id') + (0.1 * i)
-                    copy_node = to_copy.copy(
-                        new_id=new_id,
-                        head="_",
-                        deprel="_",
-                        misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
-                    cc_or_conj_source.add_edge(rel, copy_node)
-                    copy_node.add_edge("conj:" + cur_form, to_copy)
-                    sentence[new_id] = copy_node
+    for rl, is_pp in [(pp_restriction, True), (prep_restriction, False)]:
+        expand_per_type(sentence, rl, is_pp)
 
 
 def convert_sentence(sentence):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
-    # the last two have been skipped. processNames for future decision, removeExactDuplicates for redundancy.
+    # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
-
+    
     if conf.enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
         process_simple_2wp(sentence)
         process_complex_2wp(sentence)
         process_3wp(sentence)
         # demoteQuantificationalModifiers
-        demote_quantificational_modifiers_3w(sentence)
-        demote_quantificational_modifiers_2w(sentence)
+        demote_quantificational_modifiers(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-        expand_pp_conjunctions(sentence)
-        expand_prep_conjunctions(sentence)
+        expand_pp_or_prep_conjunctions(sentence)
     
     # addCaseMarkerInformation
     passive_agent(sentence)
@@ -723,23 +717,24 @@ def convert_sentence(sentence):
     # referent: addRef, collapseReferent
     if conf.enhanced_plus_plus:
         add_ref_and_collapse(sentence)
-        
+    
     # treatCC
-    conjoined_subj(sentence)
-    conjoined_verb(sentence)
+    heads_of_conjuncts(sentence)
+    subj_of_conjoined_verbs(sentence)
     
     # addExtraNSubj
     xcomp_propagation(sentence)
     
     # correctSubjPass
-    # TODO - why again?
     correct_subj_pass(sentence)
     
     return sentence
 
 
+import time
 def convert(parsed):
     converted_sentences = []
     for sentence in parsed:
         converted_sentences.append(convert_sentence(sentence))
+    print("failed= %s" % str(failed))
     return converted_sentences
