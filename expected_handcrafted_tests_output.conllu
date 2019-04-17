@@ -69,21 +69,21 @@
 3       close   _       JJ      JJ      _       0       root    5:case      		_
 4       to      _       TO      TO      _       5       case    3:mwe       		_
 5       me      _       PRP     PRP     _       3       nmod    0:root      		_
-7       while   _       IN      IN      _       10      mark    12:mark     		_
-8       you     _       PRP     PRP     _       10      nsubj   12:nsubj    		_
-9       are     _       VBP     VBP     _       10      cop     12:cop      		_
-10      close   _       JJ      JJ      _       3       advcl   12:case     		_
-11      by      _       IN      IN      _       12      case    10:mwe      		_
-12      me      _       PRP     PRP     _       10      nmod    5:advcl:close_by	_
+6       while   _       IN      IN      _       9       mark    11:mark     		_
+7       you     _       PRP     PRP     _       9       nsubj   11:nsubj    		_
+8       are     _       VBP     VBP     _       9       cop     11:cop      		_
+9       close   _       JJ      JJ      _       3       advcl   11:case     		_
+10      by      _       IN      IN      _       11      case    9:mwe      		_
+11      me      _       PRP     PRP     _       9       nmod    5:advcl:close_by	_
 
 # test:process_complex_2wp-blackbox3
 1       As      _       IN      IN      _       2       case    4:case      	_
-2       close   _       NN      NN      _       8       nmod    4:case      	_
+2       close   _       NN      NN      _       7       nmod    4:case      	_
 3       to      _       TO      TO      _       4       case    2:mwe       	_
-4       me      _       PRP     PRP     _       2       nmod    8:nmod:close_to	_
-6       as      _       IN      IN      _       8       advmod  8:advmod    	_
-7       can     _       MD      MD      _       8       aux     8:aux       	_
-8       be      _       VB      VB      _       0       root    0:root      	_
+4       me      _       PRP     PRP     _       2       nmod    7:nmod:close_to	_
+5       as      _       IN      IN      _       7       advmod  7:advmod    	_
+6       can     _       MD      MD      _       7       aux     7:aux       	_
+7       be      _       VB      VB      _       0       root    0:root      	_
 
 # test:process_complex_2wp-whitebox1
 1       He      _       PRP     PRP     _       3       nsubj   3:nsubj     			_
@@ -119,13 +119,13 @@
 # test:process_3wp-blackbox3
 1       As      _       IN      IN      _       3       case    6:case      		_
 2       in      _       IN      IN      _       3       case    6:mark      		_
-3       front   _       NN      NN      _       10      nmod    2:mwe       		_
+3       front   _       NN      NN      _       9       nmod    2:mwe       		_
 4       of      _       IN      IN      _       6       mark    2:mwe       		_
 5       being   _       VBG     VBG     _       6       cop     6:cop       		_
-6       first   _       JJ      JJ      _       3       acl     10:acl:in_front_of	_
-8       as      _       IN      IN      _       10      advmod  10:advmod   		_
-9       can     _       MD      MD      _       10      aux     10:aux      		_
-10      be      _       VB      VB      _       0       root    0:root      		_
+6       first   _       JJ      JJ      _       3       acl     9:acl:in_front_of	_
+7       as      _       IN      IN      _       9       advmod  9:advmod   		_
+8       can     _       MD      MD      _       9       aux     9:aux      		_
+9       be      _       VB      VB      _       0       root    0:root      		_
 
 # test:process_3wp-whitebox1
 1       I       _       PRP     PRP     _       4       nsubj   4:nsubj     			_
@@ -158,10 +158,10 @@
 # test:demote_quantificational_modifiers-blackbox4
 1       A       _       DT      DT      _       2       det     2:det       _
 2       ton     _       NN      NN      _       0       root    0:root      _
-4       or      _       CC      CC      _       5       cc      5:cc        _
-5       so      _       RB      RB      _       2       dep     2:dep       _
-7       of      _       IN      IN      _       8       case    8:case      _
-8       people  _       NNS     NNS     _       2       nmod    2:nmod:of   _
+3       or      _       CC      CC      _       4       cc      4:cc        _
+4       so      _       RB      RB      _       2       dep     2:dep       _
+5       of      _       IN      IN      _       6       case    6:case      _
+6       people  _       NNS     NNS     _       2       nmod    2:nmod:of   _
 
 # test:demote_quantificational_modifiers-blackbox5
 1       A       _       DT      DT      _       2       det     2:det       _
@@ -226,15 +226,15 @@
 5       and     _       CC      CC      _       4       cc      2:cc        				_
 6       from    _       IN      IN      _       7       case    7:case      				_
 7       Serbia  _       NNP     NNP     _       4       conj    2.1:nmod:from				_
-9       while   _       IN      IN      _       11      mark    11:mark     				_
-10      Cathy   _       NNP     NNP     _       11      nsubj   11:nsubj|11.1:nsubj    		_
-11      drives  _       VBZ     VBZ     _       2       advcl   2:advcl:while				_
-11.1    drives  _       VBZ     VBZ     _       _       _       2:advcl:while|11:conj:but 	CopyOf=11
-12      to      _       TO      TO      _       13      case    13:case     				_
-13      Spain   _       NNP     NNP     _       11      nmod    11:nmod:to      			_
-14      but     _       CC      CC      _       13      cc      11:cc       				_
-15      from    _       IN      IN      _       16      case    16:case     				_
-16      Italy   _       NNP     NNP     _       13      conj    11.1:nmod:from  			_
+8       while   _       IN      IN      _       10      mark    10:mark     				_
+9       Cathy   _       NNP     NNP     _       10      nsubj   10:nsubj|10.1:nsubj    		_
+10      drives  _       VBZ     VBZ     _       2       advcl   2:advcl:while				_
+10.1    drives  _       VBZ     VBZ     _       _       _       2:advcl:while|10:conj:but 	CopyOf=10
+11      to      _       TO      TO      _       12      case    12:case     				_
+12      Spain   _       NNP     NNP     _       10      nmod    10:nmod:to      			_
+13      but     _       CC      CC      _       12      cc      10:cc       				_
+14      from    _       IN      IN      _       15      case    15:case     				_
+15      Italy   _       NNP     NNP     _       12      conj    10.1:nmod:from  			_
 
 # test:expand_pp_or_prep_conjunctions-blackbox4
 1       Bill    _       NNP     NNP     _       2       nsubj   2:nsubj|2.1:nsubj      	_

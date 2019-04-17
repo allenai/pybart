@@ -77,22 +77,22 @@
 3       close   _       JJ      JJ      _       0       root    _       _
 4       to      _       TO      TO      _       5       case    _       _
 5       me      _       PRP     PRP     _       3       nmod    _       _
-7       while   _       IN      IN      _       10      mark    _       _
-8       you     _       PRP     PRP     _       10      nsubj   _       _
-9       are     _       VBP     VBP     _       10      cop     _       _
-10      close   _       JJ      JJ      _       3       advcl   _       _
-11      by      _       IN      IN      _       12      case    _       _
-12      me      _       PRP     PRP     _       10      nmod    _       _
+6       while   _       IN      IN      _       9       mark    _       _
+7       you     _       PRP     PRP     _       9       nsubj   _       _
+8       are     _       VBP     VBP     _       9       cop     _       _
+9       close   _       JJ      JJ      _       3       advcl   _       _
+10      by      _       IN      IN      _       11      case    _       _
+11      me      _       PRP     PRP     _       9       nmod    _       _
 
 # test:process_complex_2wp-blackbox3
 # purpose: test for gov2's relation type (nmod)
 1       As      _       IN      IN      _       2       case    _       _
-2       close   _       NN      NN      _       8       nmod    _       _
+2       close   _       NN      NN      _       7       nmod    _       _
 3       to      _       TO      TO      _       4       case    _       _
 4       me      _       PRP     PRP     _       2       nmod    _       _
-6       as      _       IN      IN      _       8       advmod  _       _
-7       can     _       MD      MD      _       8       aux     _       _
-8       be      _       VB      VB      _       0       root    _       _
+5       as      _       IN      IN      _       7       advmod  _       _
+6       can     _       MD      MD      _       7       aux     _       _
+7       be      _       VB      VB      _       0       root    _       _
 
 # test:process_complex_2wp-whitebox1
 # purpose: test separated prep (not sequential)
@@ -132,13 +132,13 @@
 # purpose: test for gov2's relation type (acl/advcl while w2's rel is nmod). and w1 will be mark.
 1       As      _       IN      IN      _       3       case    _       _
 2       in      _       IN      IN      _       3       case    _       _
-3       front   _       NN      NN      _       10      nmod    _       _
+3       front   _       NN      NN      _       9       nmod    _       _
 4       of      _       IN      IN      _       6       mark    _       _
 5       being   _       VBG     VBG     _       6       cop     _       _
 6       first   _       JJ      JJ      _       3       acl     _       _
-8       as      _       IN      IN      _       10      advmod  _       _
-9       can     _       MD      MD      _       10      aux     _       _
-10      be      _       VB      VB      _       0       root    _       _
+7       as      _       IN      IN      _       9       advmod  _       _
+8       can     _       MD      MD      _       9       aux     _       _
+9       be      _       VB      VB      _       0       root    _       _
 
 # test:process_3wp-whitebox1
 # purpose: test separated prep (not sequential)
@@ -176,10 +176,10 @@
 # purpose: test with w3 not sequential
 1       A       _       DT      DT      _       2       det     _       _
 2       ton     _       NN      NN      _       0       root    _       _
-4       or      _       CC      CC      _       5       cc      _       _
-5       so      _       RB      RB      _       2       dep     _       _
-7       of      _       IN      IN      _       8       case    _       _
-8       people  _       NNS     NNS     _       2       nmod    _       _
+3       or      _       CC      CC      _       4       cc      _       _
+4       so      _       RB      RB      _       2       dep     _       _
+5       of      _       IN      IN      _       6       case    _       _
+6       people  _       NNS     NNS     _       2       nmod    _       _
 
 # test:demote_quantificational_modifiers-blackbox5
 # purpose: test gov2 not as NN or PRP
@@ -243,14 +243,14 @@
 5       and     _       CC      CC      _       4       cc      _       _
 6       from    _       IN      IN      _       7       case    _       _
 7       Serbia  _       NNP     NNP     _       4       conj    _       _
-9       while   _       IN      IN      _       11      mark    _       _
-10      Cathy   _       NNP     NNP     _       11      nsubj   _       _
-11      drives  _       VBZ     VBZ     _       2       advcl   _       _
-12      to      _       TO      TO      _       13      case    _       _
-13      Spain   _       NNP     NNP     _       11      nmod    _       _
-14      but     _       CC      CC      _       13      cc      _       _
-15      from    _       IN      IN      _       16      case    _       _
-16      Italy   _       NNP     NNP     _       13      conj    _       _
+8       while   _       IN      IN      _       10      mark    _       _
+9       Cathy   _       NNP     NNP     _       10      nsubj   _       _
+10      drives  _       VBZ     VBZ     _       2       advcl   _       _
+11      to      _       TO      TO      _       12      case    _       _
+12      Spain   _       NNP     NNP     _       10      nmod    _       _
+13      but     _       CC      CC      _       12      cc      _       _
+14      from    _       IN      IN      _       15      case    _       _
+15      Italy   _       NNP     NNP     _       12      conj    _       _
 
 # test:expand_pp_or_prep_conjunctions-blackbox4
 # purpose: test prep
