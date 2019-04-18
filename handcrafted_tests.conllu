@@ -410,6 +410,19 @@
 4       wide    _       JJ      JJ      _       2       conj    _       _
 5       river   _       NN      NN      _       0       root    _       _
 
+# test:heads_of_conjuncts-blackbox3
+# purpose: test relcl issue
+1       The     _       DT      DT      _       2       det     	_   _
+2       boy     _       NN      NN      _       8       nsubj   	_	_
+3       who     _       WP      WP      _       4       nsubj   	_ 	_
+4       lived   _       VBD     VBD     _       2       acl:relcl	_   _
+5       and     _       CC      CC      _       2       cc      	_   _
+6       the     _       DT      DT      _       7       det     	_   _
+7       girl    _       NN      NN      _       2       conj    	_	_
+8       told    _       VBD     VBD     _       0       root    	_   _
+9       the     _       DT      DT      _       10      det     	_	_
+10      tale    _       NN      NN      _       8       dobj    	_	_
+
 # test:xcomp_propagation-blackbox1
 # purpose: test basic functionality, with subject, and with verb that starts with 'to..' just to test the 'to' regex
 1       He      _       PRP     PRP     _       2       nsubj   	_       _

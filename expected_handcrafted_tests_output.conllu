@@ -279,19 +279,19 @@
 5       me      _       PRP     PRP     _       3       nmod    	3:nmod:with	_
 
 # test:add_ref_and_collapse-blackbox1
-1       The     _       DT      DT      _       2       det     	2:det       		_
-2       boy     _       NN      NN      _       11      nsubj   	4:nsubj|11:nsubj    _
-3       who     _       WP      WP      _       4       nsubj   	2:ref 			    _
-4       lived   _       VBD     VBD     _       2       acl:relcl	2:acl:relcl      	_
-5       and     _       CC      CC      _       2       cc      	2:cc       			_
-6       the     _       DT      DT      _       7       det     	7:det       		_
-7       girl    _       NN      NN      _       2       conj    	2:conj:and|9:nsubj	_
-8       who     _       WP      WP      _       9       nsubj   	7:ref       		_
-9       loves   _       VBZ     VBZ     _       7       acl:relcl   7:acl:relcl       	_
-10      him     _       PRP     PRP     _       9       dobj    	9:dobj      		_
-11      told    _       VBD     VBD     _       0       root    	0:root       		_
-12      the     _       DT      DT      _       13      det     	13:det       		_
-13      tale    _       NN      NN      _       11      dobj    	11:dobj       		_
+1       The     _       DT      DT      _       2       det     	2:det       				_
+2       boy     _       NN      NN      _       11      nsubj   	4:nsubj|11:nsubj    		_
+3       who     _       WP      WP      _       4       nsubj   	2:ref 			    		_
+4       lived   _       VBD     VBD     _       2       acl:relcl	2:acl:relcl      			_
+5       and     _       CC      CC      _       2       cc      	2:cc       					_
+6       the     _       DT      DT      _       7       det     	7:det       				_
+7       girl    _       NN      NN      _       2       conj    	2:conj:and|9:nsubj|11:nsubj	_
+8       who     _       WP      WP      _       9       nsubj   	7:ref       				_
+9       loves   _       VBZ     VBZ     _       7       acl:relcl   7:acl:relcl       			_
+10      him     _       PRP     PRP     _       9       dobj    	9:dobj      				_
+11      told    _       VBD     VBD     _       0       root    	0:root       				_
+12      the     _       DT      DT      _       13      det     	13:det       				_
+13      tale    _       NN      NN      _       11      dobj    	11:dobj       				_
 
 # test:add_ref_and_collapse-whitebox1
 1       The     the     DET     DT      _       2       det     	2:det   		_
@@ -378,6 +378,18 @@
 3       and     _       CC      CC      _       2       cc      2:cc       			_
 4       wide    _       JJ      JJ      _       2       conj    2:conj:and|5:amod	_
 5       river   _       NN      NN      _       0       root    0:root       		_
+
+# test:heads_of_conjuncts-blackbox3
+1       The     _       DT      DT      _       2       det     	2:det       		_
+2       boy     _       NN      NN      _       8       nsubj   	4:nsubj|8:nsubj		_
+3       who     _       WP      WP      _       4       nsubj   	2:ref 			    _
+4       lived   _       VBD     VBD     _       2       acl:relcl	2:acl:relcl     	_
+5       and     _       CC      CC      _       2       cc      	2:cc       			_
+6       the     _       DT      DT      _       7       det     	7:det       		_
+7       girl    _       NN      NN      _       2       conj    	2:conj:and|8:nsubj	_
+8       told    _       VBD     VBD     _       0       root    	0:root       		_
+9       the     _       DT      DT      _       10      det     	10:det				_
+10      tale    _       NN      NN      _       8       dobj    	8:dobj       		_
 
 # test:xcomp_propagation-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   	2:nsubj|4:nsubj:xsubj	_
