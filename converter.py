@@ -21,6 +21,7 @@ relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 neg_conjp_prev = ["but_not", "if_not", "but_rather"]
 neg_conjp_next = ["instead_of", "rather_than"]
 and_conjp_next = ["as_well", "but_also"]
+EXTRA_INFO_STUB = 1
 
 
 # This method corrects subjects of verbs for which we identified an auxpass,
@@ -157,19 +158,10 @@ def heads_of_conjuncts(sentence):
         gov, gov_head, gov_rel = name_space['gov']
         dep, _, _ = name_space['dep']
         
-        # find if they both are relcl heads and if the relation to the grandpa is nsubj or dobj
-        # because then we don't want to propagate the relation
-        # NOTE: actually this is partly true, as we only dont want to propagate
-        #   the relcl-subj relation (as enhanced by add_ref), nut do want the regular subjs.
-        #   We should add it in the future, but know we imitate SC.
-        both_relcl = \
-            True in [relation == "acl:relcl" for child in dep.get_children() for _, relation in child.get_new_relations(dep)] and \
-            True in [relation == "acl:relcl" for child in gov.get_children() for _, relation in child.get_new_relations(gov)]
-        
         # only if the dependant of the conj is not the head of the head of the conj,
         # and they dont fall under the relcl problem, propagate the relation
-        if (not both_relcl or (gov_rel != "nsubj" and gov_rel != "dobj")) and \
-                gov_head != dep:
+        # NOTE: actually SC do restrict this more aggressively.
+        if (gov_head, gov_rel) not in gov.get_extra_info_edges() and gov_head != dep:
             dep.add_edge(gov_rel, gov_head)
 
 
@@ -531,7 +523,7 @@ def add_ref_and_collapse(sentence):
         
         if gov not in leftmost.get_parents():
             leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
-            gov.add_edge(leftmost_rel, leftmost_head)
+            gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
 # resolves the following multi word conj phrases:
