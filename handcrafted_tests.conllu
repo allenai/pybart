@@ -423,6 +423,32 @@
 9       the     _       DT      DT      _       10      det     	_	_
 10      tale    _       NN      NN      _       8       dobj    	_	_
 
+# test:heads_of_conjuncts-blackbox4
+# purpose: test relcl issue2
+1       The     _       DT      DT      _       2       det     	_       _
+2       boy     _       NN      NN      _       8       nsubj   	_       _
+3       and     _       CC      CC      _       2       cc      	_       _
+4       the     _       DT      DT      _       5       det     	_       _
+5       girl    _       NN      NN      _       2       conj    	_       _
+6       who     _       WP      WP      _       7       nsubj   	_       _
+7       lived   _       VBD     VBD     _       5       acl:relcl	_       _
+8       told    _       VBD     VBD     _       0       root    	_       _
+9       the     _       DT      DT      _       10      det     	_       _
+10      tale    _       NN      NN      _       8       dobj    	_       _
+
+# test:heads_of_conjuncts-blackbox5
+# purpose: test relcl issue3
+1       The     _       DT      DT      _       2       det     	_       _
+2       boy     _       NN      NN      _       8       nsubj   	_       _
+3       and     _       CC      CC      _       2       cc      	_       _
+4       the     _       DT      DT      _       5       det     	_       _
+5       girl    _       NN      NN      _       2       conj    	_       _
+6       who     _       WP      WP      _       7       nsubj   	_       _
+7       lived   _       VBD     VBD     _       2       acl:relcl   _       _
+8       told    _       VBD     VBD     _       0       root    	_       _
+9       the     _       DT      DT      _       10      det     	_       _
+10      tale    _       NN      NN      _       8       dobj    	_       _
+
 # test:xcomp_propagation-blackbox1
 # purpose: test basic functionality, with subject, and with verb that starts with 'to..' just to test the 'to' regex
 1       He      _       PRP     PRP     _       2       nsubj   	_       _

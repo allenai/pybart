@@ -163,6 +163,12 @@ def heads_of_conjuncts(sentence):
         # NOTE: actually SC do restrict this more aggressively.
         if (gov_head, gov_rel) not in gov.get_extra_info_edges() and gov_head != dep:
             dep.add_edge(gov_rel, gov_head)
+        
+        # TODO:
+        #   for the trees of ambiguous "The boy and the girl who lived told the tale."
+        #   we want in the future to add the an optional subj relation
+        #   P.S. one of the trees could be obtained by the Stanford parser by adding commas:
+        #   "The boy and the girl, who lived, told the tale."
 
 
 def subj_of_conjoined_verbs(sentence):
