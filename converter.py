@@ -193,7 +193,7 @@ def subj_of_conjoined_verbs(sentence):
         subj.add_edge(subj_rel, conj)
 
 
-def xcomp_propagation_per_type(sentence, restriction):
+def xcomp_propagation_per_type(sentence, restriction, is_extra):
     restriction = Restriction(nested=[
         [restriction, Restriction(name="new_subj", gov="dobj")],
         [restriction, Restriction(name="new_subj", gov="nsubj.*")]
@@ -203,10 +203,14 @@ def xcomp_propagation_per_type(sentence, restriction):
     if not ret:
         return
     
+    extra = ""
+    if is_extra:
+        extra = ":extra"
+    
     for name_space in ret:
         new_subj, _, _ = name_space['new_subj']
         dep, _, _ = name_space['dep']
-        new_subj.add_edge("nsubj:xsubj", dep)
+        new_subj.add_edge("nsubj:xsubj" + extra, dep)
 
 
 # Add extra nsubj dependencies when collapsing basic dependencies.
@@ -232,8 +236,8 @@ def xcomp_propagation(sentence):
         Restriction(gov="^(aux|mark)$")
     ]])
 
-    for xcomp_restriction in [to_xcomp_rest, xcomp_no_to_rest, basic_xcomp_rest]:
-        xcomp_propagation_per_type(sentence, xcomp_restriction)
+    for xcomp_restriction, is_extra in [(to_xcomp_rest, False), (xcomp_no_to_rest, True), (basic_xcomp_rest, False)]:
+        xcomp_propagation_per_type(sentence, xcomp_restriction, is_extra)
 
 
 def create_mwe(words, head, rel):

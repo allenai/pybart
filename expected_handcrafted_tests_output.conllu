@@ -466,16 +466,16 @@
 4       to      _       TO      TO      _       2       xcomp   2:xcomp 				_
 
 # test:xcomp_propagation-blackbox6
-1       FOX     	_       NN      NN      _       2       nsubj   2:nsubj|3:nsubj:xsubj	_
-2       started 	_       VBD     VBD     _       0       root    0:root      			_
-3       launching   _       VBG     VBG     _       2       xcomp   2:xcomp     			_
-4       the     	_       DT      DT      _       5       det     5:det       			_
-5       series  	_       NN      NN      _       3       dobj    3:dobj       			_
+1       FOX     	_       NN      NN      _       2       nsubj   2:nsubj|3:nsubj:xsubj:extra	_
+2       started 	_       VBD     VBD     _       0       root    0:root      				_
+3       launching   _       VBG     VBG     _       2       xcomp   2:xcomp     				_
+4       the     	_       DT      DT      _       5       det     5:det       				_
+5       series  	_       NN      NN      _       3       dobj    3:dobj       				_
 
 # test:xcomp_propagation-blackbox7
 # purpose: test special case of a verb and an adjective. and with no auxiliary such as 'to'
-1       They    _       PRP     PRP     _       2       nsubj   2:nsubj|3:nsubj:xsubj	_
-2       get     _       VBP     VBP     _       0       root    0:root       			_
-3       ready   _       JJ      JJ      _       2       xcomp   2:xcomp       			_
-4       to      _       TO      TO      _       5       case    5:case       			_
-5       school  _       NN      NN      _       3       nmod    3:nmod:to       		_
+1       They    _       PRP     PRP     _       2       nsubj   2:nsubj|3:nsubj:xsubj:extra	_
+2       get     _       VBP     VBP     _       0       root    0:root       				_
+3       ready   _       JJ      JJ      _       2       xcomp   2:xcomp       				_
+4       to      _       TO      TO      _       5       case    5:case       				_
+5       school  _       NN      NN      _       3       nmod    3:nmod:to       			_
