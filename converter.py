@@ -227,11 +227,12 @@ def xcomp_propagation_per_type(sentence, restriction):
 #   Instead of nsubj(do, law) we want nsubj(do, them)
 def xcomp_propagation(sentence):
     to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
+    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
     basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
         Restriction(gov="^(aux|mark)$")
     ]])
 
-    for xcomp_restriction in [to_xcomp_rest, basic_xcomp_rest]:
+    for xcomp_restriction in [to_xcomp_rest, xcomp_no_to_rest, basic_xcomp_rest]:
         xcomp_propagation_per_type(sentence, xcomp_restriction)
 
 

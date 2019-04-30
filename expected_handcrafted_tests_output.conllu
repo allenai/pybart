@@ -464,3 +464,10 @@
 2       decided _       VBD     VBD     _       0       root    0:root  				_
 3       not     _       RB      RB      _       4       neg     4:neg   				_
 4       to      _       TO      TO      _       2       xcomp   2:xcomp 				_
+
+# test:xcomp_propagation-blackbox6
+1       FOX     	_       NN      NN      _       2       nsubj   2:nsubj|3:nsubj:xsubj	_
+2       started 	_       VBD     VBD     _       0       root    0:root      			_
+3       launching   _       VBG     VBG     _       2       xcomp   2:xcomp     			_
+4       the     	_       DT      DT      _       5       det     5:det       			_
+5       series  	_       NN      NN      _       3       dobj    3:dobj       			_
