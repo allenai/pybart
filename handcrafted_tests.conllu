@@ -511,3 +511,11 @@
 3       launching   _       VBG     VBG     _       2       xcomp   _       _
 4       the     	_       DT      DT      _       5       det     _       _
 5       series  	_       NN      NN      _       3       dobj    _       _
+
+# test:xcomp_propagation-blackbox7
+# purpose: test special case of a verb and an adjective. and with no auxiliary such as 'to'
+1       They    _       PRP     PRP     _       2       nsubj   _       _
+2       get     _       VBP     VBP     _       0       root    _       _
+3       ready   _       JJ      JJ      _       2       xcomp   _       _
+4       to      _       TO      TO      _       5       case    _       _
+5       school  _       NN      NN      _       3       nmod    _       _
