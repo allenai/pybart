@@ -233,7 +233,7 @@ def xcomp_propagation(sentence):
     to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
     xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
     basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
-        Restriction(gov="^(aux|mark)$")
+        Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
     ]])
 
     for xcomp_restriction, is_extra in [(to_xcomp_rest, False), (xcomp_no_to_rest, True), (basic_xcomp_rest, False)]:
