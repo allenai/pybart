@@ -271,14 +271,14 @@ def advcl_propagation(sentence):
     
     basic_advcl_rest = Restriction(no_sons_of="dobj", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
-            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to)$)).")
+            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to|as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
     
     ambiguous_advcl_rest = Restriction(nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
-            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to)$)).")
+            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to|as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj_opt", gov="(dobj|nsubj.*)")
     ]])
