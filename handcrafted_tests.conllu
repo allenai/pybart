@@ -548,3 +548,51 @@
 5       eating  _       VBG     VBG     _       2       advcl   _       _
 6       a       _       DT      DT      _       7       det     _       _
 7       cake    _       NN      NN      _       5       dobj    _       _
+
+# test:acl_plus_propagation-blackbox1
+# purpose: test basic acl-nmod functionality.
+1       he      	_       PRP     PRP     _       2       nsubj   _       _
+2       faced   	_       VBD     VBD     _       0       root    _       _
+3       pressure	_       NN      NN      _       2       dobj    _       _
+4       during  	_       IN      IN      _       6       case    _       _
+5       the     	_       DT      DT      _       6       det     _       _
+6       effort  	_       NN      NN      _       2       nmod    _       _
+7       to      	_       TO      TO      _       8       mark    _       _
+8       win     	_       VB      VB      _       6       acl     _       _
+
+# test:acl_plus_propagation-blackbox2
+# purpose: test basic acl-dobj functionality.
+1       Putin   _       NNP     NNP     _       3       nsubj   _       _
+2       has     _       VBZ     VBZ     _       3       aux     _       _
+3       made    _       VBN     VBN     _       0       root    _       _
+4       efforts _       NNS     NNS     _       3       dobj    _       _
+5       to      _       TO      TO      _       6       mark    _       _
+6       nurture _       VB      VB      _       4       acl     _       _
+7       ties    _       NNS     NNS     _       6       dobj    _       _
+8       with    _       IN      IN      _       9       case    _       _
+9       Hu      _       NNP     NNP     _       6       nmod    _       _
+
+# test:acl_plus_propagation-blackbox3
+# purpose: test basic acl-dobj-dobj functionality.
+1       Korea   _       NNP     NNP     _       3       nsubj   _       _
+2       has     _       VBZ     VBZ     _       3       aux     _       _
+3       made    _       VBN     VBN     _       0       root    _       _
+4       no      _       DT      DT      _       5       neg     _       _
+5       secret  _       NN      NN      _       3       dobj    _       _
+6       the     _       DT      DT      _       7       det     _       _
+7       plans   _       NN      NN      _       5       dobj    _       _
+8       to      _       TO      TO      _       9       mark    _       _
+9       develop _       VB      VB      _       7       acl     _       _
+10      nuclear _       JJ      JJ      _       11      amod    _       _
+11      weapons _       NNS     NNS     _       9       dobj    _       _
+
+# test:acl_plus_propagation-blackbox4
+# purpose: test acl-dobj with obj propagation.
+1       soldiers	_       NNS     NNS     _       3       nsubj   _       _
+2       have    	_       VBP     VBP     _       3       aux     _       _
+3       discovered	_       VBN     VBN     _       0       root    _       _
+4       million 	_       CD      CD      _       5       nummod  _       _
+5       dollars 	_       NNS     NNS     _       3       dobj    _       _
+6       hidden  	_       VBN     VBN     _       5       acl     _       _
+7       around  	_       IN      IN      _       8       case    _       _
+8       baghdad 	_       NN      NN      _       6       nmod    _       _
