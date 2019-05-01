@@ -479,3 +479,29 @@
 3       ready   _       JJ      JJ      _       2       xcomp   2:xcomp       				_
 4       to      _       TO      TO      _       5       case    5:case       				_
 5       school  _       NN      NN      _       3       nmod    3:nmod:to       			_
+
+# test:advcl_propagation-blackbox1
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj 					_
+2       told    _       VBD     VBD     _       0       root    0:root  					_
+3       you     _       PRP     PRP     _       2       dobj    2:dobj|5:nsubj:asubj:extra	_
+4       to      _       TO      TO      _       5       mark    5:mark  					_
+5       drive   _       VB      VB      _       2       advcl   2:advcl:to 					_
+6       the     _       DT      DT      _       7       det     7:det   					_
+7       car     _       NN      NN      _       5       dobj    5:dobj  					_
+
+# test:advcl_propagation-blackbox2
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj|4:nsubj:asubj:extra	_
+2       ate     _       VBD     VBD     _       0       root    0:root       				_
+3       while   _       IN      IN      _       4       mark    4:mark       				_
+4       driving _       VBG     VBG     _       2       advcl   2:advcl:while      	 		_
+5       a       _       DT      DT      _       6       det     6:det       				_
+6       car     _       NN      NN      _       4       dobj    4:dobj						_
+
+# test:advcl_propagation-blackbox3
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj|5:nsubj:asubj:extra_opt	_
+2       saw     _       VBD     VBD     _       0       root    0:root       					_
+3       you     _       PRP     PRP     _       2       dobj    2:dobj|5:nsubj:asubj:extra_opt  _
+4       while   _       IN      IN      _       5       mark    5:mark       					_
+5       eating  _       VBG     VBG     _       2       advcl   2:advcl:while       			_
+6       a       _       DT      DT      _       7       det     7:det       					_
+7       cake    _       NN      NN      _       5       dobj    5:dobj       					_

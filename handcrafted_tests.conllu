@@ -519,3 +519,32 @@
 3       ready   _       JJ      JJ      _       2       xcomp   _       _
 4       to      _       TO      TO      _       5       case    _       _
 5       school  _       NN      NN      _       3       nmod    _       _
+
+# test:advcl_propagation-blackbox1
+# purpose: test special case of a 'to' connecting to verbs in advcl fashion.
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       told    _       VBD     VBD     _       0       root    _       _
+3       you     _       PRP     PRP     _       2       dobj    _       _
+4       to      _       TO      TO      _       5       mark    _       _
+5       drive   _       VB      VB      _       2       advcl   _       _
+6       the     _       DT      DT      _       7       det     _       _
+7       car     _       NN      NN      _       5       dobj    _       _
+
+# test:advcl_propagation-blackbox2
+# purpose: test basic functionality.
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       ate     _       VBD     VBD     _       0       root    _       _
+3       while   _       IN      IN      _       4       mark    _       _
+4       driving _       VBG     VBG     _       2       advcl   _       _
+5       a       _       DT      DT      _       6       det     _       _
+6       car     _       NN      NN      _       4       dobj    _       _
+
+# test:advcl_propagation-blackbox3
+# purpose: test basic functionality, but with both subj and obj as candidates.
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       saw     _       VBD     VBD     _       0       root    _       _
+3       you     _       PRP     PRP     _       2       dobj    _       _
+4       while   _       IN      IN      _       5       mark    _       _
+5       eating  _       VBG     VBG     _       2       advcl   _       _
+6       a       _       DT      DT      _       7       det     _       _
+7       cake    _       NN      NN      _       5       dobj    _       _
