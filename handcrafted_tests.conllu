@@ -606,3 +606,39 @@
 5       apparently	_       RB      RB      _       6       advmod  _       _
 6       kidnapped   _       VBN     VBN     _       2       dep     _       _
 7       nearby  	_       RB      RB      _       6       advmod  _       _
+
+# test:conj_propagation_of_nmods-blackbox1
+# purpose: test basic functionality, where nmod is attached to father.
+1       he      _       PRP     PRP     _       3       nsubjpass	_       _
+2       was     _       VBD     VBD     _       3       auxpass 	_       _
+3       wounded _       VBN     VBN     _       0       root    	_       _
+4       and     _       CC      CC      _       3       cc      	_       _
+5       trapped _       VBN     VBN     _       3       conj    	_       _
+6       in      _       IN      IN      _       7       case    	_       _
+7       Korea   _       NNP     NNP     _       3       nmod    	_       _
+
+# test:conj_propagation_of_nmods-blackbox2
+# purpose: test basic functionality, where nmod is attached to son.
+1       he      _       PRP     PRP     _       3       nsubjpass	_       _
+2       was     _       VBD     VBD     _       3       auxpass 	_       _
+3       wounded _       VBN     VBN     _       0       root    	_       _
+4       heavily _       RB      RB      _       3       advmod  	_       _
+5       and     _       CC      CC      _       3       cc      	_       _
+6       trapped _       VBN     VBN     _       3       conj    	_       _
+7       in      _       IN      IN      _       8       case    	_       _
+8       Korea   _       NNP     NNP     _       6       nmod    	_       _
+
+# test:conj_propagation_of_nmods-blackbox3
+# purpose: test no propagation when governor has nmods of his own.
+1       he      	_       PRP     PRP     _       3       nsubjpass	_       _
+2       was     	_       VBD     VBD     _       3       auxpass 	_       _
+3       wounded 	_       VBN     VBN     _       0       root    	_       _
+4       in      	_       IN      IN      _       5       case    	_       _
+5       Lebanon 	_       NNP     NNP     _       3       nmod    	_       _
+6       but     	_       CC      CC      _       3       cc      	_       _
+7       has     	_       VBZ     VBZ     _       8       aux     	_       _
+8       died    	_       VBN     VBN     _       3       conj    	_       _
+9       in      	_       IN      IN      _       12      case    	_       _
+10      the     	_       DT      DT      _       12      det     	_       _
+11      U.S.    	_       NNP     NNP     _       12      compound    _       _
+12      hospital	_       NN      NN      _       8       nmod    	_       _
