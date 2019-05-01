@@ -243,6 +243,50 @@ def xcomp_propagation(sentence, do_enhanced_extra):
         xcomp_propagation_per_type(sentence, xcomp_restriction, is_extra)
 
 
+def advcl_propagation_per_type(sentence, restriction):
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+        
+    for name_space in ret:
+        if 'new_subj' in name_space:
+            new_subj_str = 'new_subj'
+            opt = ""
+        else:
+            new_subj_str = 'new_subj_opt'
+            opt = "_opt"
+        
+        new_subj, _, _ = name_space[new_subj_str]
+        dep, _, _ = name_space['dep']
+        new_subj.add_edge("nsubj:asubj:extra" + opt, dep)
+
+
+def advcl_propagation(sentence):
+    advcl_to_rest = Restriction(nested=[
+        Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
+            Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
+        ]]),
+        Restriction(name="new_subj", gov="dobj")
+    ])
+    
+    basic_advcl_rest = Restriction(no_sons_of="dobj", nested=[
+        Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
+            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to)$)).")
+        ]]),
+        Restriction(name="new_subj", gov="nsubj.*")
+    ])
+    
+    ambiguous_advcl_rest = Restriction(nested=[
+        Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
+            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to)$)).")
+        ]]),
+        Restriction(name="new_subj_opt", gov="(dobj|nsubj.*)")
+    ])
+    
+    for advcl_restriction in [advcl_to_rest, basic_advcl_rest, ambiguous_advcl_rest]:
+        advcl_propagation_per_type(sentence, advcl_restriction)
+
+
 def create_mwe(words, head, rel):
     for i, word in enumerate(words):
         word.remove_all_edges()
@@ -730,6 +774,8 @@ def convert_sentence(sentence):
     
     # addExtraNSubj
     xcomp_propagation(sentence, conf.enhanced_extra)
+    if conf.enhanced_extra:
+        advcl_propagation(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
