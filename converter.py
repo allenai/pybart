@@ -229,7 +229,7 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra):
 #   There is no nsubj of asking, but the dobj, SEC, is the extra nsubj of require.
 #   Similarly, "The law tells them when to do so"
 #   Instead of nsubj(do, law) we want nsubj(do, them)
-def xcomp_propagation(sentence):
+def xcomp_propagation(sentence, do_enhanced_extra):
     to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
     xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
     basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
@@ -237,6 +237,9 @@ def xcomp_propagation(sentence):
     ]])
 
     for xcomp_restriction, is_extra in [(to_xcomp_rest, False), (xcomp_no_to_rest, True), (basic_xcomp_rest, False)]:
+        if is_extra and not do_enhanced_extra:
+            continue
+        
         xcomp_propagation_per_type(sentence, xcomp_restriction, is_extra)
 
 
@@ -726,7 +729,7 @@ def convert_sentence(sentence):
     subj_of_conjoined_verbs(sentence)
     
     # addExtraNSubj
-    xcomp_propagation(sentence)
+    xcomp_propagation(sentence, conf.enhanced_extra)
     
     # correctSubjPass
     correct_subj_pass(sentence)
