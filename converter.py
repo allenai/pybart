@@ -262,26 +262,26 @@ def advcl_propagation_per_type(sentence, restriction):
 
 
 def advcl_propagation(sentence):
-    advcl_to_rest = Restriction(nested=[
+    advcl_to_rest = Restriction(nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
         ]]),
         Restriction(name="new_subj", gov="dobj")
-    ])
+    ]])
     
-    basic_advcl_rest = Restriction(no_sons_of="dobj", nested=[
+    basic_advcl_rest = Restriction(no_sons_of="dobj", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to)$)).")
         ]]),
         Restriction(name="new_subj", gov="nsubj.*")
-    ])
+    ]])
     
-    ambiguous_advcl_rest = Restriction(nested=[
+    ambiguous_advcl_rest = Restriction(nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to)$)).")
         ]]),
         Restriction(name="new_subj_opt", gov="(dobj|nsubj.*)")
-    ])
+    ]])
     
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, ambiguous_advcl_rest]:
         advcl_propagation_per_type(sentence, advcl_restriction)
