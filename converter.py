@@ -321,6 +321,22 @@ def acl_plus_propagation(sentence):
         acl_propagation_per_type(sentence, acl_plus_restriction)
 
 
+def dep_propagation(sentence):
+    dep_rest = Restriction(nested=[[
+        Restriction(name="dep", gov="dep", no_sons_of="nsubj.*"),
+        Restriction(name="new_subj_opt", gov="(dobj|nsubj.*)")
+    ]])
+
+    ret = match(sentence.values(), [[dep_rest]])
+    if not ret:
+        return
+
+    for name_space in ret:
+        new_subj_opt, _, _ = name_space['new_subj_opt']
+        dep, _, _ = name_space['dep']
+        new_subj_opt.add_edge("nsubj:dsubj:extra_opt", dep)
+
+
 def create_mwe(words, head, rel):
     for i, word in enumerate(words):
         word.remove_all_edges()
@@ -811,6 +827,7 @@ def convert_sentence(sentence):
     if conf.enhanced_extra:
         advcl_propagation(sentence)
         acl_plus_propagation(sentence)
+        dep_propagation(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
