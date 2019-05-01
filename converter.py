@@ -337,6 +337,36 @@ def dep_propagation(sentence):
         new_subj_opt.add_edge("nsubj:dsubj:extra_opt", dep)
 
 
+def conj_propagation_of_nmods_per_type(sentence, rest):
+    ret = match(sentence.values(), [[rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        nmod, _, nmod_rel = name_space['nmod']
+        receiver, _, _ = name_space['receiver']
+        
+        if '.' not in str(receiver.get_conllu_field("id")) and \
+                nmod.get_conllu_field("id") > receiver.get_conllu_field("id"):
+            nmod.add_edge(nmod_rel + ":extra_opt", receiver)
+
+
+def conj_propagation_of_nmods(sentence):
+    son_rest = Restriction(name="receiver", no_sons_of="nmod", nested=[[
+        Restriction(gov="conj", nested=[[
+            Restriction(name="nmod", gov="nmod(?!:.*extra)")
+        ]])
+    ]])
+
+    father_rest = Restriction(nested=[[
+        Restriction(name="receiver", gov="conj"),  # TODO: validate no_sons_of="nmod" isn't needed.
+        Restriction(name="nmod", gov="nmod(?!:.*extra)")
+    ]])
+    
+    for conj_restriction in [son_rest, father_rest]:
+        conj_propagation_of_nmods_per_type(sentence, conj_restriction)
+
+
 def create_mwe(words, head, rel):
     for i, word in enumerate(words):
         word.remove_all_edges()
@@ -824,10 +854,12 @@ def convert_sentence(sentence):
     
     # addExtraNSubj
     xcomp_propagation(sentence, conf.enhanced_extra)
+    
     if conf.enhanced_extra:
         advcl_propagation(sentence)
         acl_plus_propagation(sentence)
         dep_propagation(sentence)
+        conj_propagation_of_nmods(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
