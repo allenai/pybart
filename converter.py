@@ -195,7 +195,7 @@ def subj_of_conjoined_verbs(sentence):
 
 def xcomp_propagation_per_type(sentence, restriction, is_extra):
     restriction = Restriction(nested=[
-        [restriction, Restriction(name="new_subj", gov="dobj")],
+        [restriction, Restriction(name="new_subj", gov=".?obj")],
         [restriction, Restriction(name="new_subj", gov="nsubj.*")]
     ])
     
@@ -266,10 +266,10 @@ def advcl_propagation(sentence):
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
         ]]),
-        Restriction(name="new_subj", gov="dobj")
+        Restriction(name="new_subj", gov=".?obj")
     ]])
     
-    basic_advcl_rest = Restriction(no_sons_of="dobj", nested=[[
+    basic_advcl_rest = Restriction(no_sons_of=".?obj", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to|as|so|when|if)$)).")
         ]]),
@@ -280,7 +280,7 @@ def advcl_propagation(sentence):
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to|as|so|when|if)$)).")
         ]]),
-        Restriction(name="new_subj_opt", gov="(dobj|nsubj.*)")
+        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
     
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, ambiguous_advcl_rest]:
@@ -302,8 +302,8 @@ def acl_propagation_per_type(sentence, restriction):
 
 def acl_plus_propagation(sentence):
     acl_chain_rest = Restriction(nested=[[
-        Restriction(name="obj_outter", gov="(dobj|nmod)", nested=[[
-            Restriction(name="obj", gov="(dobj|nmod)", nested=[[
+        Restriction(name="obj_outter", gov="(.?obj|nmod)", nested=[[
+            Restriction(name="obj", gov="(.?obj|nmod)", nested=[[
                 Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
             ]])
         ]]),
@@ -311,7 +311,7 @@ def acl_plus_propagation(sentence):
     ]])
     
     basic_acl_rest = Restriction(nested=[[
-        Restriction(name="obj", gov="(dobj|nmod)", nested=[[
+        Restriction(name="obj", gov="(.?obj|nmod)", nested=[[
             Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
         ]]),
         Restriction(name="subj", gov="nsubj*")
@@ -324,7 +324,7 @@ def acl_plus_propagation(sentence):
 def dep_propagation(sentence):
     dep_rest = Restriction(nested=[[
         Restriction(name="dep", gov="dep", no_sons_of="nsubj.*"),
-        Restriction(name="new_subj_opt", gov="(dobj|nsubj.*)")
+        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
 
     ret = match(sentence.values(), [[dep_rest]])
