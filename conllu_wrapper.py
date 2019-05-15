@@ -1,4 +1,5 @@
 import configuration as conf
+import uuid
 import graph_token
 
 
@@ -99,3 +100,67 @@ def serialize_conllu(converted, all_comments):
         text.append(comments + [token.get_conllu_string() for (cur_id, token) in sorted(sentence.items()) if cur_id != 0])
     
     return "\n".join(["\n".join(sent) + "\n" for sent in text])
+
+
+def fix_ids(sentences):
+    new_sentences = []
+    for sentence in sentences:
+        new_sentence = dict()
+        prev_iid = 0
+        for iid, token in sentence.items():
+            if iid != 0 and iid != prev_iid + 1:
+                token._conllu_info["id"] = prev_iid + 1
+                for iid2, token2 in sentence.items():
+                    if token2.get_conllu_field("head") == iid:
+                        token2._conllu_info["head"] = prev_iid + 1
+                    for head, edges in token2._new_deps.items():
+                        if head.get_conllu_field("id") == iid:
+                            _ = token2._new_deps.pop(head)
+                            token2._new_deps[sentence[prev_iid + 1]] = edges
+            prev_iid = token.get_conllu_field("id")
+            new_sentence[prev_iid] = token
+        new_sentences.append(new_sentence)
+    
+    return new_sentences
+
+
+def conllu_to_odin(conllu_sentences, is_basic=False):
+    odin_sentences = []
+    all_words = []
+    if is_basic:
+        graph = "universal-basic"
+    else:
+        graph = "universal-plus"
+    
+    conllu_sentences = fix_ids(conllu_sentences)
+    
+    for conllu_sentence in conllu_sentences:
+        odin_sentence = {"words": [], "tags": [], "graphs": {graph: {"edges": [], "roots": []}}}
+        for iid, token in conllu_sentence.items():
+            if iid == 0:
+                continue
+            odin_sentence["words"].append(token.get_conllu_field("form"))
+            all_words.append(token.get_conllu_field("form"))
+            odin_sentence["tags"].append(token.get_conllu_field("xpos"))
+            if token.is_root_node():
+                odin_sentence["graphs"][graph]["roots"].append(iid - 1)
+                continue
+            if is_basic:
+                if token.get_conllu_field("deprel") == "root":
+                    continue
+                odin_sentence["graphs"][graph]["edges"].append(
+                    {"source": token.get_conllu_field("head") - 1, "destination": iid - 1, "relation": token.get_conllu_field("deprel")})
+            else:
+                for head, rel in token.get_new_relations():
+                    if rel == "root":
+                        continue
+                    odin_sentence["graphs"][graph]["edges"].append(
+                        {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel})
+        odin_sentences.append(odin_sentence)
+    
+    odin = {"documents": {"": {
+        "id": str(uuid.uuid4()),
+        "text": " ".join(all_words),
+        "sentences": odin_sentences
+    }}, "mentions": []}
+    return odin

@@ -5,11 +5,13 @@ import conllu_wrapper as cw
 import converter
 
 
-def main_internal(f):
-    sentences_text = f.read()
+def main_internal(sentences_text, out_as_raw_test=True):
     parsed, all_comments = cw.parse_conllu(sentences_text)
     converted = converter.convert(parsed)
-    return cw.serialize_conllu(converted, all_comments)
+    if out_as_raw_test:
+        return cw.serialize_conllu(converted, all_comments)
+    else:
+        return converted
 
 
 def main(sentences_path, out_path=None):
@@ -17,11 +19,11 @@ def main(sentences_path, out_path=None):
     try:
         encoding = "utf8"
         with open(sentences_path, "r", encoding=encoding) as f:
-            ready_to_write = main_internal(f)
+            ready_to_write = main_internal(f.read())
     except UnicodeDecodeError:
         encoding = chardet.detect(open(sentences_path, 'rb').read())['encoding']
         with open(sentences_path, "r", encoding=encoding) as f:
-            ready_to_write = main_internal(f)
+            ready_to_write = main_internal(f.read())
     
     if out_path:
         with open(out_path, "w", encoding=encoding) as f:
