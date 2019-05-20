@@ -105,14 +105,15 @@ def serialize_conllu(converted, all_comments):
 def fix_ids(sentences, orig_sentence):
     new_sentences = []
     expected_i = 0
-    found_at = -1
+    found_at = 0
+    orig_len = 0
     prev_token = None
     for i, sentence in enumerate(sentences):
         new_sentence = dict()
         prev_iid = 0
         for j, (iid, token) in enumerate(sentence.items()):
             if iid != 0:
-                found_at = orig_sentence.find(token._conllu_info["form"], found_at + 1)
+                found_at = orig_sentence.find(token._conllu_info["form"], found_at + orig_len)
                 orig_len = len(token._conllu_info["form"])
                 if found_at != expected_i:
                     cur_start = expected_i
