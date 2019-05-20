@@ -59,8 +59,8 @@ define([
                             found = true
                             if (e2.reltype != e.reltype)
                             {
-                                e.svg.node.style.fill = "#FF7800"
-                                e2.svg.node.style.fill = "#FF7800"
+                                e.svg.node.style.fill = "#FFAA00"
+                                e2.svg.node.style.fill = "#FFAA00"
                             }
                         }
                     })

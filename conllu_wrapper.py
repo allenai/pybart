@@ -102,12 +102,39 @@ def serialize_conllu(converted, all_comments):
     return "\n".join(["\n".join(sent) + "\n" for sent in text])
 
 
-def fix_ids(sentences):
+def fix_ids(sentences, orig_sentence):
     new_sentences = []
-    for sentence in sentences:
+    expected_i = 0
+    found_at = -1
+    prev_token = None
+    for i, sentence in enumerate(sentences):
         new_sentence = dict()
         prev_iid = 0
-        for iid, token in sentence.items():
+        for j, (iid, token) in enumerate(sentence.items()):
+            if iid != 0:
+                found_at = orig_sentence.find(token._conllu_info["form"], found_at + 1)
+                orig_len = len(token._conllu_info["form"])
+                if found_at != expected_i:
+                    cur_start = expected_i
+                    if prev_token:
+                        if orig_sentence[expected_i:found_at].endswith(" "):
+                            prev_end = found_at
+                            cur_start = found_at
+                        elif orig_sentence[expected_i:found_at].startswith(" "):
+                            prev_end = expected_i
+                        else:
+                            prev_end = orig_sentence.find(" ", expected_i)
+                            cur_start = orig_sentence.find(" ", expected_i) + 1
+                        prev_token._conllu_info["form"] = prev_token._conllu_info["form"] + orig_sentence[expected_i:prev_end]
+                    
+                    end = ""
+                    if ((i + 1) == len(sentences)) and ((j + 1) == (len(sentence.items()) - 1)):
+                        end = orig_sentence[found_at + len(token._conllu_info["form"]):]
+                    
+                    token._conllu_info["form"] = orig_sentence[cur_start:found_at] + token._conllu_info["form"] + end
+                expected_i = found_at + orig_len
+                prev_token = token
+            
             if iid != 0 and iid != prev_iid + 1:
                 token._conllu_info["id"] = prev_iid + 1
                 for iid2, token2 in sentence.items():
@@ -124,7 +151,7 @@ def fix_ids(sentences):
     return new_sentences
 
 
-def conllu_to_odin(conllu_sentences, is_basic=False):
+def conllu_to_odin(conllu_sentences, orig_sentence, is_basic=False):
     odin_sentences = []
     all_words = []
     if is_basic:
@@ -132,7 +159,7 @@ def conllu_to_odin(conllu_sentences, is_basic=False):
     else:
         graph = "universal-plus"
     
-    conllu_sentences = fix_ids(conllu_sentences)
+    conllu_sentences = fix_ids(conllu_sentences, orig_sentence)
     
     for conllu_sentence in conllu_sentences:
         odin_sentence = {"words": [], "tags": [], "graphs": {graph: {"edges": [], "roots": []}}}
