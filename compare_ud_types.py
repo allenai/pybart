@@ -1,4 +1,4 @@
-from bottle import route, run, post, request, static_file
+from bottle import route, run, request, static_file
 import json
 import subprocess
 import main as calc_tree
@@ -11,6 +11,8 @@ ARBITRARY_PATH2 = "c:/temp/bla.txt"
 @route('/')
 @route('/<filepath:path>')
 def server_static(filepath="index.html"):
+    if ("/" not in filepath) and (filepath != "index.html") and (filepath != "favicon.ico"):
+        filepath = "index.html"
     return static_file(filepath, root='./public/')
 
 

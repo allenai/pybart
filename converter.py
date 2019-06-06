@@ -635,7 +635,7 @@ def assign_refs(ret):
 # we take the leftmost that/what/which/etc word as the dependent
 # for the ref TypedDependency.
 # Then we collapse the referent relation such as follows. e.g.:
-# "The man that I love ... " ref(man, that) dobj(love, that) -> ref(man, that) dobj(love, man)
+# "The man that I love ... " dobj(love, that) -> ref(man, that) dobj(love, man)
 def add_ref_and_collapse(sentence):
     child_rest = Restriction(name="child_ref", form=relativizing_word_regex)
     grandchild_rest = Restriction(nested=[[

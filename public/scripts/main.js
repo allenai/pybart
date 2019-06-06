@@ -104,7 +104,8 @@ define([
 			e.preventDefault();
             
 			const $sentenceInput = $("#sentenceInput");
-			const response = await axios.post('/api/1/annotate', {sentence: $sentenceInput[0].value != "" ? $sentenceInput[0].value : "The quick brown fox jumped over the lazy dog."});
+            $sentenceInput[0].value = $sentenceInput[0].value != "" ? $sentenceInput[0].value : "The quick brown fox jumped over the lazy dog."
+			const response = await axios.post('/api/1/annotate', {sentence: $sentenceInput[0].value});
 			
             $('#containerBasic').empty()
             $('#containerPlus').empty()
@@ -112,6 +113,14 @@ define([
 			tag1 = displayTree(response.data.basic, "containerBasic", "universal-basic");
 			tag2 = displayTree(response.data.plus, "containerPlus", "universal-plus", tag1.links);
 		});
+        
+        var slash_idx = window.location.href.lastIndexOf('/')
+        if ((slash_idx + 1) != window.location.href.length)
+        {
+            sliced = window.location.href.slice(slash_idx + 1)
+            $("#sentenceInput")[0].value = decodeURIComponent(sliced)
+            submitButton.click(this);
+        }
 	}
 	
 	return main;
