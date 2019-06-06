@@ -5,10 +5,10 @@ import conllu_wrapper as cw
 import converter
 
 
-def main_internal(sentences_text, out_as_raw_test=True):
+def main_internal(sentences_text, out_as_raw_text=True):
     parsed, all_comments = cw.parse_conllu(sentences_text)
     converted = converter.convert(parsed)
-    if out_as_raw_test:
+    if out_as_raw_text:
         return cw.serialize_conllu(converted, all_comments)
     else:
         return converted
