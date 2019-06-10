@@ -636,7 +636,7 @@ def assign_refs(ret):
 # for the ref TypedDependency.
 # Then we collapse the referent relation such as follows. e.g.:
 # "The man that I love ... " dobj(love, that) -> ref(man, that) dobj(love, man)
-def add_ref_and_collapse(sentence):
+def add_ref_and_collapse(sentence, enhanced_extra):
     child_rest = Restriction(name="child_ref", form=relativizing_word_regex)
     grandchild_rest = Restriction(nested=[[
         Restriction(name="grand_ref", form=relativizing_word_regex)
@@ -645,7 +645,8 @@ def add_ref_and_collapse(sentence):
         Restriction(name="mod", gov='acl:relcl', nested=[
             [grandchild_rest, child_rest],
             [grandchild_rest],
-            [child_rest]
+            [child_rest],
+            [] if enhanced_extra else None
         ]),
     ]])
     
@@ -655,12 +656,21 @@ def add_ref_and_collapse(sentence):
     
     ref_assignments = assign_refs(ret)
     
+    leftmost = None
     for name_space in ret:
         gov, gov_head, gov_rel = name_space['gov']
-        leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
-        
-        if gov not in leftmost.get_parents():
-            leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
+        if ref_assignments:
+            leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
+            if gov not in leftmost.get_parents():
+                leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
+                gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
+        else:
+            leftmost_head, _, _ = name_space['mod']
+            rels_with_pos = [(relation[1], child.get_conllu_field('xpos')) for child in leftmost_head.get_children() for relation in child.get_new_relations(leftmost_head)]
+            rels_only = [rel for (rel, pos) in rels_with_pos]
+            leftmost_rel = 'nsubj' if ("nsubj" not in rels_only) else \
+                ('nmod' if (('where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]) or
+                    ((('nmod', 'RB') in rels_with_pos) or (('nmod', 'IN') in rels_with_pos))) else 'dobj')
             gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
@@ -846,7 +856,7 @@ def convert_sentence(sentence):
     
     # referent: addRef, collapseReferent
     if conf.enhanced_plus_plus:
-        add_ref_and_collapse(sentence)
+        add_ref_and_collapse(sentence, conf.enhanced_extra)
     
     # treatCC
     heads_of_conjuncts(sentence)
