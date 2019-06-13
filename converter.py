@@ -7,7 +7,6 @@
 import regex as re
 
 from matcher import match, Restriction
-import configuration as conf
 
 # constants
 two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
@@ -830,12 +829,12 @@ def expand_pp_or_prep_conjunctions(sentence):
         expand_per_type(sentence, rl, is_pp)
 
 
-def convert_sentence(sentence):
+def convert_sentence(sentence, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
-    if conf.enhanced_plus_plus:
+    if enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
         process_simple_2wp(sentence)
         process_complex_2wp(sentence)
@@ -848,24 +847,24 @@ def convert_sentence(sentence):
     # addCaseMarkerInformation
     passive_agent(sentence)
     prep_patterns(sentence, '^nmod$', 'case')
-    if not conf.enhance_only_nmods:
+    if not enhance_only_nmods:
         prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
     
     # addConjInformation
     conj_info(sentence)
     
     # referent: addRef, collapseReferent
-    if conf.enhanced_plus_plus:
-        add_ref_and_collapse(sentence, conf.enhanced_extra)
+    if enhanced_plus_plus:
+        add_ref_and_collapse(sentence, enhanced_extra)
     
     # treatCC
     heads_of_conjuncts(sentence)
     subj_of_conjoined_verbs(sentence)
     
     # addExtraNSubj
-    xcomp_propagation(sentence, conf.enhanced_extra)
+    xcomp_propagation(sentence, enhanced_extra)
     
-    if conf.enhanced_extra:
+    if enhanced_extra:
         advcl_propagation(sentence)
         acl_plus_propagation(sentence)
         dep_propagation(sentence)
@@ -877,8 +876,8 @@ def convert_sentence(sentence):
     return sentence
 
 
-def convert(parsed):
+def convert(parsed, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
     converted_sentences = []
     for sentence in parsed:
-        converted_sentences.append(convert_sentence(sentence))
+        converted_sentences.append(convert_sentence(sentence, enhance_only_nmods, enhanced_plus_plus, enhanced_extra))
     return converted_sentences

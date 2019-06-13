@@ -1,4 +1,3 @@
-import configuration as conf
 import uuid
 import graph_token
 
@@ -80,7 +79,7 @@ def parse_conllu(text):
     return sentences, all_comments
 
 
-def serialize_conllu(converted, all_comments):
+def serialize_conllu(converted, all_comments, preserve_comments=False):
     """Purpose: create a CoNLL-U formatted text from a sentence list.
     
     Args:
@@ -93,7 +92,7 @@ def serialize_conllu(converted, all_comments):
     comments = []
     for (sentence, per_sent_comments) in zip(converted, all_comments):
         # recover comments from original file
-        if conf.preserve_comments:
+        if preserve_comments:
             comments = ["\n".join(per_sent_comments)]
         
         # TODO - fix case of more than 9 copy nodes - needs special ordering e.g 1.1 ... 1.9 1.10 and not 1.1 1.10 ... 1.9
