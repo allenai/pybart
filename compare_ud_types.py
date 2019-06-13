@@ -27,7 +27,8 @@ def annotate():
         conllu_basic_out = f.read()
     
     conllu_basic_out_formatted, _ = cw.parse_conllu(conllu_basic_out)
-    conllu_plus_out_formatted = calc_tree.main_internal(conllu_basic_out, out_as_raw_text=False)
+    conllu_plus_out_formatted = converter.convert(cw.parse_conllu(conllu_basic_out)[0], False, True, True)
+
     odin_basic_out = cw.conllu_to_odin(conllu_basic_out_formatted, sentence, is_basic=True)
     odin_plus_out = cw.conllu_to_odin(conllu_plus_out_formatted, sentence)
     
