@@ -41,6 +41,6 @@ def annotate():
 # TODO:
 #   1. add to a main function
 #   2. copy the model to the project and remove the absolute local path
-nlp = spacy.load(r"C:\temp\ud_for_spacy\attempt2-edited_punct_combined\models\model-final")
+nlp = spacy.load("model-best")
 spacyconll = Spacy2ConllParser(nlp=nlp)
 run(host='localhost', reloader=True, port=5020)
