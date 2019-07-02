@@ -170,6 +170,14 @@ def heads_of_conjuncts(sentence):
         #   "The boy and the girl, who lived, told the tale."
 
 
+# we propagate only subj (for now) as this is what the original code stated:
+#     cdm july 2010: This bit of code would copy a dobj from the first
+#     clause to a later conjoined clause if it didn't
+#     contain its own dobj or prepc. But this is too aggressive and wrong
+#     if the later clause is intransitive
+#     (including passivized cases) and so I think we have to not have this
+#     done always, and see no good "sometimes" heuristic.
+#     IF WE WERE TO REINSTATE, SHOULD ALSO NOT ADD OBJ IF THERE IS A ccomp (SBAR).
 def subj_of_conjoined_verbs(sentence):
     restriction = Restriction(name="gov", nested=[[
         Restriction(name="conj", gov="conj", no_sons_of=".subj", xpos="(VB|JJ)"),
@@ -274,15 +282,22 @@ def advcl_propagation(sentence):
         ]]),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
-    
+    basic_advcl_rest_no_mark = Restriction(no_sons_of=".?obj", nested=[[
+        Restriction(name="dep", gov="advcl", no_sons_of="(nsubj.*|aux|mark)"),
+        Restriction(name="new_subj", gov="nsubj.*")
+    ]])
     ambiguous_advcl_rest = Restriction(nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to|as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
+    ambiguous_advcl_rest_no_mark = Restriction(nested=[[
+        Restriction(name="dep", gov="advcl", no_sons_of="(nsubj.*|aux|mark)"),
+        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
+    ]])
     
-    for advcl_restriction in [advcl_to_rest, basic_advcl_rest, ambiguous_advcl_rest]:
+    for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
         advcl_propagation_per_type(sentence, advcl_restriction)
 
 
