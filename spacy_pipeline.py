@@ -1,15 +1,22 @@
-import time
-import sys
-import json
-import chardet
+import datetime
+import logging
+from math import inf
+from multiprocessing import Manager, Pool, Process
+from os import cpu_count, stat
+from pathlib import Path
+
+import uuid
+import psutil
 import spacy
+import json
+#import chardet
 import en_core_web_lg
 from spacy.lemmatizer import Lemmatizer
 from spacy.lang.en import LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES
-lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
-nlp = spacy.load('model-best')
-nlp2 = en_core_web_lg.load()
 
+lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
+nlp2 = en_core_web_lg.load()
+nlp2.remove_pipe("parser")
 
 tag_map = {
     ".": "PUNCT",
@@ -19,8 +26,8 @@ tag_map = {
     "-RRB-": "PUNCT",
     '""': "PUNCT",
     "''": "PUNCT",
-    ":":  "PUNCT",
-    "$":  "SYM",
+    ":": "PUNCT",
+    "$": "SYM",
     "#": "SYM",
     "AFX": "X",
     "CC": "CCONJ",
@@ -71,93 +78,331 @@ tag_map = {
     "_SP": "SPACE",
 }
 
+# def custom_sentencizer(doc):
+#     for i, token in enumerate(doc[:-1]):
+#         # Define sentence start if pipe
+#         if (token.tag_ == ".") and (doc.text[token.idx - 1: token.idx] == " ") and (
+#                 doc.text[token.idx + len(token): token.idx + len(token) + 1] == " "):
+#             doc[i + 1].is_sent_start = True
+#         else:
+#             # Explicitly set sentence start to False otherwise, to tell
+#             # the parser to leave those tokens alone
+#             doc[i + 1].is_sent_start = False
+#     return doc
 
-def custom_sentencizer(doc):
-    for i, token in enumerate(doc[:-1]):
-        # Define sentence start if pipe
-        if (token.tag_ == ".") and (doc.text[token.idx - 1: token.idx] == " ") and (doc.text[token.idx + len(token): token.idx + len(token) + 1] == " "):
-            doc[i + 1].is_sent_start = True
-        else:
-            # Explicitly set sentence start to False otherwise, to tell
-            # the parser to leave those tokens alone
-            doc[i + 1].is_sent_start = False
-    return doc
-
-
-nlp.add_pipe(custom_sentencizer, before="parser")
-nlp2.add_pipe(custom_sentencizer, before="parser")
-nlp2.remove_pipe("parser")
+# nlp.add_pipe(custom_sentencizer, before="parser")
+# nlp2.add_pipe(custom_sentencizer, before="parser")
 
 
-def spacy_json2odinson_json(spacy_doc, doc_name, x):
+def convert_single_sent(spacy_doc, shift):
     spacy_doc_text = spacy_doc.text
-    odinson_json = {"text": spacy_doc_text, "sentences": [], "id": doc_name}
-    starts = [sent.start_char for sent in spacy_doc.sents]
     entities = {range(t.idx, t.idx + len(t.text)): t.ent_type_ for t in nlp2(spacy_doc_text)}
-    i = -1
-    tokens_shift = 0
+    sentence = {"words": [], "raw": [], "startOffsets": [], "endOffsets": [], "tags": [], "lemmas": [], "entities": [],
+                "graphs": {"universal-basic": {"edges": [], "roots": []}}}
     for token in spacy_doc:
         token_end = token.idx + len(token.text)
-        if token.idx in starts:
-            tokens_shift += len(odinson_json["sentences"][i]["words"]) if i >= 0 else 0
-            odinson_json["sentences"].append({"words": [], "raw": [], "startOffsets": [], "endOffsets": [], "tags": [], "lemmas": [], "entities": [], "graphs": {"universal-basic": {"edges": [], "roots": []}}})
-            i += 1
-        odinson_json["sentences"][i]["words"].append(spacy_doc_text[token.idx: token_end])
-        odinson_json["sentences"][i]["raw"].append(spacy_doc_text[token.idx: token_end])
-        odinson_json["sentences"][i]["startOffsets"].append(token.idx)
-        odinson_json["sentences"][i]["endOffsets"].append(token_end)
-        odinson_json["sentences"][i]["tags"].append(token.tag_)
-        lemmas = lemmatizer(spacy_doc_text[token.idx: token_end], tag_map[token.tag_])
-        odinson_json["sentences"][i]["lemmas"].append(lemmas[0])
-        ent = [v for k, v in entities.items() if token.idx in k][0]
-        odinson_json["sentences"][i]["entities"].append("O" if ent == "" else ent)
-        if token.i == token.head.i:
-            odinson_json["sentences"][i]["graphs"]["universal-basic"]["roots"].append(token.i - tokens_shift)
-        else:
-            odinson_json["sentences"][i]["graphs"]["universal-basic"]["edges"].append({"source": token.head.i - tokens_shift, "destination": token.i - tokens_shift, "relation": token.dep_})
-    
-    if i != (x - 1):
-        print("wrong number of sentences(doc_name, n_sents): %s %d" % (doc_name, i))
-    
-    return odinson_json
-
-
-def parse_to_json(in_path, out_path, idx, odinson_json=False):
-    start = time.time()
-    para = []
-    x = 500
-    f = open(in_path, 'rb')
-    enc = chardet.detect(f.read())['encoding']
-    f.close()
-    with open(in_path, "r", encoding=enc) as f:
-        lines = f.readlines()
-        prev_i = 0
-        for i, l in enumerate(lines):
-            if (i % x == 0) and (i != 0):
-                para.append("".join(lines[prev_i:i]).replace("\n", " "))
-                prev_i = i
-        last = "".join(lines[prev_i:]).replace("\n", " ")
-        if last:
-            para.append(last)
         
-        for i, doc in enumerate(nlp.pipe(para, batch_size=40)):  # TODO replace with parse(line, nlp) when time is not an issue
-            if odinson_json:
-                out_json = spacy_json2odinson_json(doc, "wiki%d_%d" % (idx, i), x)
-            else:
-                out_json = doc.to_json()
-            with open(out_path + "wiki%d_%d.json" % (idx, i), "w", encoding=enc) as f2:
-                json.dump(out_json, f2)
-            if i == 0:
-                print(time.time() - start)
-            if i % int((len(lines) / x) / 100) == 0:
-                print("proc:%d, completed:%d%%" % (idx, int((i * 100) / int(len(lines) / x))))
+        sentence["words"].append(spacy_doc_text[token.idx: token_end])
+        sentence["raw"].append(spacy_doc_text[token.idx: token_end])
+        sentence["startOffsets"].append(token.idx + shift)
+        sentence["endOffsets"].append(token_end + shift)
+        sentence["tags"].append(token.tag_)
+        lemmas = lemmatizer(spacy_doc_text[token.idx: token_end], tag_map[token.tag_])
+        sentence["lemmas"].append(lemmas[0])
+        ent = [v for k, v in entities.items() if token.idx in k][0]
+        sentence["entities"].append("O" if ent == "" else ent)
+        if token.i == token.head.i:
+            sentence["graphs"]["universal-basic"]["roots"].append(token.i)
+        else:
+            sentence["graphs"]["universal-basic"]["edges"].append({"source": token.head.i, "destination": token.i, "relation": token.dep_})
+    
+    return sentence
 
 
-def main(idx):
-    start = time.time()
-    parse_to_json('../text/wiki_{:0>2}'.format(idx), "../docs/", idx, odinson_json=True)
-    print("idx: %d, time: %.2f" % (idx, time.time() - start))
+def spacy_json2odinson_json(spacy_sents, doc_name):
+    n_tokens = 0
+    sents = []
+    texts = ""
+    shift = 0
+    for doc in spacy_sents:
+        n_tokens += len(doc)
+        sents.append(convert_single_sent(doc, shift))
+        shift += len(doc.text)
+        texts += doc.text
+    odinson_json = {"text": texts, "sentences": sents, "id": doc_name}
+    
+    return odinson_json, n_tokens
+
+logging.basicConfig(datefmt='%d-%b %H:%M:%S',
+                    format='%(asctime)s - [%(levelname)s]: %(message)s',
+                    level=logging.INFO,
+                    handlers=[
+                        logging.FileHandler('progress.log'),
+                        logging.StreamHandler()
+                    ])
+
+DEFAULT_WORKERS = (cpu_count() - 1) or 1
+
+""" Processes a single, huge text file with spaCy, without running into memory issues
+    IF the right parameters are chosen.
+
+    Important parameters:
+        - -b, --batch-size: the batch size (in bytes) to process at the same time. A larger batch, will mean that
+            every task (in the max-tasks-per-child) will use more memory. You need to find a good balance between
+            batch-size and max-tasks-per-child.
+        - -m, --max-tasks-per-child: the number of batches to process before a child process is killed and replaced
+            this will effectively free the memory used by that child process. If you are very low on memory,
+            set this to 1, meaning that each process will only process one batch before being replaced.
+        - -n, --n-workers: the number of child processes to spawn that will process the batches. It is important
+            to know that the readers and writers are working in their own subprocesses, so don't use all cores
+            for n-workers. Also, the more cores you put to work simultaneously, the more memory you will be using.
+            On top of that, if your batch-size is too small, the reader will not be fast enough to feed all the workers.
+            So, again, you need to find a good trade-off focused on the batch-size.
+        - --space-model: it makes sense that if you use a large spaCy model, you will consume more memory.
+
+    Reading input happens in chunks. The byte file pointers of each chunk are passed to the child processes,
+    leaving them in charge of actually getting the contents from the file.
+    Because byte chunks are line-agnostic, we assume that the last line of each chunk is an incomplete line whose
+    second part is actually the first line of the next chunk. Therefore, we return the first and last line of all
+    chunks, and process them at the very end; stitching them back together.
+    This means, though, that the order of the sentence in the input file is NOT preserved.
+
+    You can use this file as a template, and only change the process_batch method to your liking.
+    That's where the actual values from spaCy are retrieved and processed.
+"""
+
+class Chunker:
+    def __init__(self, pfin, batch_size=1024 ** 2):
+        self.batch_size = batch_size
+        self.pfin = pfin
+        
+        logging.info(f"Chunking with a batch size of {batch_size:,} bytes.")
+    
+    def chunkify(self):
+        """  Yields a tuple containing the starting file pointer to a new batch,
+             and whether a batch is the first batch, or the last batch. """
+        file_end = stat(self.pfin).st_size
+        
+        # If the file is smaller than or equal to the buffer size,
+        # we can get it all in one batch
+        if file_end <= self.batch_size:
+            yield 0, True, True
+            return None
+        else:
+            chunk_start = 0
+            for chunk_start in range(0, file_end - self.batch_size, self.batch_size):
+                yield chunk_start, chunk_start == 0, False
+            
+            yield chunk_start + self.batch_size, False, True
+    
+    def get_batch(self, chunk_start, is_first, is_last):
+        with open(self.pfin, 'rb') as f:
+            f.seek(chunk_start)
+            chunk = f.read(self.batch_size)
+        
+        batch = chunk.split(b'\n')
+        
+        # Only pop the first/last line if the batch is not
+        # the first/last batch respectively
+        first_line = batch.pop(0) if not is_first else None
+        last_line = batch.pop(-1) if not is_last else None
+        
+        return [s.decode('utf-8').rstrip() for s in filter(None, batch)], first_line, last_line, chunk_start
+
+class Representator:
+    def __init__(self, max_length=120, min_length=None, spacy_model='model-best'):
+        self.max_length = max_length if max_length else inf
+        self.min_length = min_length if min_length else 0
+        
+        self.nlp = spacy.load(spacy_model)
+        self.nlp.add_pipe(self._prevent_sbd, name='prevent-sbd', before='parser')
+        
+        self.work_q = None
+        
+        self.chunker = None
+    
+    def process(self, pfin, n_workers, max_tasks_per_child):
+        logging.info(f"Started processing {pfin.name} with {n_workers} workers.")
+        if max_tasks_per_child:
+            logging.info(f"Max. {max_tasks_per_child} tasks per child process before replacement.")
+        
+        start_time = datetime.datetime.now()
+        
+        total_n_sentences = 0
+        total_n_tokens = 0
+        with Manager() as manager:
+            self.work_q = manager.Queue(maxsize=n_workers * 2)
+            
+            # Create a reader and a writer process
+            reader_proc = Process(target=self.reader)
+            # The reader starts filling up the work_q
+            reader_proc.start()
+            # writer_proc = Process(target=self.writer, args=(pfin,))
+            # writer_proc.start()
+            
+            with Pool(n_workers, maxtasksperchild=max_tasks_per_child) as pool:
+                worker_jobs = []
+                partials = []
+                
+                while True:
+                    # Get work from the working queue
+                    work = self.work_q.get()
+                    if work == 'done':
+                        break
+                    
+                    batch_start, is_first_batch, is_last_batch = work
+                    # Apply work to workers
+                    job = pool.apply_async(self.process_batch, (batch_start, is_first_batch, is_last_batch))
+                    worker_jobs.append(job)
+                
+                # After the queue is 'done', the reader can close
+                reader_proc.join()
+                reader_proc.terminate()
+                
+                # When a worker has finished its job, get its information back
+                for job_idx, job in enumerate(worker_jobs, 1):
+                    n_sentences, n_tokens, first_line, last_line, chunk_start = job.get()
+                    
+                    partials.append((chunk_start, first_line, last_line))
+                    total_n_sentences += n_sentences
+                    total_n_tokens += n_tokens
+                    
+                    # Log some progress info
+                    if job_idx == 1 or job_idx % n_workers == 0:
+                        time_since_start = (datetime.datetime.now() - start_time)
+                        sents_perf = total_n_sentences // time_since_start.total_seconds()
+                        time_since_start = self._format_time(time_since_start)
+                        logging.info(f"Processed batch #{job_idx:,}: {n_sentences:,} sents ({sents_perf:,.0f} sents/s)."
+                                     f" Mem. use: {psutil.virtual_memory().percent}%. Running for {time_since_start}")
+                
+                # Process all partials as a single batch
+                # When your batch size is very small, this will give a lot of overhead
+                n_sentences, n_tokens, _, _, _ = self.process_last_batch(partials)
+                total_n_sentences += n_sentences
+                total_n_tokens += n_tokens
+                
+                # # Notify the writer that we're done
+                # self.results_q.put('done')
+            
+            # writer_proc.join()
+            # writer_proc.terminate()
+        
+        # Log some info
+        running_time = (datetime.datetime.now() - start_time)
+        sents_perf = total_n_sentences // running_time.total_seconds()
+        running_time = self._format_time(running_time)
+        logging.info(f"Done processing in {running_time} ({sents_perf:,.0f} sentences/s)."
+                     f" Processed {total_n_sentences:,.0f} sentences and {total_n_tokens:,.0f} tokens.")
+    
+    def process_last_batch(self, partials):
+        # Sort partials on their start-byte to ensure
+        # that they are ordered correctly
+        partials = sorted(partials, key=lambda x: x[0])
+        
+        batch = []
+        prev_last = None
+        for _, first, last in partials:
+            if prev_last is not None and first is not None:
+                chunk = prev_last + first
+                batch.append(chunk.decode('utf-8'))
+            
+            prev_last = last
+        
+        return self.process_batch(batch=batch)
+    
+    def process_batch(self, chunk_start=None, is_first=None, is_last=None, batch=None):
+        # 'batch' is always None, except for the very last batch which processes all partials.
+        # See 'process_last_batch'.
+        if batch is None:
+            batch, first_line, last_line, chunk_start = self.chunker.get_batch(chunk_start, is_first, is_last)
+        else:
+            first_line = None
+            last_line = None
+            chunk_start = None
+        
+        # Parse text with spaCy
+        docs = list(self.nlp.pipe(batch))
+        # Chop into sentences
+        spacy_sents = [sent for doc in docs for sent in doc.sents]
+        # Filter too long or too short sentences
+        spacy_sents = [sent for sent in spacy_sents if self.min_length <= len(sent) <= self.max_length]
+        n_sentences = len(spacy_sents)
+        
+        # Get some value from spaCy that we want to write to files
+        # Here we just get the tokens, but you can change it to whatever you want
+        batch_id = str(uuid.uuid4())
+        out_json, n_tokens = spacy_json2odinson_json(spacy_sents, "wiki%s" % batch_id)
+        with open("../docs/wiki%s.json" % batch_id, "w", encoding='utf-8') as f2:
+            json.dump(out_json, f2)
+        
+        # Return the number of sentences and number of tokens, just to keep track
+        # Also return first and last line. These are likely to be 'broken' sentences
+        # due to chunking. After processing everything, we will process these 'partial
+        # sentences' separately in the main process.
+        return n_sentences, n_tokens, first_line, last_line, chunk_start
+    
+    @staticmethod
+    def _prevent_sbd(doc):
+        # If you already have one sentence per line in your file
+        # you may wish to disable sentence segmentation with this function,
+        # which is added to the nlp pipe in the constructor
+        for token in doc:
+            token.is_sent_start = False
+        return doc
+    
+    @staticmethod
+    def _format_time(delta):
+        hours, remainder = divmod(delta.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        return f"{hours:02,.0f}:{minutes:02.0f}:{seconds:02.0f}"
+    
+    # I/O methods
+    # def writer(self, pfin):
+    #     with open(pfin.with_suffix('.out'), 'w', encoding='utf-8') as fhout:
+    #         while True:
+    #             m = self.results_q.get()
+    #             if m == 'done':
+    #                 break
+    #
+    #             fhout.write('\n'.join(m) + '\n')
+    #             fhout.flush()
+    
+    def reader(self):
+        for chunk_tuple in self.chunker.chunkify():
+            self.work_q.put(chunk_tuple)
+        
+        self.work_q.put('done')
 
 
-if __name__ == "__main__":
-    main(int(sys.argv[1]))
+if __name__ == '__main__':
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Parse HUGE text files with spaCy in parallel without running'
+                                                 ' into memory issues.',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('fin', help='input file.')
+    parser.add_argument('-b', '--batch-size', type=int, default=1024 ** 2,
+                        help='batch size (in bytes).')
+    parser.add_argument('--max-length', type=int, default=None,
+                        help="sentences with more than 'max_length' will not be included in the output.")
+    parser.add_argument('-m', '--max-tasks-per-child', type=int, default=5,
+                        help="max number of batches that a child process can process before it is killed and replaced."
+                             " Use this when running into memory issues.")
+    parser.add_argument('--min-length', type=int, default=None,
+                        help="sentences with less than 'min_length' will not be included in the output.")
+    parser.add_argument('-n', '--n-workers', type=int, default=DEFAULT_WORKERS,
+                        help=f"number of workers to use (default depends on your current system).")
+    parser.add_argument('--spacy-model', default='en_core_web_sm',
+                        help='spaCy model to use (must be installed).')
+    args = parser.parse_args()
+    
+    args = vars(args)
+    file_in = Path(args.pop('fin')).resolve()
+    workers = args.pop('n_workers')
+    b_size = args.pop('batch_size')
+    max_tasks = args.pop('max_tasks_per_child')
+    
+    representer = Representator(**args)
+    representer.chunker = Chunker(file_in, b_size)
+    representer.process(file_in, workers, max_tasks)
