@@ -381,6 +381,24 @@ def conj_propagation_of_nmods(sentence):
         conj_propagation_of_nmods_per_type(sentence, conj_restriction)
 
 
+def advmod_propagation(sentence):
+    advmod_rest = Restriction(name="gov", nested=[[
+        Restriction(gov="(.?obj|nsubj.*|nmod.*)", nested=[[
+            Restriction(name="advmod", gov="advmod", form="(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)")
+        ]])
+    ]])
+    ret = match(sentence.values(), [[advmod_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        advmod, _, advmod_rel = name_space['advmod']
+        gov, _, _ = name_space['gov']
+        
+        if gov not in advmod.get_parents():
+            advmod.add_edge(advmod_rel + ":extra", gov)
+
+
 def create_mwe(words, head, rel):
     for i, word in enumerate(words):
         word.remove_all_edges()
@@ -883,6 +901,7 @@ def convert_sentence(sentence, enhance_only_nmods, enhanced_plus_plus, enhanced_
         acl_plus_propagation(sentence)
         dep_propagation(sentence)
         conj_propagation_of_nmods(sentence)
+        advmod_propagation(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
