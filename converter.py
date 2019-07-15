@@ -670,21 +670,20 @@ def add_ref_and_collapse(sentence, enhanced_extra):
     
     ref_assignments = assign_refs(ret)
     
-    leftmost = None
     for name_space in ret:
         gov, gov_head, gov_rel = name_space['gov']
-        if ref_assignments:
+        if ref_assignments and name_space['mod'] in ref_assignments:
             leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
             if gov not in leftmost.get_parents():
                 leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
                 gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
+        # this is for reduce-relative-clause
         else:
             leftmost_head, _, _ = name_space['mod']
             rels_with_pos = [(relation[1], child.get_conllu_field('xpos')) for child in leftmost_head.get_children() for relation in child.get_new_relations(leftmost_head)]
             rels_only = [rel for (rel, pos) in rels_with_pos]
-            leftmost_rel = 'nsubj' if ("nsubj" not in rels_only) else \
-                ('nmod' if (('where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]) or
-                    ((('nmod', 'RB') in rels_with_pos) or (('nmod', 'IN') in rels_with_pos))) else 'dobj')
+            leftmost_rel = 'nsubj' if (("nsubj" not in rels_only) and ("nsubjpass" not in rels_only)) else \
+                ('nmod' if (('where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]) or ((('nmod', 'RB') in rels_with_pos) or (('nmod', 'IN') in rels_with_pos))) else 'dobj')
             gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
