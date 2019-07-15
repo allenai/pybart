@@ -52,6 +52,11 @@ def parse_conllu(text):
             
             # split line by any whitespace, and store the first 10 columns.
             parts = line.split()
+            if len(parts) > 10:
+                parts = line.split("\t")
+                if len(parts) > 10:
+                    raise ValueError("text must be a basic CoNLL-U format, received too many columns or separators.")
+            
             new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc = parts[:10]
             
             # validate input
