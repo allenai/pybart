@@ -102,16 +102,18 @@ define([
 		
 		$submitButton.click(async (e) => {
 			e.preventDefault();
-            
+			var eUd = document.getElementById("GFG1").checked
+			var eUdPP = document.getElementById("GFG2").checked
+			var eUdAryeh = document.getElementById("GFG3").checked
 			const $sentenceInput = $("#sentenceInput");
             $sentenceInput[0].value = $sentenceInput[0].value != "" ? $sentenceInput[0].value : "The quick brown fox jumped over the lazy dog."
-			const response = await axios.post('/api/1/annotate', {sentence: $sentenceInput[0].value});
+			const response = await axios.post('/api/1/annotate', {sentence: $sentenceInput[0].value, eud: eUd, eud_pp: eUdPP, eud_aryeh: eUdAryeh});
 			
             $('#containerBasic').empty()
             $('#containerPlus').empty()
             
 			tag1 = displayTree(response.data.basic, "containerBasic", "universal-basic");
-			tag2 = displayTree(response.data.plus, "containerPlus", "universal-plus", tag1.links);
+			tag2 = displayTree(response.data.plus, "containerPlus", "universal-aryeh", tag1.links);
 		});
         
         var slash_idx = window.location.href.lastIndexOf('/')
