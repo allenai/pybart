@@ -33,9 +33,9 @@ def annotate():
     conllu_basic_out_formatted, _ = cw.parse_conllu(conllu_basic_out)
     conllu_plus_out_formatted = converter.convert(cw.parse_conllu(conllu_basic_out)[0], eud, False, eud_pp, eud_aryeh)
 
-    odin_basic_out = cw.conllu_to_odin(cw.fix_ids(conllu_basic_out_formatted, sentence), is_basic=True)
-    odin_plus_out = cw.conllu_to_odin(cw.fix_ids(conllu_plus_out_formatted, sentence))
-    
+    odin_basic_out = cw.conllu_to_odin(conllu_basic_out_formatted, is_basic=True)
+    odin_plus_out = cw.conllu_to_odin(conllu_plus_out_formatted)
+
     return json.dumps({
         "basic": odin_basic_out,
         "plus": odin_plus_out,
