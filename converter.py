@@ -200,7 +200,7 @@ def subj_of_conjoined_verbs(sentence):
         subj.add_edge(subj_rel, conj)
 
 
-def xcomp_propagation_per_type(sentence, restriction, is_extra):
+def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
     restriction = Restriction(nested=[
         [restriction, Restriction(name="new_subj", gov=".?obj")],
         [restriction, Restriction(name="new_subj", gov="nsubj.*")]
@@ -236,18 +236,20 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra):
 #   There is no nsubj of asking, but the dobj, SEC, is the extra nsubj of require.
 #   Similarly, "The law tells them when to do so"
 #   Instead of nsubj(do, law) we want nsubj(do, them)
-def xcomp_propagation(sentence, do_enhanced_extra):
+def xcomp_propagation(sentence):
     to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
-    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
     basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
         Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
     ]])
 
-    for xcomp_restriction, is_extra in [(to_xcomp_rest, False), (xcomp_no_to_rest, True), (basic_xcomp_rest, False)]:
-        if is_extra and not do_enhanced_extra:
-            continue
-        
-        xcomp_propagation_per_type(sentence, xcomp_restriction, is_extra)
+    for xcomp_restriction in [to_xcomp_rest, basic_xcomp_rest]:
+        xcomp_propagation_per_type(sentence, xcomp_restriction)
+
+
+def xcomp_propagation_no_to(sentence):
+    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
+    
+    xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
 
 
 def advcl_propagation_per_type(sentence, restriction):
@@ -861,7 +863,7 @@ def expand_pp_or_prep_conjunctions(sentence):
         expand_per_type(sentence, rl, is_pp)
 
 
-def convert_sentence(sentence, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
+def convert_sentence(sentence, enhanced, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
@@ -875,28 +877,31 @@ def convert_sentence(sentence, enhance_only_nmods, enhanced_plus_plus, enhanced_
         demote_quantificational_modifiers(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
         expand_pp_or_prep_conjunctions(sentence)
-    
-    # addCaseMarkerInformation
-    passive_agent(sentence)
-    prep_patterns(sentence, '^nmod$', 'case')
-    if not enhance_only_nmods:
-        prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
-    
-    # addConjInformation
-    conj_info(sentence)
+
+    if enhanced:
+        # addCaseMarkerInformation
+        passive_agent(sentence)
+        prep_patterns(sentence, '^nmod$', 'case')
+        if not enhance_only_nmods:
+            prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
+        
+        # addConjInformation
+        conj_info(sentence)
     
     # referent: addRef, collapseReferent
     if enhanced_plus_plus:
         add_ref_and_collapse(sentence, enhanced_extra)
-    
-    # treatCC
-    heads_of_conjuncts(sentence)
-    subj_of_conjoined_verbs(sentence)
-    
-    # addExtraNSubj
-    xcomp_propagation(sentence, enhanced_extra)
+
+    if enhanced:
+        # treatCC
+        heads_of_conjuncts(sentence)
+        subj_of_conjoined_verbs(sentence)
+        
+        # addExtraNSubj
+        xcomp_propagation(sentence)
     
     if enhanced_extra:
+        xcomp_propagation_no_to(sentence)
         advcl_propagation(sentence)
         acl_plus_propagation(sentence)
         dep_propagation(sentence)
@@ -909,8 +914,8 @@ def convert_sentence(sentence, enhance_only_nmods, enhanced_plus_plus, enhanced_
     return sentence
 
 
-def convert(parsed, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
+def convert(parsed, enhanced, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
     converted_sentences = []
     for sentence in parsed:
-        converted_sentences.append(convert_sentence(sentence, enhance_only_nmods, enhanced_plus_plus, enhanced_extra))
+        converted_sentences.append(convert_sentence(sentence, enhanced, enhance_only_nmods, enhanced_plus_plus, enhanced_extra))
     return converted_sentences
