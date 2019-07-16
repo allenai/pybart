@@ -38,6 +38,9 @@ class Token(object):
         self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + b for (a, b) in sorted(self.get_new_relations())])
         return "\t".join([str(v) for v in self._conllu_info.values()])
     
+    def set_conllu_field(self, field, val):
+        self._conllu_info[field] = val
+    
     def get_conllu_field(self, field):
         return self._conllu_info[field]
     
