@@ -863,7 +863,7 @@ def expand_pp_or_prep_conjunctions(sentence):
         expand_per_type(sentence, rl, is_pp)
 
 
-def convert_sentence(sentence, enhanced, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
+def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
@@ -882,8 +882,7 @@ def convert_sentence(sentence, enhanced, enhance_only_nmods, enhanced_plus_plus,
         # addCaseMarkerInformation
         passive_agent(sentence)
         prep_patterns(sentence, '^nmod$', 'case')
-        if not enhance_only_nmods:
-            prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
+        prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
         
         # addConjInformation
         conj_info(sentence)
@@ -914,8 +913,8 @@ def convert_sentence(sentence, enhanced, enhance_only_nmods, enhanced_plus_plus,
     return sentence
 
 
-def convert(parsed, enhanced, enhance_only_nmods, enhanced_plus_plus, enhanced_extra):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra):
     converted_sentences = []
     for sentence in parsed:
-        converted_sentences.append(convert_sentence(sentence, enhanced, enhance_only_nmods, enhanced_plus_plus, enhanced_extra))
+        converted_sentences.append(convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra))
     return converted_sentences

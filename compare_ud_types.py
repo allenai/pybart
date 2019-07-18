@@ -34,7 +34,7 @@ def annotate():
     os.remove(ARBITRARY_PATH)
     
     conllu_basic_out_formatted, _ = cw.parse_conllu(conllu_basic_out)
-    conllu_plus_out_formatted = converter.convert(cw.parse_conllu(conllu_basic_out)[0], eud, False, eud_pp, eud_aryeh)
+    conllu_plus_out_formatted = converter.convert(cw.parse_conllu(conllu_basic_out)[0], eud, eud_pp, eud_aryeh)
 
     odin_basic_out = cw.conllu_to_odin(conllu_basic_out_formatted, is_basic=True)
     odin_plus_out = cw.conllu_to_odin(conllu_plus_out_formatted)
