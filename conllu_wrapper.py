@@ -111,7 +111,7 @@ def serialize_conllu(converted, all_comments, preserve_comments=False):
 # or better off: fw.conllu_to_odin(converter.convert(fw.parse_odin(json_buf))))
 def parse_odin(odin_json):
     sentences = []
-    for sent in odin_dict['sentences']:
+    for sent in odin_json['sentences']:
         sentence = {0: graph_token.Token(0, None, None, None, None, None, None, None, None, None)}
         for i, (word, tag, lemma) in enumerate(zip(sent['words'], sent['tags'], sent['lemmas'])):
             sentence[i + 1] = graph_token.Token(i + 1, word, lemma, "_", tag, "_", "_", "_", "_", "_")
