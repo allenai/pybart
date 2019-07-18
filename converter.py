@@ -17,8 +17,8 @@ quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew
 quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
 quant_mod_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
 relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
-neg_conjp_prev = ["but_not", "if_not", "but_rather"]
-neg_conjp_next = ["instead_of", "rather_than"]
+neg_conjp_prev = ["if_not"]
+neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 EXTRA_INFO_STUB = 1
 
@@ -131,7 +131,7 @@ def prep_patterns(sentence, first_gov, second_gov):
         Restriction(name="mod", gov=first_gov, nested=[[
             # here we want to find any one word that marks a modifier,
             # except cases in which 'by' was used for 'agent' identification,
-            # but the exact notation will prevent those from being caught
+            # but the 'exact' notation will prevent those from being caught
             Restriction(name="c1", gov=second_gov)
         ]])
     ]])
@@ -708,12 +708,13 @@ def add_ref_and_collapse(sentence, enhanced_extra):
 
 
 # resolves the following multi word conj phrases:
-# but not(cc), if not(cc), instead(cc) of, rather(cc) than, but rather(cc) GO TO negcc
-# as(cc) well as, but(cc) also, not to mention, & GO TO and
-# NOTE: for now we won't catch '&' and 'not to mention' as none of their words would be tagged as 'cc',
-#   as happening in SC. Moreover, we catch 'but rather' and 'not if' which SC has a BUG trying to catch those.
-#   (their BUG happens as they assume the wrong word to be the 'cc').
-# NOTE - in SC they check only for 'as well' without the last 'as'.
+#   a. 'but(cc) not', 'if not', 'instead of', 'rather than', 'but(cc) rather'. GO TO negcc
+#   b. 'as(cc) well as', 'but(cc) also', 'not to mention', '&'. GO TO and
+# NOTE: This is bad practice (and sometimes not successful neither for SC or for us) for the following reasons:
+#   1. Not all parsers mark the same words as cc (if at all), so looking for the cc on a specific word is wrong.
+#       as of this reason, for now we and SC both miss: if-not, not-to-mention
+#   2. Some of the multi-words are already treated as multi-word prepositions (and are henceforth missed):
+#       as of this reason, for now we and SC both miss: instead-of, rather-than
 def get_assignment(sentence, cc):
     cc_cur_id = cc.get_conllu_field('id')
     prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
@@ -722,7 +723,7 @@ def get_assignment(sentence, cc):
                            if cc_cur_id + 1 == iid or cc_cur_id == iid])
     if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
         return "negcc"
-    elif next_forms in and_conjp_next:
+    elif (next_forms in and_conjp_next) or (cc.get_conllu_field('form') == '&'):
         return "and"
     else:
         return cc.get_conllu_field('form')
