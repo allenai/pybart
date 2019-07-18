@@ -501,7 +501,7 @@ def process_complex_2wp(sentence):
             continue
         
         # Determine the relation to use for gov2's governor
-        if (w1_rel == "root") or (cop and (w1_rel in clause_relations)):
+        if (w1_rel.lower() == "root") or (cop and (w1_rel in clause_relations)):
             gov2.replace_edge(gov2_rel, w1_rel, w1, gov)
         else:
             gov2.replace_edge(gov2_rel, gov2_rel, w1, gov)

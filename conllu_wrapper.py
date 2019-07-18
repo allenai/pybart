@@ -149,14 +149,14 @@ def conllu_to_odin_single_sentence(conllu_sentence, is_basic, odin_sentence=None
             odin_sentence["tags"].append(token.get_conllu_field("xpos"))
         
         if is_basic:
-            if token.get_conllu_field("deprel") == "root":
+            if token.get_conllu_field("deprel").lower() == "root":
                 odin_sentence["graphs"][graph]["roots"].append(iid - 1)
             odin_sentence["graphs"][graph]["edges"].append(
                 {"source": token.get_conllu_field("head") - 1, "destination": iid - 1,
                  "relation": token.get_conllu_field("deprel")})
         else:
             for head, rel in token.get_new_relations():
-                if rel == "root":
+                if rel.lower() == "root":
                     odin_sentence["graphs"][graph]["roots"].append(iid - 1)
                 odin_sentence["graphs"][graph]["edges"].append(
                     {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel})
