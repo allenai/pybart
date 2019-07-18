@@ -480,7 +480,7 @@ def process_complex_2wp(sentence):
     ]])
     restriction = Restriction(name="gov", nested=[[
         Restriction(name="w1", followed_by="w2", form="^" + forms[0] + "$", nested=[
-            [inner_rest, Restriction(name="cop", gov="cop")],
+            [inner_rest, Restriction(name="cop", gov="cop")],  # TODO: after adding the copula reconstuction, maybe this would be redundant
             [inner_rest]
         ])
     ]])
