@@ -14,7 +14,7 @@ def add_basic_edges(sentence):
         
         # add the relation
         head = token.get_conllu_field('head')
-        if  head != "_":
+        if head != "_":
             sentence[cur_id].add_edge(token.get_conllu_field('deprel'), sentence[token.get_conllu_field('head')])
 
 
