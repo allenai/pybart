@@ -591,7 +591,7 @@ def demote_per_type(sentence, restriction):
     for name_space in ret:
         old_gov, old_gov_head, old_gov_rel = name_space['w1']
         w2, w2_head, w2_rel = name_space['w2']
-        gov2, _, gov2_rel = name_space['gov2']
+        gov2, gov2_head, gov2_rel = name_space['gov2']
         
         words = [old_gov, w2]
         if 'w3' in name_space:
@@ -607,6 +607,7 @@ def demote_per_type(sentence, restriction):
         
         gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
         create_mwe(words, gov2, "det:qmod")
+        [child.replace_edge(rel, rel, head, gov2) for child in gov2_head.get_children() for (head, rel) in child.get_new_relations(gov2_head) if rel == "punct"]
 
 
 def demote_quantificational_modifiers(sentence):
