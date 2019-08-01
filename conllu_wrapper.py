@@ -128,11 +128,32 @@ def parse_odin(odin_json):
     return sentences
 
 
+def fix_sentence(conllu_sentence):
+    sorted_sent = sorted(conllu_sentence.items())
+    addon = 0
+    fixed = dict()
+    
+    for iid, token in sorted_sent:
+        if round(iid) != iid:
+            token.set_conllu_field("form", token.get_conllu_field("form") + "[COPY_NODE]")
+            addon += 1
+        
+        new_id = round(iid) + addon
+        token.set_conllu_field("id", new_id)
+        fixed[new_id] = token
+    
+    return fixed
+
+
 def conllu_to_odin_single_sentence(conllu_sentence, is_basic, odin_sentence=None):
+    fixed_sentence = conllu_sentence
+    
     if is_basic and not odin_sentence:
         graph = "universal-basic"
     else:
         graph = "universal-aryeh"
+        if any([round(iid) != iid for iid in conllu_sentence.keys()]):
+            fixed_sentence = fix_sentence(conllu_sentence)
     
     change_only_graph = True
     if not odin_sentence:
@@ -140,8 +161,8 @@ def conllu_to_odin_single_sentence(conllu_sentence, is_basic, odin_sentence=None
         change_only_graph = False
     else:
         odin_sentence["graphs"][graph] = {"edges": [], "roots": []}
-        
-    for iid, token in conllu_sentence.items():
+    
+    for iid, token in fixed_sentence.items():
         if iid == 0:
             continue
         if not change_only_graph:
@@ -175,7 +196,7 @@ def conllu_to_odin(conllu_sentences, is_basic=False, odin_to_enhance=None):
     else:
         odin = {"documents": {"": {
             "id": str(uuid.uuid4()),
-            "text": " ".join([token.get_conllu_field("form") for conllu_sentence in conllu_sentences for token in conllu_sentence.values() if token.get_conllu_field("id") != 0]),
+            "text": " ".join([token.get_conllu_field("form") for conllu_sentence in conllu_sentences for (_, token) in sorted(conllu_sentence.items()) if token.get_conllu_field("id") != 0]),
             "sentences": odin_sentences
         }}, "mentions": []}
     
