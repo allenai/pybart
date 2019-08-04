@@ -31,7 +31,7 @@ def correct_subj_pass(sentence):
         Restriction(gov='auxpass'),
         # the SC regex (which was "^(nsubj|csubj).*$") was changed here
         # to avoid the need to filter .subjpass relations in the graph-rewriting part
-        Restriction(gov="^(.subj|.subj:xsubj)$", name="subj")
+        Restriction(gov="^(.subj|.subj:.*)$", name="subj")
     ]])
     
     ret = match(sentence.values(), [[restriction]])
@@ -715,7 +715,7 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
                 leftmost_rel = 'nmod:' + rels_with_pos[('nmod', 'IN')]
             else:
                 leftmost_rel = 'dobj'
-            gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
+            gov.add_edge(leftmost_rel + ":extra", leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
 # resolves the following multi word conj phrases:
