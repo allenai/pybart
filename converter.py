@@ -671,7 +671,7 @@ def assign_refs(ret):
 # for the ref TypedDependency.
 # Then we collapse the referent relation such as follows. e.g.:
 # "The man that I love ... " dobj(love, that) -> ref(man, that) dobj(love, man)
-def add_ref_and_collapse(sentence, enhanced_extra):
+def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
     child_rest = Restriction(name="child_ref", form=relativizing_word_regex)
     grandchild_rest = Restriction(nested=[[
         Restriction(name="grand_ref", form=relativizing_word_regex)
@@ -681,7 +681,7 @@ def add_ref_and_collapse(sentence, enhanced_extra):
             [grandchild_rest, child_rest],
             [grandchild_rest],
             [child_rest],
-            [] if enhanced_extra else None
+            []
         ]),
     ]])
     
@@ -694,17 +694,30 @@ def add_ref_and_collapse(sentence, enhanced_extra):
     for name_space in ret:
         gov, gov_head, gov_rel = name_space['gov']
         if ref_assignments and name_space['mod'] in ref_assignments:
+            if not enhanced_plus_plus:
+                continue
             leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
             if gov not in leftmost.get_parents():
                 leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
                 gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
         # this is for reduce-relative-clause
-        else:
+        elif enhanced_extra:
             leftmost_head, _, _ = name_space['mod']
             rels_with_pos = [(relation[1], child.get_conllu_field('xpos')) for child in leftmost_head.get_children() for relation in child.get_new_relations(leftmost_head)]
             rels_only = [rel for (rel, pos) in rels_with_pos]
-            leftmost_rel = 'nsubj' if (("nsubj" not in rels_only) and ("nsubjpass" not in rels_only)) else \
-                ('nmod' if (('where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]) or ((('nmod', 'RB') in rels_with_pos) or (('nmod', 'IN') in rels_with_pos))) else 'dobj')
+
+            if ("nsubj" not in rels_only) and ("nsubjpass" not in rels_only):
+                leftmost_rel = 'nsubj'
+            elif 'where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
+                leftmost_rel = 'nmod'
+            elif ('nmod', 'RB') in rels_with_pos:
+                leftmost_rel = 'nmod:' + rels_with_pos[('nmod', 'RB')]
+            elif ('advmod', 'RB') in rels_with_pos:
+                leftmost_rel = 'nmod:' + rels_with_pos[('advmod', 'RB')]
+            elif ('nmod', 'IN') in rels_with_pos:
+                leftmost_rel = 'nmod:' + rels_with_pos[('nmod', 'IN')]
+            else:
+                leftmost_rel = 'dobj'
             gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
@@ -890,8 +903,8 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         conj_info(sentence)
     
     # referent: addRef, collapseReferent
-    if enhanced_plus_plus:
-        add_ref_and_collapse(sentence, enhanced_extra)
+    if enhanced_plus_plus or enhanced_extra:
+        add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra)
 
     if enhanced:
         # treatCC

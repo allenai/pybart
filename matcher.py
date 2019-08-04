@@ -129,8 +129,6 @@ def match_rl(children, restriction_list, head):
 
 def match(children, restriction_lists, head=None):
     for restriction_list in restriction_lists:
-        if restriction_list is None:
-            continue
         ret = match_rl(children, restriction_list, head)
         if ret is not None:
             return ret
