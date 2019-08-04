@@ -194,7 +194,7 @@ def subj_of_conjoined_verbs(sentence):
         
         if subj_rel.endswith("subjpass") and conj.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
             subj_rel = subj_rel[:-4]
-        elif subj_rel.endswith("subj") and "auxpass" in [relation for child in conj.get_children() for relation in child.get_new_relations(conj)]:
+        elif subj_rel.endswith("subj") and "auxpass" in [relation for (child, relation) in conj.get_children_with_rels()]:
             subj_rel += "pass"
         
         subj.add_edge(subj_rel, conj)
@@ -416,10 +416,7 @@ def is_prep_seq(words, preps):
 
 def reattach_children(old_head, new_head):
     # store them before we make change to the original list
-    for child in list(old_head.get_children()):
-        # this is only for the multi-graph case
-        for child_head, child_rel in list(child.get_new_relations(given_head=old_head)):
-            child.replace_edge(child_rel, child_rel, old_head, new_head)
+    [child.replace_edge(child_rel, child_rel, old_head, new_head) for (child, child_rel) in old_head.get_children_with_rels()]
 
 
 def split_concats_by_index(prep_list, prep_len):
@@ -607,7 +604,7 @@ def demote_per_type(sentence, restriction):
         
         gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
         create_mwe(words, gov2, "det:qmod")
-        [child.replace_edge(rel, rel, head, gov2) for child in gov2_head.get_children() for (head, rel) in child.get_new_relations(gov2_head) if rel == "punct"]
+        [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels() if rel == "punct"]
 
 
 def demote_quantificational_modifiers(sentence):
@@ -703,8 +700,8 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
         # this is for reduce-relative-clause
         elif enhanced_extra:
             leftmost_head, _, _ = name_space['mod']
-            rels_with_pos = [(relation[1], child.get_conllu_field('xpos')) for child in leftmost_head.get_children() for relation in child.get_new_relations(leftmost_head)]
-            rels_only = [rel for (rel, pos) in rels_with_pos]
+            rels_with_pos = {(relation, child.get_conllu_field('xpos')): child.get_conllu_field('form') for (child, relation) in leftmost_head.get_children_with_rels()}
+            rels_only = [rel for (rel, pos) in rels_with_pos.keys()]
 
             if ("nsubj" not in rels_only) and ("nsubjpass" not in rels_only):
                 leftmost_rel = 'nsubj'

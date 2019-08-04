@@ -32,6 +32,9 @@ class Token(object):
     def get_children(self):
         return self._children_list
     
+    def get_children_with_rels(self):
+        return [(child, relation[1]) for child in self.get_children() for relation in child.get_new_relations(self)]
+    
     def get_conllu_string(self):
         # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
         # as required by the format.
