@@ -303,39 +303,36 @@ def advcl_propagation(sentence):
         advcl_propagation_per_type(sentence, advcl_restriction)
 
 
-def acl_propagation_per_type(sentence, restriction):
-    ret = match(sentence.values(), [[restriction]])
+def acl_propagation(sentence):
+    basic_acl = Restriction(name="father", nested=[[
+            Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+    ]])
+    
+    subj_bro = Restriction(nested=[[
+            basic_acl,
+            Restriction(name="subj", gov=".?subj.*", diff="father")
+    ]])
+
+    subj_uncle = Restriction(nested=[[
+            Restriction(name="obj_outter", nested=[[
+                basic_acl
+            ]]),
+            Restriction(name="subj", gov=".?subj.*", diff="father")
+    ]])
+    
+    ret = match(sentence.values(), [[subj_bro], [subj_uncle], [basic_acl]])
     if not ret:
         return
-    
+
     for name_space in ret:
-        subj, _, _ = name_space['subj']
-        obj, _, _ = name_space['obj']
+        father, _, _ = name_space['father']
         dep, _, _ = name_space['dep']
-        subj.add_edge("nsubj:asubj:extra_opt", dep)
-        obj.add_edge("nsubj:asubj:extra_opt", dep)
-
-
-def acl_plus_propagation(sentence):
-    acl_chain_rest = Restriction(nested=[[
-        Restriction(name="obj_outter", gov="(.?obj|nmod)", nested=[[
-            Restriction(name="obj", gov="(.?obj|nmod)", nested=[[
-                Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
-            ]])
-        ]]),
-        Restriction(name="subj", gov="nsubj*")
-    ]])
-    
-    basic_acl_rest = Restriction(nested=[[
-        Restriction(name="obj", gov="(.?obj|nmod)", nested=[[
-            Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
-        ]]),
-        Restriction(name="subj", gov="nsubj*")
-    ]])
-    
-    for acl_plus_restriction in [acl_chain_rest, basic_acl_rest]:
-        acl_propagation_per_type(sentence, acl_plus_restriction)
-
+        addition = ""
+        if 'subj' in name_space:
+            subj, _, _ = name_space['subj']
+            subj.add_edge("nsubj:asubj:extra_opt", dep)
+            addition = "_opt"
+        father.add_edge("nsubj:asubj:extra" + addition, dep)
 
 def dep_propagation(sentence):
     dep_rest = Restriction(nested=[[
@@ -914,7 +911,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     if enhanced_extra:
         xcomp_propagation_no_to(sentence)
         advcl_propagation(sentence)
-        acl_plus_propagation(sentence)
+        acl_propagation(sentence)
         dep_propagation(sentence)
         conj_propagation_of_nmods(sentence)
         advmod_propagation(sentence)
