@@ -304,20 +304,28 @@ def advcl_propagation(sentence):
 
 
 def acl_propagation(sentence):
+    # The apple chosen by god, was good.
     basic_acl = Restriction(name="father", nested=[[
-            Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+        Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
     ]])
     
+    only_obj_or_nmod = Restriction(name="father", gov="(.?obj|nmod.*)", nested=[[
+        Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+    ]])
+    
+    # I ate the apple chosen by god.
+    # I ate from the apple chosen by god.
     subj_bro = Restriction(nested=[[
-            basic_acl,
-            Restriction(name="subj", gov=".?subj.*", diff="father")
+        only_obj_or_nmod,
+        Restriction(name="subj", gov=".?subj.*", diff="father")
     ]])
 
+    # "I ate a slice of the apple chosen by god."
     subj_uncle = Restriction(nested=[[
-            Restriction(name="obj_outter", nested=[[
-                basic_acl
-            ]]),
-            Restriction(name="subj", gov=".?subj.*", diff="father")
+        Restriction(name="obj_outter", gov="(.?obj|nmod.*)", nested=[[
+            only_obj_or_nmod
+        ]]),
+        Restriction(name="subj", gov=".?subj.*", diff="father")
     ]])
     
     ret = match(sentence.values(), [[subj_bro], [subj_uncle], [basic_acl]])
