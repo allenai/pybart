@@ -280,7 +280,7 @@ def advcl_propagation(sentence):
     
     basic_advcl_rest = Restriction(no_sons_of=".?obj", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
-            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to|as|so|when|if)$)).")
+            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
@@ -290,7 +290,7 @@ def advcl_propagation(sentence):
     ]])
     ambiguous_advcl_rest = Restriction(nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
-            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:to|as|so|when|if)$)).")
+            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
@@ -341,6 +341,7 @@ def acl_propagation(sentence):
             subj.add_edge("nsubj:asubj:extra_opt", dep)
             addition = "_opt"
         father.add_edge("nsubj:asubj:extra" + addition, dep)
+
 
 def dep_propagation(sentence):
     dep_rest = Restriction(nested=[[
