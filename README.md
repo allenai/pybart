@@ -10,7 +10,7 @@ This (badly-named) project includes couple of mini-projects, all related to the 
 The converter converts UD (v1.4) to enhancedUD, enhancedUD++, and extra-enhancements (discovered as part of my thesis).
 It supports Conll-U and Odin formats (and some conversions between them).
 
-Generally, I tried to maintain the same behavior (mentioned [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf)) that was implemented by [core-NLP](https://nlp.stanford.edu/software/stanford-dependencies.shtml) java converter as much as reasonable.
+Generally, I tried to maintain the same behavior (mentioned [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf), and that was implemented by [core-NLP java converter](https://nlp.stanford.edu/software/stanford-dependencies.shtml)) as much as reasonable.
 
 The converter coveres the following conversions:
 
