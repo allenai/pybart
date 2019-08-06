@@ -20,7 +20,19 @@ relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
+advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
 EXTRA_INFO_STUB = 1
+
+
+def add_extra_info(orig, dep, iid=None, uncertain=False):
+    unc = ""
+    if uncertain:
+        unc = "_unc"
+    iid_str = ""
+    if iid is not None:
+        iid_str = "_id=" + str(iid)
+    
+    return orig + ":" + dep + "_extra" + unc + iid_str
 
 
 # This method corrects subjects of verbs for which we identified an auxpass,
@@ -210,14 +222,10 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
     if not ret:
         return
     
-    extra = ""
-    if is_extra:
-        extra = ":extra"
-    
     for name_space in ret:
         new_subj, _, _ = name_space['new_subj']
         dep, _, _ = name_space['dep']
-        new_subj.add_edge("nsubj:xsubj" + extra, dep)
+        new_subj.add_edge("nsubj:xsubj" if not is_extra else add_extra_info("nsubj", "xsubj"), dep)
 
 
 # Add extra nsubj dependencies when collapsing basic dependencies.
@@ -252,22 +260,25 @@ def xcomp_propagation_no_to(sentence):
     xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
 
 
-def advcl_propagation_per_type(sentence, restriction):
+def advcl_propagation_per_type(sentence, restriction, iids):
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
-        
+    
     for name_space in ret:
         if 'new_subj' in name_space:
             new_subj_str = 'new_subj'
-            opt = ""
+            cur_iid = None
         else:
+            father, _, _ = name_space["father"]
+            if father not in iids:
+                iids[father] = 0 if len(iids.values()) == 0 else (max(iids.values()) + 1)
+            cur_iid = iids[father]
             new_subj_str = 'new_subj_opt'
-            opt = "_opt"
         
         new_subj, _, _ = name_space[new_subj_str]
         dep, _, _ = name_space['dep']
-        new_subj.add_edge("nsubj:asubj:extra" + opt, dep)
+        new_subj.add_edge(add_extra_info("nsubj", "advcl", iid=cur_iid), dep)
 
 
 def advcl_propagation(sentence):
@@ -288,63 +299,69 @@ def advcl_propagation(sentence):
         Restriction(name="dep", gov="advcl", no_sons_of="(nsubj.*|aux|mark)"),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
-    ambiguous_advcl_rest = Restriction(nested=[[
+    ambiguous_advcl_rest = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
-    ambiguous_advcl_rest_no_mark = Restriction(nested=[[
+    ambiguous_advcl_rest_no_mark = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="(nsubj.*|aux|mark)"),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
-    
+
+    iids = dict()
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
-        advcl_propagation_per_type(sentence, advcl_restriction)
+        advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
 
 def acl_propagation(sentence):
-    # The apple chosen by god, was good.
-    basic_acl = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
-    ]])
-    
     only_obj_or_nmod = Restriction(name="father", gov="(.?obj|nmod.*)", nested=[[
         Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
     ]])
     
-    # I ate the apple chosen by god.
-    # I ate from the apple chosen by god.
-    subj_bro = Restriction(nested=[[
-        only_obj_or_nmod,
-        Restriction(name="subj", gov=".?subj.*", diff="father")
-    ]])
-
-    # "I ate a slice of the apple chosen by god."
-    subj_uncle = Restriction(nested=[[
-        Restriction(name="obj_outter", gov="(.?obj|nmod.*)", nested=[[
-            only_obj_or_nmod
-        ]]),
-        Restriction(name="subj", gov=".?subj.*", diff="father")
-    ]])
+    acl_rest = Restriction(name="verb", nested=[
+        # I ate the apple chosen by god.
+        # I ate from the apple chosen by god.
+        [
+            only_obj_or_nmod,
+            Restriction(name="subj", gov=".?subj.*", diff="father")
+        ],
+        # "I ate a slice of the apple chosen by god."
+        [
+            Restriction(name="obj_outter", gov="(.?obj|nmod.*)", nested=[[
+                only_obj_or_nmod
+            ]]),
+            Restriction(name="subj", gov=".?subj.*", diff="father")
+        ],
+        # The apple chosen by god, was good.
+        # The apple chosen by me.
+        [
+            Restriction(name="father", nested=[[
+                Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+            ]])
+        ]
+    ])
     
-    ret = match(sentence.values(), [[subj_bro], [subj_uncle], [basic_acl]])
+    ret = match(sentence.values(), [[acl_rest]])
     if not ret:
         return
-
+    
+    iid = 0
     for name_space in ret:
         father, _, _ = name_space['father']
         dep, _, _ = name_space['dep']
-        addition = ""
         if 'subj' in name_space:
             subj, _, _ = name_space['subj']
-            subj.add_edge("nsubj:asubj:extra_opt", dep)
-            addition = "_opt"
-        father.add_edge("nsubj:asubj:extra" + addition, dep)
+            subj.add_edge(add_extra_info("nsubj", "acl", iid=iid), dep)
+            father.add_edge(add_extra_info("nsubj", "acl", iid=iid), dep)
+            iid += 1
+        else:
+            father.add_edge(add_extra_info("nsubj", "acl"), dep)
 
 
 def dep_propagation(sentence):
-    dep_rest = Restriction(nested=[[
+    dep_rest = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="dep", no_sons_of="nsubj.*"),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
@@ -352,11 +369,17 @@ def dep_propagation(sentence):
     ret = match(sentence.values(), [[dep_rest]])
     if not ret:
         return
-
+    
+    iid = 0
+    iids = dict()
     for name_space in ret:
         new_subj_opt, _, _ = name_space['new_subj_opt']
         dep, _, _ = name_space['dep']
-        new_subj_opt.add_edge("nsubj:dsubj:extra_opt", dep)
+        father, _, _ = name_space['father']
+        if father not in iids:
+            iids[father] = iid
+            iid += 1
+        new_subj_opt.add_edge(add_extra_info("nsubj", "dep", iid=iids[father], uncertain=True), dep)
 
 
 def conj_propagation_of_nmods_per_type(sentence, rest):
@@ -370,7 +393,7 @@ def conj_propagation_of_nmods_per_type(sentence, rest):
         
         if '.' not in str(receiver.get_conllu_field("id")) and \
                 nmod.get_conllu_field("id") > receiver.get_conllu_field("id"):
-            nmod.add_edge(nmod_rel + ":extra_opt", receiver)
+            nmod.add_edge(add_extra_info(nmod_rel, "conj", uncertain=True), receiver)
 
 
 def conj_propagation_of_nmods(sentence):
@@ -391,8 +414,8 @@ def conj_propagation_of_nmods(sentence):
 
 def advmod_propagation(sentence):
     advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(gov="(.?obj|nsubj.*|nmod.*)", nested=[[
-            Restriction(name="advmod", gov="advmod", form="(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)")
+        Restriction(name="middle_man", gov="(.?obj|nsubj.*|nmod.*)", nested=[[
+            Restriction(name="advmod", gov="advmod", form=advmod_list)
         ]])
     ]])
     ret = match(sentence.values(), [[advmod_rest]])
@@ -401,10 +424,11 @@ def advmod_propagation(sentence):
     
     for name_space in ret:
         advmod, _, advmod_rel = name_space['advmod']
+        _, _, middle_man_rel = name_space['middle_man']
         gov, _, _ = name_space['gov']
         
         if gov not in advmod.get_parents():
-            advmod.add_edge(advmod_rel + ":extra", gov)
+            advmod.add_edge(add_extra_info(advmod_rel, middle_man_rel.split(":")[0]), gov)
 
 
 def appos_propagation(sentence):
@@ -421,7 +445,7 @@ def appos_propagation(sentence):
         
         for (gov_head, gov_rel) in gov.get_new_relations():
             if (gov_head, gov_rel) not in appos.get_new_relations():
-                appos.add_edge(gov_rel + ":extra", gov_head)
+                appos.add_edge(add_extra_info(gov_rel, "appos"), gov_head)
 
 
 def create_mwe(words, head, rel):
@@ -738,7 +762,7 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
                 leftmost_rel = 'nmod:' + rels_with_pos[('nmod', 'IN')]
             else:
                 leftmost_rel = 'dobj'
-            gov.add_edge(leftmost_rel + ":extra", leftmost_head, extra_info=EXTRA_INFO_STUB)
+            gov.add_edge(add_extra_info(leftmost_rel, "reduced-relcl"), leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
 # resolves the following multi word conj phrases:
