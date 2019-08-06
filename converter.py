@@ -407,6 +407,23 @@ def advmod_propagation(sentence):
             advmod.add_edge(advmod_rel + ":extra", gov)
 
 
+def appos_propagation(sentence):
+    appos_rest = Restriction(name="gov", nested=[[
+        Restriction(name="appos", gov="appos")
+    ]])
+    ret = match(sentence.values(), [[appos_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        appos, _, _ = name_space['appos']
+        gov, _, _ = name_space['gov']
+        
+        for (gov_head, gov_rel) in gov.get_new_relations():
+            if (gov_head, gov_rel) not in appos.get_new_relations():
+                appos.add_edge(gov_rel + ":extra", gov_head)
+
+
 def create_mwe(words, head, rel):
     for i, word in enumerate(words):
         word.remove_all_edges()
@@ -924,6 +941,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         dep_propagation(sentence)
         conj_propagation_of_nmods(sentence)
         advmod_propagation(sentence)
+        appos_propagation(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
