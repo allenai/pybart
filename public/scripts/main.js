@@ -54,7 +54,7 @@ define([
                 basicTag.links.forEach((e) => {
                     found = false
                     links.forEach((e2) => {
-                        if ((e2.arguments[0].anchor.text == e.arguments[0].anchor.text) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (e2.trigger.text == e.trigger.text))))
+                        if ((e2.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (e2.trigger.idx == e.trigger.idx))))
                         {
                             found = true
                             if (e2.reltype != e.reltype)
@@ -69,7 +69,7 @@ define([
                     {   
                         e.svg.node.style.fill = "#00FF00"
                         basicTag.links.forEach((e3) => {
-                            if ((e != e3) && ((((e3.arguments[0].anchor.text == e.arguments[0].anchor.text) && (((e.trigger in window) && (e3.trigger in window)) || ((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.trigger.text == e.trigger.text)))) || (((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.arguments[0].anchor.text == e.trigger.text) && (e3.trigger.text == e.arguments[0].anchor.text))))))
+                            if ((e != e3) && ((((e3.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e3.trigger in window)) || ((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.trigger.idx == e.trigger.idx)))) || (((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.arguments[0].anchor.idx == e.trigger.idx) && (e3.trigger.idx == e.arguments[0].anchor.idx))))))
                             {
                                 e.top = false
                                 e.slot = e.slot * -1
@@ -83,7 +83,7 @@ define([
                 links.forEach((e) => {
                     found = false
                     basicTag.links.forEach((e2) => {
-                        if ((e2.arguments[0].anchor.text == e.arguments[0].anchor.text) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (e2.trigger.text == e.trigger.text))))
+                        if ((e2.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (e2.trigger.idx == e.trigger.idx))))
                         {
                             found = true
                         }
