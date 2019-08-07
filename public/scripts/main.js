@@ -51,6 +51,7 @@ define([
             basicTag.redraw()
             if (links.length > 0)
             {
+				var dict = {};
                 basicTag.links.forEach((e) => {
                     found = false
                     links.forEach((e2) => {
@@ -66,17 +67,42 @@ define([
                     })
 
                     if (found == false)
-                    {   
-                        e.svg.node.style.fill = "#00FF00"
-                        basicTag.links.forEach((e3) => {
-                            if ((e != e3) && ((((e3.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e3.trigger in window)) || ((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.trigger.idx == e.trigger.idx)))) || (((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.arguments[0].anchor.idx == e.trigger.idx) && (e3.trigger.idx == e.arguments[0].anchor.idx))))))
-                            {
-                                e.top = false
-                                e.slot = e.slot * -1
-                                e.show()
-                                basicTag.resize()
-                            }
-                        })
+                    {
+						var other = -1
+						if (!(e.trigger in window))
+						{
+							other = e.trigger.idx
+						}
+						var min = Math.min(e.arguments[0].anchor.idx, other)
+						var max = Math.max(e.arguments[0].anchor.idx, other)
+						pair = [min, max]
+						
+                        var clash = false
+						e.svg.node.style.fill = "#00FF00"
+                        if (pair in dict)
+						{
+							clash = true
+							dict[pair] -= 1
+						}
+						else
+						{
+							basicTag.links.every((e3) => {
+								if ((e != e3) && ((((e3.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e3.trigger in window)) || ((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.trigger.idx == e.trigger.idx)))) || (((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.arguments[0].anchor.idx == e.trigger.idx) && (e3.trigger.idx == e.arguments[0].anchor.idx))))))
+								{
+									clash = true
+									dict[pair] = -1
+									return false;
+								}
+								return true;
+							})
+						}
+                        if (clash == true)
+                        {
+                            e.top = false
+							e.slot = dict[pair]
+                            e.show()
+                            basicTag.resize()	
+                        }
                     }
                     
                 })
