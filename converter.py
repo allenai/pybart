@@ -320,7 +320,7 @@ def acl_propagation(sentence):
         Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
     ]])
     
-    acl_rest = Restriction(name="verb", nested=[
+    acl_rest = Restriction(name="verb", xpos="(VB.?|BES|HVS|JJ.?)", nested=[
         # I ate the apple chosen by god.
         # I ate from the apple chosen by god.
         [
@@ -343,7 +343,14 @@ def acl_propagation(sentence):
         ]
     ])
     
-    ret = match(sentence.values(), [[acl_rest]])
+    acl_nominal = Restriction(name="root", nested=[[
+        # The apple chosen by me.
+        Restriction(name="father", gov="ROOT", nested=[[
+            Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[acl_rest], [acl_nominal]])
     if not ret:
         return
     
