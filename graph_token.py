@@ -110,3 +110,6 @@ class Token(object):
     # operator overloading: less than
     def __lt__(self, other):
         return self.get_conllu_field('id') < other.get_conllu_field('id')
+    
+    def dist(self, other):
+        return other.get_conllu_field('id') - self.get_conllu_field('id')
