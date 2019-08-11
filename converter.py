@@ -501,20 +501,21 @@ def copula_reconstruction(sentence):
             noun.remove_edge(rel, head)
             verb.add_edge(rel, head)
 
-        is_mod = False
         ccs = [cc_child for cc_child, cc_rel in noun.get_children_with_rels() if cc_rel == "cc"]
         for child, rel in noun.get_children_with_rels():
             if re.match("(.subj.*|aux.*|discourse|mark|punct)", rel):
                 child.replace_edge(rel, rel, noun, verb)
             elif "cop" == rel:
                 child.replace_edge(rel, "aux", noun, verb)
-            elif "case" == rel:
-                is_mod = True
             elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
                 child.replace_edge(rel, rel, noun, verb)
                 attach_best_cc(child, ccs, noun, verb)
-                
-        noun.add_edge("nmod" if is_mod else "dobj", verb)
+        
+        if re.match("JJ.?", noun.get_conllu_field("xpos")):
+            new_out_rel = "amod"
+        else:
+            new_out_rel = "nmod"
+        noun.add_edge(new_out_rel, verb)
         
         sentence[new_id] = verb
 
