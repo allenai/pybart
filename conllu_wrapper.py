@@ -135,7 +135,8 @@ def fix_sentence(conllu_sentence):
     
     for iid, token in sorted_sent:
         if round(iid) != iid:
-            token.set_conllu_field("form", token.get_conllu_field("form") + "[COPY_NODE]")
+            if "CopyOf" in token.get_conllu_field("misc"):
+                token.set_conllu_field("form", token.get_conllu_field("form") + "[COPY_NODE]")
             addon += 1
         
         new_id = round(iid) + addon
