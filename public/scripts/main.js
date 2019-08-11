@@ -51,11 +51,29 @@ define([
             basicTag.redraw()
             if (links.length > 0)
             {
+				// find the shift when word amount is changed.
+				var shifts = {};
+				var pointer1 = 0;
+				var pointer2 = 0;
+				while (pointer1 < links[0].main.words.length)
+				{
+					shifts[pointer2] = pointer1
+					if (links[0].main.words[pointer1].text == basicTag.links[0].main.words[pointer2].text)
+					{ 
+						pointer1++;
+					}
+					else
+					{
+						shifts[pointer2] -= 0.9
+					}
+					pointer2++;
+				}
+				
 				var dict = {};
                 basicTag.links.forEach((e) => {
                     found = false
                     links.forEach((e2) => {
-                        if ((e2.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (e2.trigger.idx == e.trigger.idx))))
+                        if ((e2.arguments[0].anchor.idx == shifts[e.arguments[0].anchor.idx]) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (e2.trigger.idx == shifts[e.trigger.idx]))))
                         {
                             found = true
                             if (e2.reltype != e.reltype)
@@ -87,7 +105,7 @@ define([
 						else
 						{
 							basicTag.links.every((e3) => {
-								if ((e != e3) && ((((e3.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e3.trigger in window)) || ((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.trigger.idx == e.trigger.idx)))) || (((!(e.trigger in window)) && (!(e3.trigger in window)) && (e3.arguments[0].anchor.idx == e.trigger.idx) && (e3.trigger.idx == e.arguments[0].anchor.idx))))))
+								if ((e != e3) && ((((shifts[e3.arguments[0].anchor.idx] == shifts[e.arguments[0].anchor.idx]) && (((e.trigger in window) && (e3.trigger in window)) || ((!(e.trigger in window)) && (!(e3.trigger in window)) && (shifts[e3.trigger.idx] == shifts[e.trigger.idx])))) || (((!(e.trigger in window)) && (!(e3.trigger in window)) && (shifts[e3.arguments[0].anchor.idx] == shifts[e.trigger.idx]) && (shifts[e3.trigger.idx] == shifts[e.arguments[0].anchor.idx]))))))
 								{
 									clash = true
 									dict[pair] = -1
@@ -109,7 +127,7 @@ define([
                 links.forEach((e) => {
                     found = false
                     basicTag.links.forEach((e2) => {
-                        if ((e2.arguments[0].anchor.idx == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (e2.trigger.idx == e.trigger.idx))))
+                        if ((shifts[e2.arguments[0].anchor.idx] == e.arguments[0].anchor.idx) && (((e.trigger in window) && (e2.trigger in window)) || ((!(e.trigger in window)) && (!(e2.trigger in window)) && (shifts[e2.trigger.idx] == e.trigger.idx))))
                         {
                             found = true
                         }
