@@ -5,6 +5,7 @@
 #   3. we look for all fathers as we can have multiple fathers, while in SC they look at first one found.
 
 import regex as re
+import numpy as np
 
 from matcher import match, Restriction
 
@@ -453,6 +454,69 @@ def appos_propagation(sentence):
         for (gov_head, gov_rel) in gov.get_new_relations():
             if (gov_head, gov_rel) not in appos.get_new_relations():
                 appos.add_edge(add_extra_info(gov_rel, "appos"), gov_head)
+
+
+# find the closest cc to the conj with precedence for left hand ccs
+def attach_best_cc(conj, ccs, noun, verb):
+    closest_cc = None
+    closest_dist = None
+    for cur_cc in ccs:
+        cur_dist = conj.dist(cur_cc)
+        if (not closest_cc) or \
+                ((np.sign(closest_dist) == np.sign(cur_dist)) and (abs(cur_dist) < abs(closest_dist))) or \
+                ((np.sign(closest_dist) != np.sign(cur_dist)) and (np.sign(cur_dist) == -1)):
+            closest_cc = cur_cc
+            closest_dist = conj.dist(closest_cc)
+    if closest_cc:
+        closest_cc.replace_edge("cc", "cc", noun, verb)
+
+
+def copula_reconstruction(sentence):
+    cop_rest = Restriction(name="father", nested=[[
+        Restriction(name="noun", xpos="(?!:(VB.?|BES|HVS))", nested=[[
+            Restriction(name="cop", gov="cop"),
+        ]])
+    ]])
+    ret = match(sentence.values(), [[cop_rest]])
+    if not ret:
+        return
+
+    for name_space in ret:
+        noun, _, _ = name_space['noun']
+        cop, _, _ = name_space['cop']
+        
+        new_id = cop.get_conllu_field('id') + 0.1
+        verb = cop.copy(
+            new_id=new_id,
+            form="STATE",
+            lemma="_",
+            upos="_",
+            xpos="_",
+            feats="_",
+            head="_",
+            deprel="_",
+            deps=None)
+        
+        for head, rel in noun.get_new_relations():
+            noun.remove_edge(rel, head)
+            verb.add_edge(rel, head)
+
+        is_mod = False
+        ccs = [cc_child for cc_child, cc_rel in noun.get_children_with_rels() if cc_rel == "cc"]
+        for child, rel in noun.get_children_with_rels():
+            if re.match("(.subj.*|aux.*|discourse|mark|punct)", rel):
+                child.replace_edge(rel, rel, noun, verb)
+            elif "cop" == rel:
+                child.replace_edge(rel, "aux", noun, verb)
+            elif "case" == rel:
+                is_mod = True
+            elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
+                child.replace_edge(rel, rel, noun, verb)
+                attach_best_cc(child, ccs, noun, verb)
+                
+        noun.add_edge("nmod" if is_mod else "dobj", verb)
+        
+        sentence[new_id] = verb
 
 
 def create_mwe(words, head, rel):
@@ -933,6 +997,9 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
+    
+    if enhanced_extra:
+        copula_reconstruction(sentence)
     
     if enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
