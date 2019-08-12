@@ -1,7 +1,7 @@
 # UD2UDE
 
 This (badly-named) project includes couple of mini-projects, all related to the main goal of my thesis.
-1. [**Converter:**](#Converter) python(3.6) converter, aimed to replace core-nlp's Java converter, and with my researched add-ins.
+1. [**Converter:**](#Converter) Universal-Dependencies to enhancedUD converter, aimed to port core-nlp's Java converter to a python(3.6) converter, and with my researched add-ins ("extra or Aryeh's enhancements").
 2. [**Model:**](#Model) spaCy trained model based on UD (and PENN converted to UD) dataset.
 3. [**Demo:**](#Demo) JS and python code, making use of the converter.
 4. [**spacy2odin:**](#spacy2odin) jsons converter for annotating data using the Model (above) for odin-son indexing.
