@@ -1,12 +1,14 @@
 # UD2UDE
 
 This (badly-named) project includes couple of mini-projects, all related to the main goal of my thesis.
-1. **Converter:** python(3.6) converter, aimed to replace core-nlp's Java converter, and with my researched add-ins.
-2. **Model:** spaCy trained model based on UD (and PENN converted to UD) dataset.
-3. **Demo:** JS and python code, making use of the converter.
-4. **spacy2odin:** jsons converter for annotating data using the Model (above) for odin-son indexing.
+1. [**Converter:**](#Converter) python(3.6) converter, aimed to replace core-nlp's Java converter, and with my researched add-ins.
+2. [**Model:**](#Model) spaCy trained model based on UD (and PENN converted to UD) dataset.
+3. [**Demo:**](#Demo) JS and python code, making use of the converter.
+4. [**spacy2odin:**](#spacy2odin) jsons converter for annotating data using the Model (above) for odin-son indexing.
 
-# Converter
+<a name="Converter"/>
+
+## Converter
 The converter converts UD (v1.4) to enhancedUD, enhancedUD++, and extra-enhancements (discovered as part of my thesis).
 It supports Conll-U and Odin formats (and some conversions between them).
 
@@ -38,11 +40,14 @@ The converter coveres the following conversions:
 | nmod   propagation                                                                  | -                                                                                                                                              | -                                                                                                         | -               | TBD             | 1.   Through conj is already covered<br>2. Through advmod is promising<br>3. Through subject/object/-nmod-chain - still under research                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Active-passive   alteration                                                         | (see   [here](https://www.aclweb.org/anthology/W17-6507))                                                                                      | -                                                                                                         | -               | TBD             |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Copula   alteration                                                                 | -                                                                                                                                              | -                                                                                                         | -               | TBD             | Add   a verb placeholder, reconstruct the tree as if the verb was there.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+<a name="Model"/>
 
-# Model
+## Model
 TODO
 
-# Demo
+<a name="Demo"/>
+
+## Demo
 TODO
 
 Extra enhancements label guide: SOURCE_extra_unc_id=NUM 
@@ -51,5 +56,7 @@ extra: magic word for extra enhancements,
 unc: (optionl) if a relation is uncertain, 
 id=NUM: (optionl) give the same ID for every optional target when there is more than one.
 
-# spacy2odin
+<a name="spacy2odin"/>
+
+## spacy2odin
 TODO
