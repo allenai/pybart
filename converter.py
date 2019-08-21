@@ -390,7 +390,7 @@ def dep_propagation(sentence):
         new_subj_opt.add_edge(add_extra_info("nsubj", "dep", iid=iids[father], uncertain=True), dep)
 
 
-def conj_propagation_of_nmods_per_type(sentence, rest):
+def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=False):
     ret = match(sentence.values(), [[rest]])
     if not ret:
         return
@@ -400,14 +400,14 @@ def conj_propagation_of_nmods_per_type(sentence, rest):
         receiver, _, _ = name_space['receiver']
         
         if '.' not in str(receiver.get_conllu_field("id")) and \
-                nmod.get_conllu_field("id") > receiver.get_conllu_field("id"):
+                (dont_check_precedence or nmod.get_conllu_field("id") > receiver.get_conllu_field("id")):
             nmod.add_edge(add_extra_info(nmod_rel, "conj", uncertain=True), receiver)
 
 
 def conj_propagation_of_nmods(sentence):
     son_rest = Restriction(name="receiver", no_sons_of="nmod", nested=[[
         Restriction(gov="conj", nested=[[
-            Restriction(name="nmod", gov="nmod(?!:.*extra)")
+            Restriction(name="nmod", gov="nmod(?!(:.*extra|:poss.*))")
         ]])
     ]])
 
@@ -420,6 +420,16 @@ def conj_propagation_of_nmods(sentence):
         conj_propagation_of_nmods_per_type(sentence, conj_restriction)
 
 
+def conj_propagation_of_poss(sentence):
+    poss_rest = Restriction(nested=[[
+        Restriction(name="receiver", no_sons_of="nmod:poss.*", gov="conj"),
+        Restriction(name="nmod", gov="nmod(?!:.*extra)")
+    ]])
+    
+    conj_propagation_of_nmods_per_type(sentence, poss_rest, True)
+
+
+# phenomena: indexicals
 def advmod_propagation(sentence):
     advmod_rest = Restriction(name="gov", nested=[[
         Restriction(name="middle_man", gov="(.?obj|nsubj.*|nmod.*)", nested=[[
@@ -1039,6 +1049,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         acl_propagation(sentence)
         dep_propagation(sentence)
         conj_propagation_of_nmods(sentence)
+        conj_propagation_of_poss(sentence)
         advmod_propagation(sentence)
         appos_propagation(sentence)
     
