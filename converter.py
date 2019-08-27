@@ -842,6 +842,20 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
                 leftmost_rel = 'nmod:' + rels_with_pos[('advmod', 'RB')]
             elif ('nmod', 'IN') in rels_with_pos:
                 leftmost_rel = 'nmod:' + rels_with_pos[('nmod', 'IN')]
+            elif 'dobj' in rels_only:
+                # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
+                # as sometimes the relcl modifies the should-have-been-inner-object's-modifier
+                objs = [child for child, rel in leftmost_head.get_children_with_rels() if rel == 'dobj']
+                for obj in objs:
+                    rels_with_pos_obj = {(relation, child.get_conllu_field('xpos')): child for
+                                     (child, relation) in obj.get_children_with_rels()}
+                    if (('nmod', 'IN') in rels_with_pos_obj) or (('nmod', 'RB') in rels_with_pos_obj):
+                        case = rels_with_pos_obj[('nmod', 'IN')] if ('nmod', 'IN') in rels_with_pos_obj else rels_with_pos_obj[('nmod', 'RB')]
+                        gov.add_edge(add_extra_info("nmod:" + case.get_conllu_field('form'), "reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
+                        case.add_edge(add_extra_info("case", "reduced-relcl"), gov)
+                        return
+                # this means we didn't found so rel should be dobj, but we didn't reach the last else because  we had some other objects.
+                leftmost_rel = 'dobj'
             else:
                 leftmost_rel = 'dobj'
             gov.add_edge(add_extra_info(leftmost_rel, "reduced-relcl"), leftmost_head, extra_info=EXTRA_INFO_STUB)
