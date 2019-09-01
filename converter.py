@@ -824,6 +824,7 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
             leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
             if gov not in leftmost.get_parents():
                 leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
+                [child.replace_edge(rel, rel, leftmost, gov) for child, rel in leftmost.get_children_with_rels()]
                 gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
         # this is for reduce-relative-clause
         elif enhanced_extra:
