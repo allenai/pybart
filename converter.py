@@ -1018,6 +1018,42 @@ def expand_pp_or_prep_conjunctions(sentence):
         expand_per_type(sentence, rl, is_pp)
 
 
+# TODO: remove when moving to UD-version2
+def fix_nmod_npmod(sentence):
+    restriction = Restriction(nested=[[
+        Restriction(name="npmod", gov="^nmod:npmod$")
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        npmod, npmod_head, npmod_rel = name_space['npmod']
+        npmod.replace_edge(npmod_rel, "compound", npmod_head, npmod_head)
+
+
+def hyphen_reconstruction(sentence):
+    restriction = Restriction(name="subj", nested=[[
+        Restriction(name="verb", gov="^(amod)$", xpos="VB.", nested=[[
+            Restriction(name="hyphen", form="-", gov="^(punct)$", xpos="HYPH"),
+            Restriction(name="noun", gov="^(compound)$", xpos="NN.?")
+        ]]),
+    ]])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        subj, _, _ = name_space['subj']
+        verb, _, _ = name_space['verb']
+        noun, _, _ = name_space['noun']
+        
+        subj.add_edge(add_extra_info("nsubj", "hyph"), verb)
+        noun.add_edge(add_extra_info("nmod", "hyph"), verb)
+
+
 def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
@@ -1025,6 +1061,8 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     
     if enhanced_extra:
         copula_reconstruction(sentence)
+        fix_nmod_npmod(sentence)
+        hyphen_reconstruction(sentence)
     
     if enhanced_plus_plus:
         # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
