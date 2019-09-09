@@ -5,7 +5,7 @@
 #   3. we look for all fathers as we can have multiple fathers, while in SC they look at first one found.
 
 import regex as re
-import numpy as np
+from math import copysign
 
 from .matcher import match, Restriction
 
@@ -497,8 +497,8 @@ def attach_best_cc(conj, ccs, noun, verb):
     for cur_cc in ccs:
         cur_dist = conj.dist(cur_cc)
         if (not closest_cc) or \
-                ((np.sign(closest_dist) == np.sign(cur_dist)) and (abs(cur_dist) < abs(closest_dist))) or \
-                ((np.sign(closest_dist) != np.sign(cur_dist)) and (np.sign(cur_dist) == -1)):
+                ((copysign(1, closest_dist) == copysign(1, cur_dist)) and (abs(cur_dist) < abs(closest_dist))) or \
+                ((copysign(1, closest_dist) != copysign(1, cur_dist)) and (copysign(1, cur_dist) == -1)):
             closest_cc = cur_cc
             closest_dist = conj.dist(closest_cc)
     if closest_cc:
