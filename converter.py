@@ -507,7 +507,8 @@ def attach_best_cc(conj, ccs, noun, verb):
 
 def copula_reconstruction(sentence):
     cop_rest = Restriction(name="father", nested=[[
-        Restriction(name="noun", xpos="(?!:(VB.?|BES|HVS))", nested=[[
+        Restriction(name="old_root", xpos="(?!:(VB.?|BES|HVS))", nested=[[
+            Restriction(name="subj", gov=".subj.*"),
             Restriction(name="cop", gov="cop"),
         ]])
     ]])
@@ -516,13 +517,14 @@ def copula_reconstruction(sentence):
         return
 
     for name_space in ret:
-        noun, _, _ = name_space['noun']
+        old_root, _, _ = name_space['old_root']
+        subj, _, _ = name_space['subj']
         cop, _, _ = name_space['cop']
         
         new_id = cop.get_conllu_field('id') + 0.1
-        verb = cop.copy(
+        new_root = cop.copy(
             new_id=new_id,
-            form="STATE",
+            form="_",
             lemma="_",
             upos="_",
             xpos="_",
@@ -531,27 +533,34 @@ def copula_reconstruction(sentence):
             deprel="_",
             deps=None)
         
-        for head, rel in noun.get_new_relations():
-            noun.remove_edge(rel, head)
-            verb.add_edge(rel, head)
+        # transfer old-root's outgoing relation to new-root
+        for head, rel in old_root.get_new_relations():
+            old_root.remove_edge(rel, head)
+            new_root.add_edge(rel, head)
 
-        ccs = [cc_child for cc_child, cc_rel in noun.get_children_with_rels() if cc_rel == "cc"]
-        for child, rel in noun.get_children_with_rels():
+        # transfer all old-root's children that are to be transferred
+        ccs = [cc_child for cc_child, cc_rel in old_root.get_children_with_rels() if cc_rel == "cc"]
+        for child, rel in old_root.get_children_with_rels():
             if re.match("(.subj.*|aux.*|discourse|mark|punct)", rel):
-                child.replace_edge(rel, rel, noun, verb)
+                child.replace_edge(rel, rel, old_root, new_root)
             elif "cop" == rel:
-                child.replace_edge(rel, "aux", noun, verb)
+                child.replace_edge(rel, "aux", old_root, new_root)
             elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
-                child.replace_edge(rel, rel, noun, verb)
-                attach_best_cc(child, ccs, noun, verb)
+                child.replace_edge(rel, rel, old_root, new_root)
+                attach_best_cc(child, ccs, old_root, new_root)
         
-        if re.match("JJ.?", noun.get_conllu_field("xpos")):
+        # update old-root's outgoing relation
+        if re.match("JJ.?", old_root.get_conllu_field("xpos")):
             new_out_rel = "amod"
+            new_father = subj
+            new_root.set_conllu_field("form", "QUALITY")
         else:
             new_out_rel = "nmod"
-        noun.add_edge(new_out_rel, verb)
+            new_father = new_root
+            new_root.set_conllu_field("form", "STATE")
+        old_root.add_edge(new_out_rel, new_father)
         
-        sentence[new_id] = verb
+        sentence[new_id] = new_root
 
 
 def create_mwe(words, head, rel):
