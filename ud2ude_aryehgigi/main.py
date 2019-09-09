@@ -6,13 +6,13 @@ from .conllu_wrapper import parse_conllu, serialize_conllu, parse_odin, conllu_t
 from .converter import convert
 
 
-def main_internal(sentences_text, enhance_ud, enhanced_plus_plus, enhanced_extra, preserve_comments):
+def main_internal(sentences_text, enhance_ud, enhanced_plus_plus, enhanced_extra, preserve_comments=False):
     parsed, all_comments = parse_conllu(sentences_text)
     converted = convert(parsed, enhance_ud, enhanced_plus_plus, enhanced_extra)
     return serialize_conllu(converted, all_comments, preserve_comments)
 
 
-def main_internal_odin(odin_text, enhance_ud, enhanced_plus_plus, enhanced_extra, preserve_comments):
+def main_internal_odin(odin_text, enhance_ud, enhanced_plus_plus, enhanced_extra, preserve_comments=False):
     odin_json = json.loads(odin_text)
     sents = parse_odin(odin_json)
     converted_sents = convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra)
@@ -41,7 +41,7 @@ def main():
     try:
         encoding = "utf8"
         with open(args.input_path, "r", encoding=encoding) as f:
-            ready_to_write = main_internal(f.read(), args.enhance_ud, args.enhacne_plus_plus, args.enhacne_extra, args.preserve_comments)
+            ready_to_write = internal(f.read(), args.enhance_ud, args.enhacne_plus_plus, args.enhacne_extra, args.preserve_comments)
             
     except UnicodeDecodeError:
         encoding = chardet.detect(open(args.input_path, 'rb').read())['encoding']
