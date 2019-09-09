@@ -1,5 +1,5 @@
 import uuid
-import graph_token
+from .graph_token import Token
 
 
 def add_basic_edges(sentence):
@@ -70,11 +70,11 @@ def parse_conllu(text):
             xpos = upos if xpos == '_' else xpos
             
             # add current token to current sentence
-            sentence[int(new_id)] = graph_token.Token(
+            sentence[int(new_id)] = Token(
                     int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
         
         # add root
-        sentence[0] = graph_token.Token(0, None, None, None, None, None, None, None, None, None)
+        sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
         
         # after parsing entire sentence, add basic deprel edges,
         # and add sentence to output list
@@ -112,9 +112,9 @@ def serialize_conllu(converted, all_comments, preserve_comments=False):
 def parse_odin(odin_json):
     sentences = []
     for sent in odin_json['sentences']:
-        sentence = {0: graph_token.Token(0, None, None, None, None, None, None, None, None, None)}
+        sentence = {0: Token(0, None, None, None, None, None, None, None, None, None)}
         for i, (word, tag, lemma) in enumerate(zip(sent['words'], sent['tags'], sent['lemmas'])):
-            sentence[i + 1] = graph_token.Token(i + 1, word, lemma, "_", tag, "_", "_", "_", "_", "_")
+            sentence[i + 1] = Token(i + 1, word, lemma, "_", tag, "_", "_", "_", "_", "_")
         for edge in sent['graphs']['universal-basic']['edges']:
             sentence[edge['destination'] + 1].set_conllu_field('head', edge['source'] + 1)
             sentence[edge['destination'] + 1].set_conllu_field('deprel', edge['relation'])

@@ -2,21 +2,21 @@ import chardet
 import argparse
 import json
 
-import conllu_wrapper as cw
-import converter
+from .conllu_wrapper import parse_conllu, serialize_conllu, parse_odin, conllu_to_odin
+from .converter import convert
 
 
 def main_internal(sentences_text, enhance_ud, enhanced_plus_plus, enhanced_extra, preserve_comments):
-    parsed, all_comments = cw.parse_conllu(sentences_text)
-    converted = converter.convert(parsed, enhance_ud, enhanced_plus_plus, enhanced_extra)
-    return cw.serialize_conllu(converted, all_comments, preserve_comments)
+    parsed, all_comments = parse_conllu(sentences_text)
+    converted = convert(parsed, enhance_ud, enhanced_plus_plus, enhanced_extra)
+    return serialize_conllu(converted, all_comments, preserve_comments)
 
 
 def main_internal_odin(odin_text, enhance_ud, enhanced_plus_plus, enhanced_extra, preserve_comments):
     odin_json = json.loads(odin_text)
-    sents = cw.parse_odin(odin_json)
-    converted_sents = converter.convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra)
-    od = cw.conllu_to_odin(converted_sents, False, odin_json)
+    sents = parse_odin(odin_json)
+    converted_sents = convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra)
+    od = conllu_to_odin(converted_sents, False, odin_json)
     
     return json.dumps(od)
 
