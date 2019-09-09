@@ -444,7 +444,33 @@ def advmod_propagation(sentence):
         gov, _, _ = name_space['gov']
         
         if gov not in advmod.get_parents():
-            advmod.add_edge(add_extra_info(advmod_rel, middle_man_rel.split(":")[0]), gov)
+            advmod.add_edge(add_extra_info(advmod_rel, "indexical"), gov)
+
+
+# "I went back to prison"
+def advmod_nmod_reconstruction(sentence):
+    advmod_rest = Restriction(name="gov", nested=[[
+        Restriction(name="advmod", gov="advmod", nested=[[
+            Restriction(name="nmod", gov="nmod", nested=[[
+                Restriction(name="case", gov="case")
+            ]])
+        ]])
+    ]])
+    ret = match(sentence.values(), [[advmod_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        advmod, _, advmod_rel = name_space['advmod']
+        nmod, _, nmod_rel = name_space['nmod']
+        case, _, case_rel = name_space['case']
+        gov, _, _ = name_space['gov']
+        
+        if gov not in nmod.get_parents():
+            advmod.replace_edge(advmod_rel, add_extra_info(case_rel, "auto-mwe"), gov, nmod)
+            case.replace_edge(case_rel, add_extra_info("mwe", "auto-mwe"), nmod, advmod)
+            mwe = ":" + advmod.get_conllu_field("form") + "_" + case.get_conllu_field("form")
+            nmod.replace_edge(nmod_rel, add_extra_info(nmod_rel + mwe, "auto-mwe"), advmod, gov)
 
 
 def appos_propagation(sentence):
@@ -1073,6 +1099,9 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         demote_quantificational_modifiers(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
         expand_pp_or_prep_conjunctions(sentence)
+
+    if enhanced_extra:
+        advmod_nmod_reconstruction(sentence)
 
     if enhanced:
         # addCaseMarkerInformation
