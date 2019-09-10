@@ -1,4 +1,4 @@
-import regex as re
+import re
 from collections import namedtuple
 
 fields = ('name', 'gov', 'no_sons_of', 'form', 'xpos', 'follows', 'followed_by', 'diff', 'nested')

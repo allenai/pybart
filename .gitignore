@@ -3,5 +3,4 @@
 .idea
 *.txt
 /build/*
-/dist/*
 *.egg*

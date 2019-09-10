@@ -4,7 +4,7 @@
 #   2. we think like a multi-graph, so we operate on every relation/edge between two nodes, while they on first one found.
 #   3. we look for all fathers as we can have multiple fathers, while in SC they look at first one found.
 
-import regex as re
+import re
 from math import copysign
 
 from .matcher import match, Restriction
