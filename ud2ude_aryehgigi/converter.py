@@ -777,7 +777,8 @@ def demote_per_type(sentence, restriction):
         [child.replace_edge(rel, rel, old_gov, gov2) for (child, rel) in old_gov.get_children_with_rels() if rel == "case"]
         gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
         create_mwe(words, gov2, "det:qmod")
-        [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels() if rel in ["punct", "acl", "acl:relcl"]]  # TODO: maybe remove the 'if' statement
+        # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
+        [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels()]
 
 
 def demote_quantificational_modifiers(sentence):
