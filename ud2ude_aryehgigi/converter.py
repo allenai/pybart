@@ -10,6 +10,7 @@ from math import copysign
 from .matcher import match, Restriction
 
 # constants
+nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
 two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
 two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
 three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
@@ -448,15 +449,16 @@ def advmod_propagation(sentence):
 
 
 # "I went back to prison"
-def advmod_nmod_reconstruction(sentence):
-    advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(name="advmod", gov="advmod", nested=[[
+def nmod_advmod_reconstruction(sentence):
+    # the reason for the form restriction: we dont want to catch "all in all"
+    nmod_advmod_rest = Restriction(name="gov", nested=[[
+        Restriction(name="advmod", gov="advmod", form= "(?!(^(?i:all)$))", nested=[[
             Restriction(name="nmod", gov="nmod", nested=[[
                 Restriction(name="case", gov="case")
             ]])
         ]])
     ]])
-    ret = match(sentence.values(), [[advmod_rest]])
+    ret = match(sentence.values(), [[nmod_advmod_rest]])
     if not ret:
         return
     
@@ -466,11 +468,19 @@ def advmod_nmod_reconstruction(sentence):
         case, _, case_rel = name_space['case']
         gov, _, _ = name_space['gov']
         
-        if gov not in nmod.get_parents():
-            advmod.replace_edge(advmod_rel, add_extra_info(case_rel, "auto-mwe"), gov, nmod)
+        if ("as", "advmod") in [(child.get_conllu_field("form").lower(), rel) for child, rel in advmod.get_children_with_rels()]:
+            continue
+        
+        if gov in nmod.get_parents():
+            continue
+        
+        mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
+        advmod.replace_edge(advmod_rel, add_extra_info(case_rel, "auto-mwe"), gov, nmod)
+        if mwe in nmod_advmod_complex:
+            nmod.replace_edge(nmod_rel, add_extra_info(nmod_rel, "auto-mwe"), advmod, gov)
+        else:
             case.replace_edge(case_rel, add_extra_info("mwe", "auto-mwe"), nmod, advmod)
-            mwe = ":" + advmod.get_conllu_field("form") + "_" + case.get_conllu_field("form")
-            nmod.replace_edge(nmod_rel, add_extra_info(nmod_rel + mwe, "auto-mwe"), advmod, gov)
+            nmod.replace_edge(nmod_rel, add_extra_info(nmod_rel + ":" + mwe, "auto-mwe"), advmod, gov)
 
 
 def appos_propagation(sentence):
@@ -1110,7 +1120,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         expand_pp_or_prep_conjunctions(sentence)
 
     if enhanced_extra:
-        advmod_nmod_reconstruction(sentence)
+        nmod_advmod_reconstruction(sentence)
 
     if enhanced:
         # addCaseMarkerInformation
