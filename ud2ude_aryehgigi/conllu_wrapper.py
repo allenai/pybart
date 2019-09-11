@@ -149,6 +149,8 @@ def fix_sentence(conllu_sentence):
 def conllu_to_odin_single_sentence(conllu_sentence, is_basic, odin_sentence=None):
     fixed_sentence = conllu_sentence
     
+    # we enable to add basic dependency graph only if is_basic is True and this is a pure conversion from conllu to odin
+    # (as oppose to odin to conllu and then back to odin)
     if is_basic and not odin_sentence:
         graph = "universal-basic"
     else:
