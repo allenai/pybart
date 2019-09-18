@@ -337,7 +337,7 @@ def acl_propagation(sentence):
     ret = match(sentence.values(), [[acl_rest]])
     if not ret:
         return
-    
+    marked = []
     iid = 0
     for name_space in ret:
         cur_iid = iid
@@ -354,6 +354,10 @@ def acl_propagation(sentence):
             subj, _, _ = name_space['subj']
             subjs += [subj]
         
+        candidates = set(subjs + [father])
+        if candidates in marked:
+            continue
+        
         # if no subject found, we have no competition on the new subject title.
         if not subjs:
             cur_iid = None
@@ -365,6 +369,7 @@ def acl_propagation(sentence):
         for subj in subjs:
             subj.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
         father.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
+        marked.append(candidates)
 
 
 def dep_propagation(sentence):
