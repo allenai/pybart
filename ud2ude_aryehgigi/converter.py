@@ -1239,8 +1239,23 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra):
-    converted_sentences = []
-    for sentence in parsed:
-        converted_sentences.append(convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra))
-    return converted_sentences
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations=1):
+    last_converted_sentences = []
+    converted_sentences = parsed
+    i = 0
+    
+    # we iterate till convergence or till user defined maximum is reached - the first to come.
+    while (i < conv_iterations) and (set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()]) != last_converted_sentences):
+        last_converted_sentences = set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
+        temp = []
+        for sentence in converted_sentences:
+            temp.append(convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra))
+        converted_sentences = temp
+        i += 1
+    
+    if set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()]) == last_converted_sentences:
+        i -= 1
+    print("Conversions done: %d" % i)
+    return converted_sentences, i
+
+
