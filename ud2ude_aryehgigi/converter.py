@@ -159,7 +159,7 @@ def prep_patterns(sentence, first_gov, second_gov):
 def heads_of_conjuncts(sentence):
     restriction = Restriction(name="new_gov", nested=[[
         Restriction(name="gov", gov="^((?!root|case).)*$", nested=[[
-             Restriction(name="dep", gov=".*conj.*")
+             Restriction(name="dep", gov="conj.*")
         ]])
     ]])
     
