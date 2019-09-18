@@ -45,7 +45,7 @@ def correct_subj_pass(sentence):
         Restriction(gov='auxpass'),
         # the SC regex (which was "^(nsubj|csubj).*$") was changed here
         # to avoid the need to filter .subjpass relations in the graph-rewriting part
-        Restriction(gov="^(.subj|.subj:.*)$", name="subj")
+        Restriction(gov="^(.subj|.subj:(?!passive).*)$", name="subj")
     ]])
     
     ret = match(sentence.values(), [[restriction]])
@@ -1142,6 +1142,41 @@ def hyphen_reconstruction(sentence):
         noun.add_edge(add_extra_info("nmod", "hyph"), verb)
 
 
+# The bottle was broken by me.
+def passive_alteration(sentence):
+    restriction = Restriction(name="predicate", nested=[
+        [
+            Restriction(name="subjpass", gov=".subjpass"),
+            Restriction(name="agent", gov="nmod:agent")
+        ],
+        [Restriction(name="subjpass", gov=".subjpass")]
+    ])
+    
+    ret = match(sentence.values(), [[restriction]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        subj, _, subj_rel = name_space['subjpass']
+        predicate, _, _ = name_space['predicate']
+        if 'agent' in name_space:
+            agent, _, _ = name_space['agent']
+            agent.add_edge(add_extra_info("nsubj", "passive"), predicate)
+        
+        # the special case of csubj (divided into ccomp and xcomp according to 'that' and 'to' subordinates.
+        subj_new_rel = "dobj"
+        if subj_rel.startswith("csubj"):
+            for rel, child in subj.get_children_with_rels():
+                if (rel == "mark") and (child.get_conllu_field("form") == "to"):
+                    subj_new_rel = "xcomp"
+                elif ("obj" in rel) and (child.get_conllu_field("form") == "that") and (child.get_conllu_field("xpos") == "IN"):
+                    subj_new_rel = "ccomp"
+        elif "dobj" in [rel for (_, rel) in predicate.get_children_with_rels()]:
+            subj_new_rel = "iobj"
+        
+        subj.add_edge(add_extra_info(subj_new_rel, "passive"), predicate)
+    
+
 def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
@@ -1196,6 +1231,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         advmod_propagation(sentence)
         appos_propagation(sentence)
         subj_obj_nmod_propagation_of_nmods(sentence)
+        passive_alteration(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
