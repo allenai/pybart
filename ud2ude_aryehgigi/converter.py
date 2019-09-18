@@ -394,6 +394,43 @@ def dep_propagation(sentence):
         new_subj_opt.add_edge(add_extra_info("nsubj", "dep", iid=iids[father], uncertain=True), dep)
 
 
+# TODO - unify with other nmods props
+def subj_obj_nmod_propagation_of_nmods_per_type(sentence, rest):
+    ret = match(sentence.values(), [[rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        nmod, _, nmod_rel = name_space['nmod']
+        receiver, _, _ = name_space['receiver']
+        mediator_rel = name_space['mediator'][2]
+        
+        nmod.add_edge(add_extra_info(mediator_rel, "like_such_as"), receiver)
+
+
+def subj_obj_nmod_propagation_of_nmods(sentence):
+    obj_rest = Restriction(name="receiver", nested=[[
+        Restriction(name="mediator", gov="dobj", nested=[[
+            Restriction(name="nmod", gov="nmod:(such_as|like)")
+        ]])
+    ]])
+    
+    subj_rest = Restriction(name="receiver", nested=[[
+        Restriction(name="mediator", gov=".subj.*", nested=[[
+            Restriction(name="nmod", gov="nmod:(such_as|like)")
+        ]])
+    ]])
+    
+    nmod_rest = Restriction(name="receiver", nested=[[
+        Restriction(name="mediator", gov="nmod", nested=[[
+            Restriction(name="nmod", gov="nmod:(such_as|like)")
+        ]])
+    ]])
+    
+    for mediator_restriction in [obj_rest, subj_rest, nmod_rest]:
+        subj_obj_nmod_propagation_of_nmods_per_type(sentence, mediator_restriction)
+
+
 def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=False):
     ret = match(sentence.values(), [[rest]])
     if not ret:
@@ -1158,6 +1195,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         conj_propagation_of_poss(sentence)
         advmod_propagation(sentence)
         appos_propagation(sentence)
+        subj_obj_nmod_propagation_of_nmods(sentence)
     
     # correctSubjPass
     correct_subj_pass(sentence)
