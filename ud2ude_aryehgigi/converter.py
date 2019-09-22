@@ -1239,7 +1239,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations=1):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations):
     last_converted_sentences = []
     converted_sentences = parsed
     i = 0
