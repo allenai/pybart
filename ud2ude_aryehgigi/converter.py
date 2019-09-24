@@ -1255,7 +1255,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     
     if set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()]) == last_converted_sentences:
         i -= 1
-    print("Conversions done: %d" % i)
+    
     return converted_sentences, i
 
 
