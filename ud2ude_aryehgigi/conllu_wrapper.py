@@ -217,6 +217,8 @@ def parsed_tacred_json(data):
             sentence[i + 1] = Token(i + 1, t, t, p, p, "_", int(h), dep, "_", "_")
         sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
         add_basic_edges(sentence)
+        [child.remove_edge(rel, sentence[0]) for child, rel in sentence[0].get_children_with_rels()]
+        _ = sentence.pop(0)
         sentences.append(sentence)
     
     return sentences
