@@ -146,7 +146,7 @@ def _find_lcas(g, i, j):
 
 
 def _get_pruned_sent(sent, prune, subj_pos, obj_pos, lca_root, lca_union):
-    sent = sent[:-1]
+    sent = [node for node in sent if not node.id_root_node()]
     len_ = len(sent)
     sent_g = nx.DiGraph()
     sent_g.add_edges_from([(node, parent) for node in sent for parent in node.get_parents() if not parent.is_root_node()])
