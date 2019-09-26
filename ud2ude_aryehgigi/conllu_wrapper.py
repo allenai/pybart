@@ -206,3 +206,17 @@ def conllu_to_odin(conllu_sentences, is_basic=False, odin_to_enhance=None):
         }}, "mentions": []}
     
     return odin
+
+
+def parsed_tacred_json(data):
+    sentences = []
+    for d in data:
+        sentence = dict()
+        for i, (t, p, h, dep) in enumerate(
+                zip(d["token"], d["stanford_pos"], d["stanford_head"], d["stanford_deprel"])):
+            sentence[i + 1] = Token(i + 1, t, t, p, p, "_", int(h), dep, "_", "_")
+        sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
+        add_basic_edges(sentence)
+        sentences.append(sentence)
+    
+    return sentences
