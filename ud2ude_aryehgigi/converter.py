@@ -1166,7 +1166,7 @@ def passive_alteration(sentence):
         # the special case of csubj (divided into ccomp and xcomp according to 'that' and 'to' subordinates.
         subj_new_rel = "dobj"
         if subj_rel.startswith("csubj"):
-            for rel, child in subj.get_children_with_rels():
+            for child, rel in subj.get_children_with_rels():
                 if (rel == "mark") and (child.get_conllu_field("form") == "to"):
                     subj_new_rel = "xcomp"
                 elif ("obj" in rel) and (child.get_conllu_field("form") == "that") and (child.get_conllu_field("xpos") == "IN"):
