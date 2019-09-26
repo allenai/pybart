@@ -560,7 +560,6 @@ def attach_best_cc(conj, ccs, noun, verb):
 def copula_reconstruction(sentence):
     cop_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(?!:(VB.?|BES|HVS))", nested=[[
-            Restriction(name="subj", gov=".subj.*"),
             Restriction(name="cop", gov="cop"),
         ]])
     ]])
@@ -570,7 +569,6 @@ def copula_reconstruction(sentence):
 
     for name_space in ret:
         old_root, _, _ = name_space['old_root']
-        subj, _, _ = name_space['subj']
         cop, _, _ = name_space['cop']
         
         new_id = cop.get_conllu_field('id') + 0.1
@@ -604,13 +602,11 @@ def copula_reconstruction(sentence):
         # update old-root's outgoing relation
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
             new_out_rel = "amod"
-            new_father = subj
             new_root.set_conllu_field("form", "QUALITY")
         else:
             new_out_rel = "nmod"
-            new_father = new_root
             new_root.set_conllu_field("form", "STATE")
-        old_root.add_edge(new_out_rel, new_father)
+        old_root.add_edge(new_out_rel, new_root)
         
         sentence[new_id] = new_root
 
