@@ -405,7 +405,7 @@ def subj_obj_nmod_propagation_of_nmods_per_type(sentence, rest):
         receiver, _, _ = name_space['receiver']
         mediator_rel = name_space['mediator'][2]
         
-        nmod.add_edge(add_extra_info(mediator_rel, "like_such_as"), receiver)
+        nmod.add_edge(add_extra_info(mediator_rel, "like-such-as"), receiver)
 
 
 def subj_obj_nmod_propagation_of_nmods(sentence):
