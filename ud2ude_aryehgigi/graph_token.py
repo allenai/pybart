@@ -126,8 +126,8 @@ def _find_lcas(g, i, j):
     d = dict()
     for n in g.nodes:
         try:
-            ps = list(nx.all_shortest_paths(g, i, n))
-            ps2 = list(nx.all_shortest_paths(g, j, n))
+            ps = list(nx.all_shortest_paths(g, n, i))
+            ps2 = list(nx.all_shortest_paths(g, n, j))
             min_ps = min([len(p) for p in ps])
             min_ps2 = min([len(p) for p in ps2])
 
@@ -155,7 +155,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=Lca
 
     len_ = len(sent)
     sent_g = nx.DiGraph()
-    sent_g.add_edges_from([(node, parent) for node in sent for parent in node.get_parents()])
+    sent_g.add_edges_from([(parent, node) for node in sent for parent in node.get_parents()])
 
     # just return the entire graph
     if lca_type == LcaType.ALL_TREE.value:
@@ -201,7 +201,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=Lca
     full_group = set()
     while (i != prune) and graph_changed:
         # find edges and add to graph
-        edges = [(c, n) for n in expand_group for c in n.get_children()]
+        edges = [(n, c) for n in expand_group for c in n.get_children()]
         final_g.add_edges_from(edges)
     
         # increase iteration
@@ -210,7 +210,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=Lca
         children = list(zip(*edges))
         if not children:
             break
-        expand_group = set(children[0]).difference(full_group)
+        expand_group = set(children[1]).difference(full_group)
         if not expand_group:
             graph_changed = False
     
