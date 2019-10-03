@@ -148,7 +148,7 @@ def _find_lcas(g, i, j):
     return d, min_l
 
 
-def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=LcaType.UNION_LCA):
+def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=LcaType.UNION_LCA.value):
     """
         Convert a sentence of tokens (multi-graph) object to an adjacency matrix.
     """
@@ -158,7 +158,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=Lca
     sent_g.add_edges_from([(node, parent) for node in sent for parent in node.get_parents()])
 
     # just return the entire graph
-    if lca_type == LcaType.ALL_TREE:
+    if lca_type == LcaType.ALL_TREE.value:
         return nx.adjacency_matrix(sent_g).toarray(), range(len_)
 
     # find LCAs between all subj-obj combinations
@@ -180,7 +180,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=Lca
 
     # choose what LCAs to use
     lca = set()
-    if lca_type == LcaType.UNION_LCA:
+    if lca_type == LcaType.UNION_LCA.value:
         lca = set().union(*[s for s_l in lcas.values() for s in s_l])
     # TODO - add this for testing every lca separately
     # elif lca_each >= 0:
