@@ -118,7 +118,7 @@ class Token(object):
         return other.get_conllu_field('id') - self.get_conllu_field('id')
 
 
-LCA_TYPES = Enum('LCA_TYPES', 'all_tree rand_lca union_lca')
+class LcaType(Enum): ALL_TREE = 0; RAND_LCA = 1; UNION_LCA = 2
 
 
 def _find_lcas(g, i, j):
@@ -148,7 +148,7 @@ def _find_lcas(g, i, j):
     return d, min_l
 
 
-def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=LCA_TYPES.union_lca):
+def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=LcaType.UNION_LCA):
     """
         Convert a sentence of tokens (multi-graph) object to an adjacency matrix.
     """
@@ -158,7 +158,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=LCA
     sent_g.add_edges_from([(node, parent) for node in sent for parent in node.get_parents()])
 
     # just return the entire graph
-    if lca_type == LCA_TYPES.all_tree:
+    if lca_type == LcaType.ALL_TREE:
         return nx.adjacency_matrix(sent_g).toarray(), range(len_)
 
     # find LCAs between all subj-obj combinations
@@ -180,7 +180,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=LCA
 
     # choose what LCAs to use
     lca = set()
-    if lca_type == LCA_TYPES.union_lca:
+    if lca_type == LcaType.UNION_LCA:
         lca = set().union(*[s for s_l in lcas.values() for s in s_l])
     # TODO - add this for testing every lca separately
     # elif lca_each >= 0:
