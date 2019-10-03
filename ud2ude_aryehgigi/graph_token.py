@@ -1,5 +1,8 @@
 import re
-import numpy as np
+import math
+import networkx as nx
+from enum import Enum
+
 
 class Token(object):
     def __init__(self, new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc):
@@ -114,8 +117,8 @@ class Token(object):
     def dist(self, other):
         return other.get_conllu_field('id') - self.get_conllu_field('id')
 
-import math
-import networkx as nx
+
+LCA_TYPES = Enum('LCA_TYPES', 'all_tree rand_lca union_lca')
 
 
 def _find_lcas(g, i, j):
@@ -145,15 +148,19 @@ def _find_lcas(g, i, j):
     return d, min_l
 
 
-def _get_pruned_sent(sent, prune, subj_pos, obj_pos, lca_root, lca_union):
+def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=LCA_TYPES.union_lca):
+    """
+        Convert a sentence of tokens (multi-graph) object to an adjacency matrix.
+    """
+
     len_ = len(sent)
     sent_g = nx.DiGraph()
     sent_g.add_edges_from([(node, parent) for node in sent for parent in node.get_parents()])
 
     # just return the entire graph
-    if not lca_root:
+    if lca_type == LCA_TYPES.all_tree:
         return nx.adjacency_matrix(sent_g).toarray(), range(len_)
-    
+
     # find LCAs between all subj-obj combinations
     subj_pos = [i for i in range(len_) if subj_pos[i] == 0]
     obj_pos = [i for i in range(len_) if obj_pos[i] == 0]
@@ -170,10 +177,10 @@ def _get_pruned_sent(sent, prune, subj_pos, obj_pos, lca_root, lca_union):
                     merged[k] = v
                 lcas = merged
                 min_l = cur_l
-    
+
     # choose what LCAs to use
     lca = set()
-    if lca_union:
+    if lca_type == LCA_TYPES.union_lca:
         lca = set().union(*[s for s_l in lcas.values() for s in s_l])
     # TODO - add this for testing every lca separately
     # elif lca_each >= 0:
@@ -184,7 +191,7 @@ def _get_pruned_sent(sent, prune, subj_pos, obj_pos, lca_root, lca_union):
     final_g.add_nodes_from(sent_g)
     final_g.add_edges_from(lca)
     nodes = set([it for couple in final_g.edges() for it in couple])
-    
+
     # pruning
     if prune < 0:
         prune = math.inf
@@ -196,7 +203,7 @@ def _get_pruned_sent(sent, prune, subj_pos, obj_pos, lca_root, lca_union):
         # find edges and add to graph
         edges = [(c, n) for n in expand_group for c in n.get_children()]
         final_g.add_edges_from(edges)
-        
+    
         # increase iteration
         i += 1
         full_group = full_group.union(expand_group)
@@ -207,50 +214,9 @@ def _get_pruned_sent(sent, prune, subj_pos, obj_pos, lca_root, lca_union):
         if not expand_group:
             graph_changed = False
     
-    # TODO - validate all words appear and in correct order
-    # TODO - add buffer to the max len sent
-    return nx.adjacency_matrix(final_g).toarray(), [list(sent_g.nodes()).index(n) for n in nodes]
-
-
-def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, self_loop=False, lca_root=True, lca_union=True):
-    """
-        Convert a sentence of tokens (multi-graph) object to an adjacency matrix.
-    """
-    
-    adj, idx = _get_pruned_sent(sent, prune, subj_pos, obj_pos, lca_root, lca_union)
+    adj = nx.adjacency_matrix(final_g).toarray()
     
     if not directed:
         adj = adj + adj.T
-
-    if self_loop:
-        for i in idx:
-            adj[i, i] = 1
-
+    
     return adj
-    
-    
-    # # old way to find lca/shortest_path
-    # found_obj = False
-    # paths = []
-    # for subj in subj_pos:
-    #     pqueue = [[sent[subj + 1]]]
-    #     cqueue = [[sent[subj + 1]]]
-    #     while not found_obj:
-    #         p_path_so_far = pqueue.pop(0)
-    #         c_path_so_far = cqueue.pop(0)
-    #         if p_path_so_far[-1].get_conllu_field("id") != 0:
-    #             pqueue.append([p_path_so_far, p] for p in c_path_so_far[-1].get_parents())
-    #         if p_path_so_far[-1].get_conllu_field("id") in obj_pos:
-    #             found_obj = True
-    #         if c_path_so_far[-1].get_conllu_field("id") in obj_pos:
-    #             found_obj = True
-    #         cqueue.append([c, c_path_so_far] for c in c_path_so_far[-1].get_children())
-
-    # # old way to get adjacency matrix
-    # idx = []
-    # for t in new_sent:
-    #     if t.get_conllu_field("id") == 0:
-    #         continue
-    #     idx += [t.get_conllu_field("id") - 1]
-    #     for c in t.get_children():
-    #         adj[t.get_conllu_field("id") - 1, c.get_conllu_field("id") - 1] = 1
