@@ -159,7 +159,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, lca_type=Lca
 
     # just return the entire graph
     if lca_type == LcaType.ALL_TREE.value:
-        return nx.adjacency_matrix(sent_g).toarray(), range(len_)
+        return nx.adjacency_matrix(sent_g).toarray()
 
     # find LCAs between all subj-obj combinations
     subj_pos = [i for i in range(len_) if subj_pos[i] == 0]
