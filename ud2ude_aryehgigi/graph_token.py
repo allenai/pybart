@@ -148,7 +148,7 @@ def _find_lcas(g, i, j):
     return d, min_l
 
 
-def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, self_loop=False, lca_type=LcaType.UNION_LCA.value):
+def adjacency_matrix(sent, prune, subj_pos, obj_pos):
     """
         Convert a sentence of tokens (multi-graph) object to an adjacency matrix.
     """
@@ -156,13 +156,6 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, self_loop=Fa
     len_ = len(sent)
     sent_g = nx.DiGraph()
     sent_g.add_edges_from([(parent, node) for node in sent for parent in node.get_parents()])
-
-    # just return the entire graph
-    if lca_type == LcaType.ALL_TREE.value:
-        ret = nx.adjacency_matrix(sent_g).toarray()
-        if self_loop:
-            ret += [[0 if i != j else 1 for i in range(len(sent_g))] for j in range(len(sent_g))]
-        return ret
 
     # find LCAs between all subj-obj combinations
     subj_pos = [i for i in range(len_) if subj_pos[i] == 0]
@@ -182,14 +175,15 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, self_loop=Fa
                 min_l = cur_l
 
     # choose what LCAs to use
-    lca = set()
-    if lca_type == LcaType.UNION_LCA.value:
-        lca = set().union(*[s for s_l in lcas.values() for s in s_l])
+    # lca = set()
+    # if lca_type == LcaType.UNION_LCA.value:
+    #     lca = set().union(*[s for s_l in lcas.values() for s in s_l])
     # TODO - add this for testing every lca separately
     # elif lca_each >= 0:
     #     lca = list(lcas.values())[lca_each]
-    else:
-        lca = list(lcas.values())[0][0]
+    # else:
+    #     lca = list(lcas.values())[0][0]
+    lca = set().union(*[s for s_l in lcas.values() for s in s_l])
     final_g = nx.DiGraph()
     final_g.add_nodes_from(sent_g)
     final_g.add_edges_from(lca)
@@ -218,14 +212,8 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos, directed=True, self_loop=Fa
             graph_changed = False
     
     adj = nx.adjacency_matrix(final_g).toarray()
-    
-    if not directed:
-        adj = adj + adj.T
 
-    if self_loop:
-        nodes = set([it for couple in final_g.edges() for it in couple])
-        indices = [list(sent_g.nodes()).index(n) for n in nodes]
-        for i in indices:
-            adj[i, i] = 1
+    nodes = set([it for couple in final_g.edges() for it in couple])
+    indices = [list(sent_g.nodes()).index(n) for n in nodes]
 
-    return adj
+    return adj, indices, nx.adjacency_matrix(sent_g).toarray(), list(range(len(sent_g.nodes())))
