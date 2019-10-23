@@ -155,6 +155,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos):
 
     len_ = len(sent)
     sent_g = nx.DiGraph()
+    sent_g.add_nodes_from([node for node in sent])
     sent_g.add_edges_from([(parent, node) for node in sent for parent in node.get_parents()])
 
     # find LCAs between all subj-obj combinations
