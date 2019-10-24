@@ -199,16 +199,16 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos):
     full_group = set()
     while (i != prune) and graph_changed:
         # find edges and add to graph
-        edges = [(n, c) for n in expand_group for c in n.get_children()]
-        final_g.add_edges_from(edges)
+        c_edges = [(n, c) for n in expand_group for c in n.get_children()]
+        p_edges = [(p, n) for n in expand_group for p in n.get_parents()]
+        final_g.add_edges_from(c_edges + p_edges)
     
         # increase iteration
         i += 1
         full_group = full_group.union(expand_group)
-        children = list(zip(*edges))
-        if not children:
-            break
-        expand_group = set(children[1]).difference(full_group)
+        children = list(zip(*c_edges))
+        parents = list(zip(*p_edges))
+        expand_group = set((children[1] if children else []) + (parents[0] if parents else [])).difference(full_group)
         if not expand_group:
             graph_changed = False
     
