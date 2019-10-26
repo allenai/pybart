@@ -208,7 +208,7 @@ def adjacency_matrix(sent, prune, subj_pos, obj_pos):
         full_group = full_group.union(expand_group)
         children = list(zip(*c_edges))
         parents = list(zip(*p_edges))
-        expand_group = set((children[1] if children else []) + (parents[0] if parents else [])).difference(full_group)
+        expand_group = set((children[1] if children else ()) + (parents[0] if parents else ())).difference(full_group)
         if not expand_group:
             graph_changed = False
     
