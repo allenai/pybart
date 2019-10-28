@@ -215,12 +215,12 @@ def subj_of_conjoined_verbs(sentence):
 
 
 def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
-    restriction = Restriction(nested=[
+    outer_restriction = Restriction(nested=[
         [restriction, Restriction(name="new_subj", gov=".?obj")],
         [restriction, Restriction(name="new_subj", gov="nsubj.*")]
     ])
     
-    ret = match(sentence.values(), [[restriction]])
+    ret = match(sentence.values(), [[outer_restriction]])
     if not ret:
         return
     
