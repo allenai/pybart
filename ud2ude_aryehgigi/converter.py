@@ -227,7 +227,7 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
     for name_space in ret:
         new_subj, _, _ = name_space['new_subj']
         dep, _, _ = name_space['dep']
-        new_subj.add_edge("nsubj:xsubj" if not is_extra else add_extra_info("nsubj", "xsubj"), dep)
+        new_subj.add_edge("nsubj:xsubj" if not is_extra else add_extra_info("nsubj:xsubj", "xcomp_no_to"), dep)
 
 
 # Add extra nsubj dependencies when collapsing basic dependencies.
