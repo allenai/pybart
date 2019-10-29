@@ -1266,7 +1266,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_extra_info=False):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_extra_info):
     global g_remove_extra_info
     g_remove_extra_info = remove_extra_info
     
