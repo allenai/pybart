@@ -316,6 +316,20 @@ def advcl_propagation(sentence):
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
+def amod_propagation(sentence):
+    amod_rest = Restriction(name="father", nested=[[
+        Restriction(name="amod", gov="(.*amod.*)")
+    ]])
+
+    ret = match(sentence.values(), [[amod_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        father, _, _ = name_space['father']
+        amod, _, _ = name_space['amod']
+        father.add_edge(add_extra_info("nsubj", "amod"), amod)
+
 
 def acl_propagation(sentence):
     # The apple chosen by me. {nsubj(chosen, apple)}
@@ -1225,6 +1239,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         xcomp_propagation_no_to(sentence)
         advcl_propagation(sentence)
         acl_propagation(sentence)
+        amod_propagation(sentence)
         dep_propagation(sentence)
         conj_propagation_of_nmods(sentence)
         conj_propagation_of_poss(sentence)
