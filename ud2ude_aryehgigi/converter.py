@@ -24,9 +24,15 @@ neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
 EXTRA_INFO_STUB = 1
+g_remove_extra_info = False
 
 
 def add_extra_info(orig, dep, iid=None, uncertain=False):
+    global g_remove_extra_info
+    
+    if g_remove_extra_info:
+        return orig
+    
     unc = ""
     if uncertain:
         unc = "_unc"
@@ -215,19 +221,19 @@ def subj_of_conjoined_verbs(sentence):
 
 
 def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
-    restriction = Restriction(nested=[
+    outer_restriction = Restriction(nested=[
         [restriction, Restriction(name="new_subj", gov=".?obj")],
         [restriction, Restriction(name="new_subj", gov="nsubj.*")]
     ])
     
-    ret = match(sentence.values(), [[restriction]])
+    ret = match(sentence.values(), [[outer_restriction]])
     if not ret:
         return
     
     for name_space in ret:
         new_subj, _, _ = name_space['new_subj']
         dep, _, _ = name_space['dep']
-        new_subj.add_edge("nsubj:xsubj" if not is_extra else add_extra_info("nsubj", "xsubj"), dep)
+        new_subj.add_edge("nsubj:xsubj" if not is_extra else add_extra_info("nsubj:xsubj", "xcomp_no_to"), dep)
 
 
 # Add extra nsubj dependencies when collapsing basic dependencies.
@@ -315,6 +321,20 @@ def advcl_propagation(sentence):
     iids = dict()
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
+
+def amod_propagation(sentence):
+    amod_rest = Restriction(name="father", nested=[[
+        Restriction(name="amod", gov="(.*amod.*)")
+    ]])
+
+    ret = match(sentence.values(), [[amod_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        father, _, _ = name_space['father']
+        amod, _, _ = name_space['amod']
+        father.add_edge(add_extra_info("nsubj", "amod"), amod)
 
 
 def acl_propagation(sentence):
@@ -554,7 +574,7 @@ def attach_best_cc(conj, ccs, noun, verb):
             closest_cc = cur_cc
             closest_dist = conj.dist(closest_cc)
     if closest_cc:
-        closest_cc.replace_edge("cc", "cc", noun, verb)
+        closest_cc.replace_edge("cc", add_extra_info("cc", "copula"), noun, verb)
 
 
 def copula_reconstruction(sentence):
@@ -586,26 +606,36 @@ def copula_reconstruction(sentence):
         # transfer old-root's outgoing relation to new-root
         for head, rel in old_root.get_new_relations():
             old_root.remove_edge(rel, head)
-            new_root.add_edge(rel, head)
+            new_root.add_edge(add_extra_info(rel, "copula"), head)
 
         # transfer all old-root's children that are to be transferred
         ccs = [cc_child for cc_child, cc_rel in old_root.get_children_with_rels() if cc_rel == "cc"]
+        subjs = []
+        new_out_rel = "xcomp"
         for child, rel in old_root.get_children_with_rels():
-            if re.match("(.subj.*|aux.*|discourse|mark|punct)", rel):
-                child.replace_edge(rel, rel, old_root, new_root)
+            if re.match("(aux.*|discourse|mark|punct|advcl)", rel):
+                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
+            elif re.match("(.subj.*)", rel):
+                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
+                subjs.append(child)
+            elif re.match("(case)", rel):
+                new_out_rel = "nmod"
             elif "cop" == rel:
-                child.replace_edge(rel, "aux", old_root, new_root)
+                child.replace_edge(rel, add_extra_info("aux", "copula"), old_root, new_root)
             elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
-                child.replace_edge(rel, rel, old_root, new_root)
+                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
                 attach_best_cc(child, ccs, old_root, new_root)
+            else:
+                print("DEBUG MESSAGE: got %s rel as the old_root's son. what to do with it?") # TODO - future remove
         
         # update old-root's outgoing relation
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
-            new_out_rel = "amod"
+            for subj in subjs:
+                old_root.add_edge("amod", subj)
             new_root.set_conllu_field("form", "QUALITY")
         else:
-            new_out_rel = "nmod"
             new_root.set_conllu_field("form", "STATE")
+        
         old_root.add_edge(new_out_rel, new_root)
         
         sentence[new_id] = new_root
@@ -1221,6 +1251,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         xcomp_propagation_no_to(sentence)
         advcl_propagation(sentence)
         acl_propagation(sentence)
+        amod_propagation(sentence)
         dep_propagation(sentence)
         conj_propagation_of_nmods(sentence)
         conj_propagation_of_poss(sentence)
@@ -1235,7 +1266,10 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_extra_info):
+    global g_remove_extra_info
+    g_remove_extra_info = remove_extra_info
+    
     last_converted_sentences = []
     converted_sentences = parsed
     i = 0
