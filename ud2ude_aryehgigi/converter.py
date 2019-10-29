@@ -27,6 +27,11 @@ EXTRA_INFO_STUB = 1
 
 
 def add_extra_info(orig, dep, iid=None, uncertain=False):
+    global g_remove_extra_info
+    
+    if g_remove_extra_info:
+        return orig
+    
     unc = ""
     if uncertain:
         unc = "_unc"
@@ -1260,7 +1265,10 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_extra_info=False):
+    global g_remove_extra_info
+    g_remove_extra_info = remove_extra_info
+    
     last_converted_sentences = []
     converted_sentences = parsed
     i = 0
