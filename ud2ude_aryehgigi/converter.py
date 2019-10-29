@@ -24,9 +24,15 @@ neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
 EXTRA_INFO_STUB = 1
+g_remove_extra_info = False
 
 
 def add_extra_info(orig, dep, iid=None, uncertain=False):
+    global g_remove_extra_info
+    
+    if g_remove_extra_info:
+        return orig
+    
     unc = ""
     if uncertain:
         unc = "_unc"
@@ -1260,7 +1266,10 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_extra_info=False):
+    global g_remove_extra_info
+    g_remove_extra_info = remove_extra_info
+    
     last_converted_sentences = []
     converted_sentences = parsed
     i = 0
