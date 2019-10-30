@@ -222,3 +222,22 @@ def parsed_tacred_json(data):
         sentences.append(sentence)
     
     return sentences
+
+
+def parse_spacy_doc(doc):
+    sentence = dict()
+    
+    for i, tok in enumerate(doc):
+        # add current token to current sentence
+        sentence[tok.i + 1] = Token(
+            tok.i + 1, tok.text, tok.lemma_, tok.pos, tok.tag, "_", (tok.head.i + 1) if tok.head.i != i else 0,
+            tok.dep_.lower(), "_", "_")
+    
+    # add root
+    sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
+    
+    # after parsing entire sentence, add basic deprel edges,
+    # and add sentence to output list
+    add_basic_edges(sentence)
+    
+    return sentence
