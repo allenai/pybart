@@ -626,7 +626,7 @@ def copula_reconstruction(sentence):
                 child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
                 attach_best_cc(child, ccs, old_root, new_root)
             else:
-                print("DEBUG MESSAGE: got %s rel as the old_root's son. what to do with it?") # TODO - future remove
+                print("DEBUG MESSAGE: got %s rel as the old_root's son. what to do with it?" % rel)  # TODO - future remove
         
         # update old-root's outgoing relation
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
