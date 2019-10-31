@@ -613,7 +613,7 @@ def copula_reconstruction(sentence):
         subjs = []
         new_out_rel = "xcomp"
         for child, rel in old_root.get_children_with_rels():
-            if re.match("(aux.*|discourse|mark|punct|advcl)", rel):
+            if re.match("(aux.*|discourse|mark|punct|advcl|xcomp|ccomp|advmod|expl|parataxis)", rel):
                 child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
             elif re.match("(.subj.*)", rel):
                 child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
@@ -625,8 +625,7 @@ def copula_reconstruction(sentence):
             elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
                 child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
                 attach_best_cc(child, ccs, old_root, new_root)
-            else:
-                print("DEBUG MESSAGE: got %s rel as the old_root's son. what to do with it?" % rel)  # TODO - future remove
+            # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
         
         # update old-root's outgoing relation
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
