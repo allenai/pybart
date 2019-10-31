@@ -630,12 +630,12 @@ def copula_reconstruction(sentence):
         # update old-root's outgoing relation
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
             for subj in subjs:
-                old_root.add_edge("amod", subj)
+                old_root.add_edge(add_extra_info("amod", "copula"), subj)
             new_root.set_conllu_field("form", "QUALITY")
         else:
             new_root.set_conllu_field("form", "STATE")
         
-        old_root.add_edge(new_out_rel, new_root)
+        old_root.add_edge(add_extra_info(new_out_rel, "copula"), new_root)
         
         sentence[new_id] = new_root
 
