@@ -230,7 +230,7 @@ def parse_spacy_doc(doc):
     for i, tok in enumerate(doc):
         # add current token to current sentence
         sentence[tok.i + 1] = Token(
-            tok.i + 1, tok.text, tok.lemma_, tok.pos, tok.tag, "_", (tok.head.i + 1) if tok.head.i != i else 0,
+            tok.i + 1, tok.text, tok.lemma_, tok.pos_, tok.tag_, "_", (tok.head.i + 1) if tok.head.i != i else 0,
             tok.dep_.lower(), "_", "_")
     
     # add root
