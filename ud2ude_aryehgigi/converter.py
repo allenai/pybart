@@ -338,58 +338,73 @@ def amod_propagation(sentence):
 
 
 def acl_propagation(sentence):
-    # The apple chosen by me. {nsubj(chosen, apple)}
-    # The apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
-    # I ate the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-    # I ate from the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-    # From the apple chosen by god, I have tried. {nsubj(chosen, apple), nsubj(chosen, I)}
-    # I ate a slice of the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-    # A slice of the apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
-    basic_rest = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+    acl_rest = Restriction(name="father", nested=[[
+        Restriction(name="acl", gov="acl(?!:relcl)")
     ]])
-    subj_rest = Restriction(name="subj", gov=".?subj.*", diff="father")
-    acl_rest = Restriction(name="root_or_predicate", nested=[
-        [basic_rest, subj_rest],
-        [basic_rest]
-    ])
     
     ret = match(sentence.values(), [[acl_rest]])
     if not ret:
         return
-    marked = []
-    iid = 0
+    
     for name_space in ret:
-        cur_iid = iid
         father, _, _ = name_space['father']
-        dep, _, _ = name_space['dep']
-        root_or_predicate, _, _ = name_space['root_or_predicate']
-        rp_heads = root_or_predicate.get_parents()
-        subjs = []
-        
-        # find subjects that are siblings of the acl's head, and of its parent(s).
-        for rp_head in rp_heads:
-            subjs += [child for (child, rel) in rp_head.get_children_with_rels() if (re.match(".subj.*", rel) and (child not in [father, root_or_predicate]))]
-        if 'subj' in name_space:
-            subj, _, _ = name_space['subj']
-            subjs += [subj]
-        
-        candidates = set(subjs + [father])
-        if candidates in marked:
-            continue
-        
-        # if no subject found, we have no competition on the new subject title.
-        if not subjs:
-            cur_iid = None
-        else:
-            iid += 1
-        
-        # add subj relation from the verb of the acl relation to the found subjects,
-        # and to the head of that relation as well.
-        for subj in subjs:
-            subj.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
-        father.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
-        marked.append(candidates)
+        acl, _, _ = name_space['acl']
+        father.add_edge(add_extra_info("nsubj", "acl"), acl)
+
+
+# def acl_propagation(sentence):
+#     # The apple chosen by me. {nsubj(chosen, apple)}
+#     # The apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
+#     # I ate the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
+#     # I ate from the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
+#     # From the apple chosen by god, I have tried. {nsubj(chosen, apple), nsubj(chosen, I)}
+#     # I ate a slice of the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
+#     # A slice of the apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
+#     basic_rest = Restriction(name="father", nested=[[
+#         Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+#     ]])
+#     subj_rest = Restriction(name="subj", gov=".?subj.*", diff="father")
+#     acl_rest = Restriction(name="root_or_predicate", nested=[
+#         [basic_rest, subj_rest],
+#         [basic_rest]
+#     ])
+#
+#     ret = match(sentence.values(), [[acl_rest]])
+#     if not ret:
+#         return
+#     marked = []
+#     iid = 0
+#     for name_space in ret:
+#         cur_iid = iid
+#         father, _, _ = name_space['father']
+#         dep, _, _ = name_space['dep']
+#         root_or_predicate, _, _ = name_space['root_or_predicate']
+#         rp_heads = root_or_predicate.get_parents()
+#         subjs = []
+#
+#         # find subjects that are siblings of the acl's head, and of its parent(s).
+#         for rp_head in rp_heads:
+#             subjs += [child for (child, rel) in rp_head.get_children_with_rels() if (re.match(".subj.*", rel) and (child not in [father, root_or_predicate]))]
+#         if 'subj' in name_space:
+#             subj, _, _ = name_space['subj']
+#             subjs += [subj]
+#
+#         candidates = set(subjs + [father])
+#         if candidates in marked:
+#             continue
+#
+#         # if no subject found, we have no competition on the new subject title.
+#         if not subjs:
+#             cur_iid = None
+#         else:
+#             iid += 1
+#
+#         # add subj relation from the verb of the acl relation to the found subjects,
+#         # and to the head of that relation as well.
+#         for subj in subjs:
+#             subj.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
+#         father.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
+#         marked.append(candidates)
 
 
 def dep_propagation(sentence):
@@ -613,7 +628,7 @@ def copula_reconstruction(sentence):
         subjs = []
         new_out_rel = "xcomp"
         for child, rel in old_root.get_children_with_rels():
-            if re.match("(aux.*|discourse|mark|punct|advcl)", rel):
+            if re.match("(aux.*|discourse|mark|punct|advcl|xcomp|ccomp|advmod|expl|parataxis)", rel):
                 child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
             elif re.match("(.subj.*)", rel):
                 child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
@@ -625,18 +640,17 @@ def copula_reconstruction(sentence):
             elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
                 child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
                 attach_best_cc(child, ccs, old_root, new_root)
-            else:
-                print("DEBUG MESSAGE: got %s rel as the old_root's son. what to do with it?") # TODO - future remove
+            # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
         
         # update old-root's outgoing relation
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
             for subj in subjs:
-                old_root.add_edge("amod", subj)
+                old_root.add_edge(add_extra_info("amod", "copula"), subj)
             new_root.set_conllu_field("form", "QUALITY")
         else:
             new_root.set_conllu_field("form", "STATE")
         
-        old_root.add_edge(new_out_rel, new_root)
+        old_root.add_edge(add_extra_info(new_out_rel, "copula"), new_root)
         
         sentence[new_id] = new_root
 
