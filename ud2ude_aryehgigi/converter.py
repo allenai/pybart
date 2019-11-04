@@ -24,13 +24,18 @@ neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
 EXTRA_INFO_STUB = 1
-g_remove_extra_info = False
+g_remove_enhanced_extra_info = False
+g_remove_aryeh_extra_info = False
+
+
+def add_eud_info(orig, extra):
+    return orig + ((":" + extra) if not g_remove_enhanced_extra_info else "")
 
 
 def add_extra_info(orig, dep, iid=None, uncertain=False):
-    global g_remove_extra_info
+    global g_remove_aryeh_extra_info
     
-    if g_remove_extra_info:
+    if g_remove_aryeh_extra_info:
         return orig
     
     unc = ""
@@ -83,7 +88,7 @@ def passive_agent(sentence):
     for name_space in ret:
         gov, _, _ = name_space['gov']
         mod, _, mod_rel = name_space['mod']
-        mod.replace_edge(mod_rel,  mod_rel + ":agent", gov, gov)
+        mod.replace_edge(mod_rel, add_eud_info(mod_rel, "agent"), gov, gov)
 
 
 # we need to create a concat string for every marker neighbor chain
@@ -128,7 +133,7 @@ def prep_patterns_per_type(sentence, restriction):
         
         mod.remove_edge(mod_rel, mod_head)
         for prep_sequence in sequences:
-            mod.add_edge(mod_rel + ":" + prep_sequence.lower(), mod_head)
+            mod.add_edge(add_eud_info(mod_rel, prep_sequence.lower()), mod_head)
 
 
 def prep_patterns(sentence, first_gov, second_gov):
@@ -233,7 +238,8 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
     for name_space in ret:
         new_subj, _, _ = name_space['new_subj']
         dep, _, _ = name_space['dep']
-        new_subj.add_edge("nsubj:xsubj" if not is_extra else add_extra_info("nsubj:xsubj", "xcomp_no_to"), dep)
+        rel = add_eud_info("nsubj", "xsubj")
+        new_subj.add_edge(rel if not is_extra else add_extra_info(rel, "xcomp_no_to"), dep)
 
 
 # Add extra nsubj dependencies when collapsing basic dependencies.
@@ -557,7 +563,7 @@ def nmod_advmod_reconstruction(sentence):
             nmod.replace_edge(nmod_rel, add_extra_info(nmod_rel, "auto-mwe"), advmod, gov)
         else:
             case.replace_edge(case_rel, add_extra_info("mwe", "auto-mwe"), nmod, advmod)
-            nmod.replace_edge(nmod_rel, add_extra_info(nmod_rel + ":" + mwe, "auto-mwe"), advmod, gov)
+            nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(nmod_rel, mwe), "auto-mwe"), advmod, gov)
 
 
 def appos_propagation(sentence):
@@ -858,7 +864,7 @@ def demote_per_type(sentence, restriction):
         
         [child.replace_edge(rel, rel, old_gov, gov2) for (child, rel) in old_gov.get_children_with_rels() if rel == "case"]
         gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
-        create_mwe(words, gov2, "det:qmod")
+        create_mwe(words, gov2, add_eud_info("det", "qmod"))
         # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
         [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels()]
 
@@ -965,11 +971,11 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
             elif 'where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
                 leftmost_rel = 'nmod'
             elif ('nmod', 'RB') in rels_with_pos:
-                leftmost_rel = 'nmod:' + rels_with_pos[('nmod', 'RB')]
+                leftmost_rel = add_eud_info('nmod', rels_with_pos[('nmod', 'RB')])
             elif ('advmod', 'RB') in rels_with_pos:
-                leftmost_rel = 'nmod:' + rels_with_pos[('advmod', 'RB')]
+                leftmost_rel = add_eud_info('nmod', rels_with_pos[('advmod', 'RB')])
             elif ('nmod', 'IN') in rels_with_pos:
-                leftmost_rel = 'nmod:' + rels_with_pos[('nmod', 'IN')]
+                leftmost_rel = add_eud_info('nmod', rels_with_pos[('nmod', 'IN')])
             elif 'dobj' in rels_only:
                 # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
                 # as sometimes the relcl modifies the should-have-been-inner-object's-modifier
@@ -979,7 +985,7 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
                                      (child, relation) in obj.get_children_with_rels()}
                     if (('nmod', 'IN') in rels_with_pos_obj) or (('nmod', 'RB') in rels_with_pos_obj):
                         case = rels_with_pos_obj[('nmod', 'IN')] if ('nmod', 'IN') in rels_with_pos_obj else rels_with_pos_obj[('nmod', 'RB')]
-                        gov.add_edge(add_extra_info("nmod:" + case.get_conllu_field('form'), "reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
+                        gov.add_edge(add_extra_info(add_eud_info("nmod", case.get_conllu_field('form')), "reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
                         case.add_edge(add_extra_info("case", "reduced-relcl"), gov)
                         return
                 # this means we didn't found so rel should be dobj, but we didn't reach the last else because  we had some other objects.
@@ -1056,7 +1062,7 @@ def conj_info(sentence):
             continue
         cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
         
-        conj.replace_edge(conj_rel, conj_rel + ":" + cc_assignment, gov, gov)
+        conj.replace_edge(conj_rel, add_eud_info(conj_rel, cc_assignment), gov, gov)
 
 
 # The label of the conjunct relation includes the conjunction type
@@ -1092,7 +1098,7 @@ def expand_per_type(sentence, restriction, is_pp):
             head="_",
             deprel="_",
             misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
-        copy_node.add_edge("conj:" + cc_assignment, to_copy)
+        copy_node.add_edge(add_eud_info("conj", cc_assignment), to_copy)
         sentence[new_id] = copy_node
         
         if is_pp:
@@ -1105,7 +1111,7 @@ def expand_per_type(sentence, restriction, is_pp):
         else:
             # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
             modifier, _, modifier_rel = name_space['modifier']
-            modifier.add_edge(modifier_rel + ":" + conj.get_conllu_field('form'), copy_node)
+            modifier.add_edge(add_eud_info(modifier_rel, conj.get_conllu_field('form')), copy_node)
 
 
 # Expands PPs with conjunctions such as in the sentence
@@ -1242,12 +1248,14 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
 
     if enhanced:
         # addCaseMarkerInformation
-        passive_agent(sentence)
+        if not g_remove_enhanced_extra_info:
+            passive_agent(sentence)
         prep_patterns(sentence, '^nmod$', 'case')
         prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
         
-        # addConjInformation
-        conj_info(sentence)
+        if not g_remove_enhanced_extra_info:
+            # addConjInformation
+            conj_info(sentence)
     
     # referent: addRef, collapseReferent
     if enhanced_plus_plus or enhanced_extra:
@@ -1280,9 +1288,10 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_extra_info):
-    global g_remove_extra_info
-    g_remove_extra_info = remove_extra_info
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info):
+    global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
+    g_remove_enhanced_extra_info = remove_enhanced_extra_info
+    g_remove_aryeh_extra_info = remove_aryeh_extra_info
     
     last_converted_sentences = []
     converted_sentences = parsed
