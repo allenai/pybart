@@ -210,7 +210,7 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
             is_basic))
     
     if odin_to_enhance:
-        odin_to_enhance['sentences'] = odin_sentences
+        odin_to_enhance["documents"]['']['sentences'] = odin_sentences
         odin = odin_to_enhance
     else:
         odin = {"documents": {"": {
