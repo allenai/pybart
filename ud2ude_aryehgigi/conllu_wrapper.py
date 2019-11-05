@@ -200,7 +200,7 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, push_new_to_end=True)
         fixed_sentences.append(fixed_sentence)
         odin_sentences.append(conllu_to_odin_single_sentence(
             fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
-            {'tokens': [token.get_conllu_field("form") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0],
+            {'words': [token.get_conllu_field("form") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0],
              'tags': [token.get_conllu_field("xpos") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0]}))
     
     if odin_to_enhance:
