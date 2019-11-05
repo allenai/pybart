@@ -330,7 +330,7 @@ def advcl_propagation(sentence):
 
 def amod_propagation(sentence):
     amod_rest = Restriction(name="father", nested=[[
-        Restriction(name="amod", gov="(.*amod.*)")
+        Restriction(name="amod", gov="(.*amod.*)", no_sons_of="nsubj.*")
     ]])
 
     ret = match(sentence.values(), [[amod_rest]])
@@ -345,7 +345,7 @@ def amod_propagation(sentence):
 
 def acl_propagation(sentence):
     acl_rest = Restriction(name="father", nested=[[
-        Restriction(name="acl", gov="acl(?!:relcl)")
+        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
     ]])
     
     ret = match(sentence.values(), [[acl_rest]])
