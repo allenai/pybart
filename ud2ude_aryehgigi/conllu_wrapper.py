@@ -149,7 +149,7 @@ def _fix_sentence_keep_order(conllu_sentence):
 def _fix_sentence_push_to_end(conllu_sentence):
     fixed = dict()
     
-    for i, (iid, token) in enumerate(conllu_sentence.items()):
+    for i, (iid, token) in enumerate([(iid2, t) for (iid2, t) conllu_sentence.items() if iid2 != 0]):
         if round(iid) != iid:
             token.set_conllu_field("id", i + 1)
         
