@@ -200,8 +200,8 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, push_new_to_end=True)
         fixed_sentences.append(fixed_sentence)
         odin_sentences.append(conllu_to_odin_single_sentence(
             fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
-            {'tokens': [token.get_conllu_field("form") for token in fixed_sentence.values()],
-             'tags': [token.get_conllu_field("xpos") for token in fixed_sentence.values()]}))
+            {'tokens': [token.get_conllu_field("form") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0],
+             'tags': [token.get_conllu_field("xpos") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0]}))
     
     if odin_to_enhance:
         odin_to_enhance['sentences'] = odin_sentences
@@ -209,7 +209,8 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, push_new_to_end=True)
     else:
         odin = {"documents": {"": {
             "id": str(uuid.uuid4()),
-            "text": " ".join([token.get_conllu_field("form") for conllu_sentence in fixed_sentences for (_, token) in sorted(conllu_sentence.items()) if token.get_conllu_field("id") != 0]),
+            "text": " ".join([token.get_conllu_field("form") for conllu_sentence in fixed_sentences for (_, token) in
+                              (sorted(conllu_sentence.items()) if not push_new_to_end else conllu_sentence.items()) if token.get_conllu_field("id") != 0]),
             "sentences": odin_sentences
         }}, "mentions": []}
     
