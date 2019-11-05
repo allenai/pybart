@@ -128,7 +128,7 @@ def parse_odin(odin_json):
     return sentences
 
 
-def fix_sentence(conllu_sentence):
+def _fix_sentence_keep_order(conllu_sentence):
     sorted_sent = sorted(conllu_sentence.items())
     addon = 0
     fixed = dict()
@@ -146,54 +146,63 @@ def fix_sentence(conllu_sentence):
     return fixed
 
 
-def conllu_to_odin_single_sentence(conllu_sentence, is_basic, odin_sentence=None):
-    fixed_sentence = conllu_sentence
+def _fix_sentence_push_to_end(conllu_sentence):
+    fixed = dict()
     
-    # we enable to add basic dependency graph only if is_basic is True and this is a pure conversion from conllu to odin
-    # (as oppose to odin to conllu and then back to odin)
-    if is_basic and not odin_sentence:
-        graph = "universal-basic"
+    for i, (iid, token) in enumerate(conllu_sentence.items()):
+        if round(iid) != iid:
+            token.set_conllu_field("id", i + 1)
+        
+        fixed[i + 1] = token
+    
+    return fixed
+
+
+def fix_sentence(conllu_sentence, push_new_to_end=True):
+    if push_new_to_end:
+        return _fix_sentence_push_to_end(conllu_sentence)
     else:
-        graph = "universal-aryeh"
-        if any([round(iid) != iid for iid in conllu_sentence.keys()]):
-            fixed_sentence = fix_sentence(conllu_sentence)
-    
-    change_only_graph = True
-    if not odin_sentence:
-        odin_sentence = {"words": [], "tags": [], "graphs": {graph: {"edges": [], "roots": []}}}
-        change_only_graph = False
-    else:
-        odin_sentence["graphs"][graph] = {"edges": [], "roots": []}
-    
-    for iid, token in fixed_sentence.items():
+        return _fix_sentence_keep_order(conllu_sentence)
+
+
+def conllu_to_odin_single_sentence(conllu_sentence, odin_sentence):
+    odin_sentence["graphs"]["universal-basic"] = {"edges": [], "roots": []}
+    odin_sentence["graphs"]["universal-enhanced"] = {"edges": [], "roots": []}
+
+    for iid, token in conllu_sentence.items():
         if iid == 0:
             continue
-        if not change_only_graph:
-            odin_sentence["words"].append(token.get_conllu_field("form"))
-            odin_sentence["tags"].append(token.get_conllu_field("xpos"))
         
-        if is_basic:
-            if token.get_conllu_field("deprel").lower().startswith("root"):
-                odin_sentence["graphs"][graph]["roots"].append(iid - 1)
-            else:
-                odin_sentence["graphs"][graph]["edges"].append(
-                    {"source": token.get_conllu_field("head") - 1, "destination": iid - 1,
-                     "relation": token.get_conllu_field("deprel")})
+        if token.get_conllu_field("deprel").lower().startswith("root"):
+            odin_sentence["graphs"]["universal-basic"]["roots"].append(iid - 1)
         else:
-            for head, rel in token.get_new_relations():
-                if rel.lower().startswith("root"):
-                    odin_sentence["graphs"][graph]["roots"].append(iid - 1)
-                else:
-                    odin_sentence["graphs"][graph]["edges"].append(
-                        {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel})
+            odin_sentence["graphs"]["universal-basic"]["edges"].append(
+                {"source": token.get_conllu_field("head") - 1, "destination": iid - 1,
+                 "relation": token.get_conllu_field("deprel")})
+        
+        for head, rel in token.get_new_relations():
+            if rel.lower().startswith("root"):
+                odin_sentence["graphs"]["universal-enhanced"]["roots"].append(iid - 1)
+            else:
+                odin_sentence["graphs"]["universal-enhanced"]["edges"].append(
+                    {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel})
+    
     return odin_sentence
 
 
-def conllu_to_odin(conllu_sentences, is_basic=False, odin_to_enhance=None):
+def conllu_to_odin(conllu_sentences, odin_to_enhance=None, push_new_to_end=True):
     odin_sentences = []
+    fixed_sentences = []
     
     for i, conllu_sentence in enumerate(conllu_sentences):
-        odin_sentences.append(conllu_to_odin_single_sentence(conllu_sentence, is_basic, odin_to_enhance['sentences'][i] if odin_to_enhance else None))
+        fixed_sentence = conllu_sentence
+        if any([round(iid) != iid for iid in conllu_sentence.keys()]):
+            fixed_sentence = fix_sentence(fixed_sentence, push_new_to_end)
+        fixed_sentences.append(fixed_sentence)
+        odin_sentences.append(conllu_to_odin_single_sentence(
+            fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
+            {'tokens': [token.get_conllu_field("form") for token in fixed_sentence],
+             'tags': [token.get_conllu_field("xpos") for token in fixed_sentence]}))
     
     if odin_to_enhance:
         odin_to_enhance['sentences'] = odin_sentences
@@ -201,7 +210,7 @@ def conllu_to_odin(conllu_sentences, is_basic=False, odin_to_enhance=None):
     else:
         odin = {"documents": {"": {
             "id": str(uuid.uuid4()),
-            "text": " ".join([token.get_conllu_field("form") for conllu_sentence in conllu_sentences for (_, token) in sorted(conllu_sentence.items()) if token.get_conllu_field("id") != 0]),
+            "text": " ".join([token.get_conllu_field("form") for conllu_sentence in fixed_sentences for (_, token) in sorted(conllu_sentence.items()) if token.get_conllu_field("id") != 0]),
             "sentences": odin_sentences
         }}, "mentions": []}
     
