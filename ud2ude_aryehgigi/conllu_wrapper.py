@@ -166,8 +166,7 @@ def fix_sentence(conllu_sentence, push_new_to_end=True):
 
 
 def conllu_to_odin_single_sentence(conllu_sentence, odin_sentence):
-    odin_sentence["graphs"]["universal-basic"] = {"edges": [], "roots": []}
-    odin_sentence["graphs"]["universal-enhanced"] = {"edges": [], "roots": []}
+    odin_sentence["graphs"] = {"universal-basic": {"edges": [], "roots": []}, "universal-enhanced": {"edges": [], "roots": []}}
 
     for iid, token in conllu_sentence.items():
         if iid == 0:
