@@ -949,7 +949,7 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
         return
     
     ref_assignments = assign_refs(ret)
-    
+
     for name_space in ret:
         gov, gov_head, gov_rel = name_space['gov']
         if ref_assignments and name_space['mod'] in ref_assignments:
@@ -968,17 +968,29 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
 
             if ("nsubj" not in rels_only) and ("nsubjpass" not in rels_only):
                 leftmost_rel = 'nsubj'
+            
+            # some relativizers that were simply missing on the eUD.
             elif 'where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
                 leftmost_rel = 'nmod'
+            elif 'how' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
+                leftmost_rel = 'nmod'
+            elif 'when' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
+                leftmost_rel = 'nmod:tmod'
+            elif 'why' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
+                leftmost_rel = add_eud_info('nmod', 'because_of')
+            
+            # continue with *reduced* relcl, cased of orphan case/marker should become nmod and not obj
             elif ('nmod', 'RB') in rels_with_pos:
                 leftmost_rel = add_eud_info('nmod', rels_with_pos[('nmod', 'RB')])
             elif ('advmod', 'RB') in rels_with_pos:
                 leftmost_rel = add_eud_info('nmod', rels_with_pos[('advmod', 'RB')])
             elif ('nmod', 'IN') in rels_with_pos:
                 leftmost_rel = add_eud_info('nmod', rels_with_pos[('nmod', 'IN')])
+            
+            # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
+            # as sometimes the relcl modifies the should-have-been-inner-object's-modifier
+            # TODO: add an example, this is very unclear
             elif 'dobj' in rels_only:
-                # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
-                # as sometimes the relcl modifies the should-have-been-inner-object's-modifier
                 objs = [child for child, rel in leftmost_head.get_children_with_rels() if rel == 'dobj']
                 for obj in objs:
                     rels_with_pos_obj = {(relation, child.get_conllu_field('xpos')): child for
