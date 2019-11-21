@@ -2,8 +2,8 @@
 
 This (badly-named) UD2UDE project (stands for Universal Dependencies to Universal Dependencies enhancements) is the main project of a 'u2dude' project series, all related to the main goal of my thesis.
 1. [**Converter:**](#Converter) (The current project,) Universal-Dependencies to enhancedUD converter, aimed to port core-nlp's Java converter to a python(3.6) converter, embedded with my researched add-ins ("extra or Aryeh's enhancements").
-2. [**Model:**](https://github.com/aryehgigi/ud_spacy_model) spaCy trained model based on UD (and PENN converted to UD) dataset.
-3. [**Demo:**](https://github.com/aryehgigi/ud2ude_demo) JS and python code, making use of the converter.
+2. [**Model:**](https://github.com/allenai/ud_spacy_model) spaCy trained model based on UD (and PENN converted to UD) dataset.
+3. [**Demo:**](https://github.com/aryehgigi/ud2ude_demo) {will be move to public when stable} JS and python code, making use of the converter. Simply check it out [here](http://nlp.biu.ac.il/~aryeht/eud/)
 
 <a name="Converter"/>
 
