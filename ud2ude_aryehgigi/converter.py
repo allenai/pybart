@@ -1235,13 +1235,14 @@ def passive_alteration(sentence):
         subj.add_edge(add_extra_info(subj_new_rel, "passive"), predicate)
     
 
-def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
+def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra, remove_node_adding_conversions):
     # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
     # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
     correct_subj_pass(sentence)
     
     if enhanced_extra:
-        copula_reconstruction(sentence)
+        if not remove_node_adding_conversions:
+            copula_reconstruction(sentence)
         fix_nmod_npmod(sentence)
         hyphen_reconstruction(sentence)
     
@@ -1253,7 +1254,8 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
         # demoteQuantificationalModifiers
         demote_quantificational_modifiers(sentence)
         # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-        expand_pp_or_prep_conjunctions(sentence)
+        if not remove_node_adding_conversions:
+            expand_pp_or_prep_conjunctions(sentence)
 
     if enhanced_extra:
         nmod_advmod_reconstruction(sentence)
@@ -1300,7 +1302,7 @@ def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions):
     global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_aryeh_extra_info = remove_aryeh_extra_info
@@ -1314,7 +1316,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
         last_converted_sentences = set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
         temp = []
         for sentence in converted_sentences:
-            temp.append(convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra))
+            temp.append(convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra, remove_node_adding_conversions))
         converted_sentences = temp
         i += 1
     
