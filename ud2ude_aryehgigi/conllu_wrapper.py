@@ -194,7 +194,7 @@ def conllu_to_odin_single_sentence(conllu_sentence, odin_sentence, is_basic):
 
 
 def append_odin(odin_sent, fixed_sentence):
-    for node in fixed_sentence[len(odin_sent['words']):]:
+    for node in list(fixed_sentence.values())[len(odin_sent['words']):]:
         if 'words' in odin_sent:
             odin_sent['words'].append(node.get_conllu_field('form'))
         if 'raw' in odin_sent:
