@@ -11,9 +11,17 @@ def convert_ud2ude_conllu(conllu_text, enhance_ud=True, enhanced_plus_plus=True,
 def convert_ud2ude_odin(odin_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=1, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False):
     sents = parse_odin(odin_json)
     converted_sents, _ = convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions)
-    converted_odin = conllu_to_odin(converted_sents, odin_json)
-    
-    return converted_odin
+    if "documents" in odin_json:
+        odin_json_in = odin_json['documents']['']
+    else:
+        odin_json_in = odin_json
+    converted_odin = conllu_to_odin(converted_sents, odin_json_in)
+    if "documents" in odin_json:
+        odin_json['documents'][''] = converted_odin
+    else:
+        odin_json = converted_odin
+
+    return odin_json
 
 
 def convert_ud2ude_tacred(tacred_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=1, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False):

@@ -223,17 +223,17 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
         if any([round(iid) != iid for iid in conllu_sentence.keys()]):
             fixed_sentence = fix_sentence(fixed_sentence, push_new_to_end)
             if odin_to_enhance:
-                odin_to_enhance['documents']['']['sentences'][i] = append_odin(odin_to_enhance['documents']['']['sentences'][i], fixed_sentence)
+                odin_to_enhance['sentences'][i] = append_odin(odin_to_enhance['sentences'][i], fixed_sentence)
 
         fixed_sentences.append(fixed_sentence)
         odin_sentences.append(conllu_to_odin_single_sentence(
-            fixed_sentence, odin_to_enhance['documents']['']['sentences'][i] if odin_to_enhance else
+            fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
             {'words': [token.get_conllu_field("form") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0],
              'tags': [token.get_conllu_field("xpos") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0]},
             is_basic))
     
     if odin_to_enhance:
-        odin_to_enhance["documents"]['']['sentences'] = odin_sentences
+        odin_to_enhance['sentences'] = odin_sentences
         odin = odin_to_enhance
     else:
         odin = {"documents": {"": {
