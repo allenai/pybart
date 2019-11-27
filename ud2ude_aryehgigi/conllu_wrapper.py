@@ -193,6 +193,27 @@ def conllu_to_odin_single_sentence(conllu_sentence, odin_sentence, is_basic):
     return odin_sentence
 
 
+def append_odin(odin_sent, fixed_sentence):
+    for node in fixed_sentence[len(odin_sent['words']):]:
+        if 'words' in odin_sent:
+            odin_sent['words'].append(node.get_conllu_field('form'))
+        if 'raw' in odin_sent:
+            odin_sent['raw'].append(node.get_conllu_field('form'))
+        if 'tags' in odin_sent:
+            odin_sent['tags'].append(node.get_conllu_field('xpos'))
+        if 'entities' in odin_sent:
+            odin_sent['entities'].append('O')
+        if ('startOffsets' in odin_sent) and ('endOffsets' in odin_sent):
+            odin_sent['startOffsets'].append(odin_sent['endOffsets'][-1] + 1)
+            odin_sent['endOffsets'].append(odin_sent['startOffsets'][-1] + len(node.get_conllu_field('form')))
+        if 'lemmas' in odin_sent:
+            odin_sent['lemmas'].append(node.get_conllu_field('lemma'))
+        if 'chunks' in odin_sent:
+            odin_sent['chunks'].append('O')
+
+    return odin_sent
+
+
 def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_new_to_end=True):
     odin_sentences = []
     fixed_sentences = []
@@ -201,6 +222,9 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
         fixed_sentence = conllu_sentence
         if any([round(iid) != iid for iid in conllu_sentence.keys()]):
             fixed_sentence = fix_sentence(fixed_sentence, push_new_to_end)
+            if odin_to_enhance:
+                odin_to_enhance['documents']['']['sentences'][i] = append_odin(odin_to_enhance['documents']['']['sentences'][i], fixed_sentence)
+
         fixed_sentences.append(fixed_sentence)
         odin_sentences.append(conllu_to_odin_single_sentence(
             fixed_sentence, odin_to_enhance['documents']['']['sentences'][i] if odin_to_enhance else
