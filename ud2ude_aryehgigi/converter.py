@@ -551,6 +551,7 @@ def nmod_advmod_reconstruction(sentence):
         case, _, case_rel = name_space['case']
         gov, _, _ = name_space['gov']
         
+        # we dont want to catch "as much as" or any "as ADVMOD as-NMOD"
         if ("as", "advmod") in [(child.get_conllu_field("form").lower(), rel) for child, rel in advmod.get_children_with_rels()]:
             continue
         
@@ -558,10 +559,10 @@ def nmod_advmod_reconstruction(sentence):
             continue
         
         mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
-        advmod.replace_edge(advmod_rel, add_extra_info(case_rel, "auto-mwe"), gov, nmod)
         if mwe in nmod_advmod_complex:
-            nmod.replace_edge(nmod_rel, add_extra_info(nmod_rel, "auto-mwe"), advmod, gov)
+            nmod.add_edge(add_extra_info(add_eud_info(nmod_rel, case.get_conllu_field("form").lower()), "auto-mwe"), gov)
         else:
+            advmod.replace_edge(advmod_rel, add_extra_info(case_rel, "auto-mwe"), gov, nmod)
             case.replace_edge(case_rel, add_extra_info("mwe", "auto-mwe"), nmod, advmod)
             nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(nmod_rel, mwe), "auto-mwe"), advmod, gov)
 
