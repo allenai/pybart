@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ud2ude_aryehgigi",
-    version="0.0.3",
+    version="2.0.1",
     author="Aryeh Tiktinsky",
     author_email="aryehgigi@gmail.com",
     description="python converter from UD to enhanced UD representations",
