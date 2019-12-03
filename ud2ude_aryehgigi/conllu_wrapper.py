@@ -165,7 +165,7 @@ def fix_sentence(conllu_sentence, push_new_to_end=True):
         return _fix_sentence_keep_order(conllu_sentence)
 
 
-def conllu_to_odin_single_sentence(conllu_sentence, odin_sentence, is_basic):
+def fix_graph(conllu_sentence, odin_sentence, is_basic):
     if is_basic:
         odin_sentence["graphs"] = {"universal-basic": {"edges": [], "roots": []}}
     else:
@@ -196,7 +196,10 @@ def conllu_to_odin_single_sentence(conllu_sentence, odin_sentence, is_basic):
     return odin_sentence
 
 
-def append_odin(odin_sent, fixed_sentence):
+def append_odin(odin_sent, fixed_sentence, text):
+    cur_sent_text = text
+    cur_offset = 0
+    
     for node in list(fixed_sentence.values())[len(odin_sent['words']):]:
         if node.get_conllu_field('id') == 0:
             continue
@@ -216,23 +219,45 @@ def append_odin(odin_sent, fixed_sentence):
             odin_sent['lemmas'].append(node.get_conllu_field('lemma'))
         if 'chunks' in odin_sent:
             odin_sent['chunks'].append('O')
+        
+        cur_sent_text += " " + node.get_conllu_field('form')
+        cur_offset += len(" " + node.get_conllu_field('form'))
+    
+    return odin_sent, cur_sent_text, cur_offset
 
-    return odin_sent
 
+def fix_offsets(odin_sent, all_offset):
+    if ('startOffsets' in odin_sent) and ('endOffsets' in odin_sent):
+        odin_sent['startOffsets'] = [(current + all_offset) for current in odin_sent['startOffsets']]
+        odin_sent['endOffsets'] = [(current + all_offset) for current in odin_sent['endOffsets']]
+    
 
 def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_new_to_end=True):
     odin_sentences = []
     fixed_sentences = []
+    texts = []
+    summed_offset = 0
     
     for i, conllu_sentence in enumerate(conllu_sentences):
         fixed_sentence = conllu_sentence
+        text = odin_to_enhance['text'][odin_to_enhance['sentences'][i]['startOffsets'][0]: odin_to_enhance['sentences'][i]['endOffsets'][-1]]
+        
+        # fixing offsets may be to all sentences, as previous sentences may have become longer, changing all following offsets
+        fix_offsets(odin_to_enhance['sentences'][i], summed_offset)
+        
+        # when added nodes appear fix sent
         if any([round(iid) != iid for iid in conllu_sentence.keys()]):
             fixed_sentence = fix_sentence(fixed_sentence, push_new_to_end)
             if odin_to_enhance:
-                odin_to_enhance['sentences'][i] = append_odin(odin_to_enhance['sentences'][i], fixed_sentence)
-
+                odin_to_enhance['sentences'][i], text, cur_offset = append_odin(odin_to_enhance['sentences'][i], fixed_sentence, text)
+                summed_offset += cur_offset
+        
+        # store updated text for each sentence
+        texts.append(text)
+        
+        # fix graph
         fixed_sentences.append(fixed_sentence)
-        odin_sentences.append(conllu_to_odin_single_sentence(
+        odin_sentences.append(fix_graph(
             fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
             {'words': [token.get_conllu_field("form") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0],
              'tags': [token.get_conllu_field("xpos") for token in fixed_sentence.values() if token.get_conllu_field("id") != 0]},
@@ -240,6 +265,7 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
     
     if odin_to_enhance:
         odin_to_enhance['sentences'] = odin_sentences
+        odin_to_enhance['text'] = "\n".join(texts)
         odin = odin_to_enhance
     else:
         odin = {"documents": {"": {
