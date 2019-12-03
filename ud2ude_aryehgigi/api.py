@@ -8,19 +8,19 @@ def convert_ud2ude_conllu(conllu_text, enhance_ud=True, enhanced_plus_plus=True,
     return serialize_conllu(converted, all_comments, preserve_comments)
 
 
-def convert_ud2ude_odin(odin_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=1, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False):
-    sents = parse_odin(odin_json)
+def _convert_ud2ude_odin_sent(doc, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions):
+    sents = parse_odin(doc)
     converted_sents, _ = convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions)
-    if "documents" in odin_json:
-        odin_json_in = odin_json['documents']['']
-    else:
-        odin_json_in = odin_json
-    converted_odin = conllu_to_odin(converted_sents, odin_json_in)
-    if "documents" in odin_json:
-        odin_json['documents'][''] = converted_odin
-    else:
-        odin_json = converted_odin
+    return conllu_to_odin(converted_sents, doc)
 
+
+def convert_ud2ude_odin(odin_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=1, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False):
+    if "documents" in odin_json:
+        for doc_key, doc in odin_json["documents"].items():
+            odin_json["documents"][doc_key] = _convert_ud2ude_odin_sent(doc, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions)
+    else:
+        odin_json = _convert_ud2ude_odin_sent(odin_json, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions)
+    
     return odin_json
 
 
