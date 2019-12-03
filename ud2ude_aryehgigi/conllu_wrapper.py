@@ -240,10 +240,12 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
     
     for i, conllu_sentence in enumerate(conllu_sentences):
         fixed_sentence = conllu_sentence
-        text = odin_to_enhance['text'][odin_to_enhance['sentences'][i]['startOffsets'][0]: odin_to_enhance['sentences'][i]['endOffsets'][-1]]
         
-        # fixing offsets may be to all sentences, as previous sentences may have become longer, changing all following offsets
-        fix_offsets(odin_to_enhance['sentences'][i], summed_offset)
+        if odin_to_enhance:
+            text = odin_to_enhance['text'][odin_to_enhance['sentences'][i]['startOffsets'][0]: odin_to_enhance['sentences'][i]['endOffsets'][-1]]
+            
+            # fixing offsets may be to all sentences, as previous sentences may have become longer, changing all following offsets
+            fix_offsets(odin_to_enhance['sentences'][i], summed_offset)
         
         # when added nodes appear fix sent
         if any([round(iid) != iid for iid in conllu_sentence.keys()]):
@@ -253,7 +255,8 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
                 summed_offset += cur_offset
         
         # store updated text for each sentence
-        texts.append(text)
+        if odin_to_enhance:
+            texts.append(text)
         
         # fix graph
         fixed_sentences.append(fixed_sentence)
