@@ -59,7 +59,7 @@ class ConvsCanceler:
         self.update_funcs(func_names)
     
     @staticmethod
-    def get_mapping():
+    def get_conversion_names():
         return set(ConvsCanceler._func_names)
 
 

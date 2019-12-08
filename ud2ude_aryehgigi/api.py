@@ -30,3 +30,6 @@ def convert_ud2ude_tacred(tacred_json, enhance_ud=True, enhanced_plus_plus=True,
     
     return converted_sents
 
+
+def get_conversion_names():
+    return ConvsCanceler.get_conversion_names()
