@@ -32,16 +32,15 @@ g_remove_aryeh_extra_info = False
 
 
 class ConvsCanceler:
-    _func_names = {func_name for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
-                   if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
-    
     def __init__(self, cancel_list: List[str] = None):
         self.cancel_list = cancel_list
+        self._func_names = {func_name for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
+                            if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
     
     def override_funcs(self):
         if self.cancel_list:
             for func_name in self.cancel_list:
-                if func_name not in ConvsCanceler._func_names:
+                if func_name not in self._func_names:
                     raise ValueError(f"{func_name} is not a real function name")
                 setattr(sys.modules[__name__], func_name, lambda *x: None)
     
@@ -53,14 +52,14 @@ class ConvsCanceler:
     
     def update_funcs_by_prefix(self, prefix: str):
         func_names = list()
-        for func_name in ConvsCanceler._func_names:
+        for func_name in self._func_names:
             if func_name.startswith(prefix):
                 func_names.append(func_name)
         self.update_funcs(func_names)
     
     @staticmethod
     def get_conversion_names():
-        return set(ConvsCanceler._func_names)
+        return set(ConvsCanceler()._func_names)
 
 
 def add_eud_info(orig, extra):
