@@ -33,7 +33,7 @@ g_remove_aryeh_extra_info = False
 
 class ConvsCanceler:
     _func_names = {func_name for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
-                   if (func_name.starts_with("eud") or func_name.starts_with("eudpp") or func_name.starts_with("extra"))}
+                   if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
     
     def __init__(self, cancel_list: List[str] = None):
         self.cancel_list = cancel_list
@@ -54,7 +54,7 @@ class ConvsCanceler:
     def update_funcs_by_prefix(self, prefix: str):
         func_names = list()
         for func_name in ConvsCanceler._func_names:
-            if func_name.starts_with(prefix):
+            if func_name.startswith(prefix):
                 func_names.append(func_name)
         self.update_funcs(func_names)
     
