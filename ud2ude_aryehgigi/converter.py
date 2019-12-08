@@ -1348,6 +1348,10 @@ def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced
     funcs_to_cancel.override_funcs()
 
 
+def get_rel_set(converted_sentences):
+    return set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
+
+
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, funcs_to_cancel=ConvsCanceler()):
     global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
@@ -1355,21 +1359,18 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
 
     override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, funcs_to_cancel)
     
-    last_converted_sentences = []
+    # we iterate till convergence or till user defined maximum is reached - the first to come.
     converted_sentences = parsed
     i = 0
-    
-    # we iterate till convergence or till user defined maximum is reached - the first to come.
-    while (i < conv_iterations) and (set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()]) != last_converted_sentences):
-        last_converted_sentences = set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
+    while i < conv_iterations:
+        last_converted_sentences = get_rel_set(converted_sentences)
         temp = []
         for sentence in converted_sentences:
             temp.append(convert_sentence(sentence))
         converted_sentences = temp
+        if get_rel_set(converted_sentences) == last_converted_sentences:
+            break
         i += 1
-    
-    if set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()]) == last_converted_sentences:
-        i -= 1
     
     return converted_sentences, i
 
