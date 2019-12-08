@@ -1352,7 +1352,7 @@ def get_rel_set(converted_sentences):
     return set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, funcs_to_cancel=ConvsCanceler()):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, funcs_to_cancel):
     global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_aryeh_extra_info = remove_aryeh_extra_info
