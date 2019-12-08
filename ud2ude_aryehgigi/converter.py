@@ -4,8 +4,11 @@
 #   2. we think like a multi-graph, so we operate on every relation/edge between two nodes, while they on first one found.
 #   3. we look for all fathers as we can have multiple fathers, while in SC they look at first one found.
 
+import sys
 import re
 from math import copysign
+import inspect
+from typing import List
 
 from .matcher import match, Restriction
 
@@ -28,6 +31,38 @@ g_remove_enhanced_extra_info = False
 g_remove_aryeh_extra_info = False
 
 
+class ConvsCanceler:
+    _func_names = {func_name for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
+                   if (func_name.starts_with("eud") or func_name.starts_with("eudpp") or func_name.starts_with("extra"))}
+    
+    def __init__(self, cancel_list: List[str] = None):
+        self.cancel_list = cancel_list
+    
+    def override_funcs(self):
+        if self.cancel_list:
+            for func_name in self.cancel_list:
+                if func_name not in ConvsCanceler._func_names:
+                    raise ValueError(f"{func_name} is not a real function name")
+                setattr(sys.modules[__name__], func_name, lambda *x: None)
+    
+    def update_funcs(self, func_names: List[str]):
+        if self.cancel_list:
+            self.cancel_list.extend(func_names)
+        else:
+            self.cancel_list = func_names
+    
+    def update_funcs_by_prefix(self, prefix: str):
+        func_names = list()
+        for func_name in ConvsCanceler._func_names:
+            if func_name.starts_with(prefix):
+                func_names.append(func_name)
+        self.update_funcs(func_names)
+    
+    @staticmethod
+    def get_mapping():
+        return set(ConvsCanceler._func_names)
+
+
 def add_eud_info(orig, extra):
     return orig + ((":" + extra) if not g_remove_enhanced_extra_info else "")
 
@@ -48,10 +83,13 @@ def add_extra_info(orig, dep, iid=None, uncertain=False):
     return orig + ":" + dep + "_extra" + unc + iid_str
 
 
+# correctDependencies - correctSubjPass
 # This method corrects subjects of verbs for which we identified an auxpass,
 # but didn't identify the subject as passive.
 # (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj)
-def correct_subj_pass(sentence):
+# correctDependencies - processNames and removeExactDuplicates: have been skipped.
+# processNames for future treatment, removeExactDuplicates for redundancy.
+def eud_correct_subj_pass(sentence):
     restriction = Restriction(nested=[[
         Restriction(gov='auxpass'),
         # the SC regex (which was "^(nsubj|csubj).*$") was changed here
@@ -72,7 +110,7 @@ def correct_subj_pass(sentence):
 
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
-def passive_agent(sentence):
+def eud_passive_agent(sentence):
     restriction = Restriction(name="gov", nested=[[
         Restriction(gov='auxpass'),
         Restriction(name="mod", gov="^(nmod)$", nested=[[
@@ -136,7 +174,7 @@ def prep_patterns_per_type(sentence, restriction):
             mod.add_edge(add_eud_info(mod_rel, prep_sequence.lower()), mod_head)
 
 
-def prep_patterns(sentence, first_gov, second_gov):
+def prep_patterns_inner(sentence, first_gov, second_gov):
     restriction_3w = Restriction(name="gov", nested=[[
         Restriction(name="mod", gov=first_gov, nested=[[
             Restriction(name="c1", gov=second_gov, nested=[[
@@ -167,7 +205,12 @@ def prep_patterns(sentence, first_gov, second_gov):
         prep_patterns_per_type(sentence, rest)
 
 
-def heads_of_conjuncts(sentence):
+def eud_prep_patterns(sentence):
+    prep_patterns_inner(sentence, '^nmod$', 'case')
+    prep_patterns_inner(sentence, '^(advcl|acl)$', '^(mark|case)$')
+
+
+def eud_heads_of_conjuncts(sentence):
     restriction = Restriction(name="new_gov", nested=[[
         Restriction(name="gov", gov="^((?!root|case).)*$", nested=[[
              Restriction(name="dep", gov="conj.*")
@@ -203,7 +246,7 @@ def heads_of_conjuncts(sentence):
 #     (including passivized cases) and so I think we have to not have this
 #     done always, and see no good "sometimes" heuristic.
 #     IF WE WERE TO REINSTATE, SHOULD ALSO NOT ADD OBJ IF THERE IS A ccomp (SBAR).
-def subj_of_conjoined_verbs(sentence):
+def eud_subj_of_conjoined_verbs(sentence):
     restriction = Restriction(name="gov", nested=[[
         Restriction(name="conj", gov="conj", no_sons_of=".subj", xpos="(VB|JJ)"),
         Restriction(name="subj", gov=".subj")
@@ -258,7 +301,7 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
 #   There is no nsubj of asking, but the dobj, SEC, is the extra nsubj of require.
 #   Similarly, "The law tells them when to do so"
 #   Instead of nsubj(do, law) we want nsubj(do, them)
-def xcomp_propagation(sentence):
+def eud_xcomp_propagation(sentence):
     to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
     basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
         Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
@@ -268,7 +311,7 @@ def xcomp_propagation(sentence):
         xcomp_propagation_per_type(sentence, xcomp_restriction)
 
 
-def xcomp_propagation_no_to(sentence):
+def extra_xcomp_propagation_no_to(sentence):
     xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
     
     xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
@@ -295,7 +338,7 @@ def advcl_propagation_per_type(sentence, restriction, iids):
         new_subj.add_edge(add_extra_info("nsubj", "advcl", iid=cur_iid), dep)
 
 
-def advcl_propagation(sentence):
+def extra_advcl_propagation(sentence):
     advcl_to_rest = Restriction(nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
             Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
@@ -328,7 +371,7 @@ def advcl_propagation(sentence):
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
-def amod_propagation(sentence):
+def extra_amod_propagation(sentence):
     amod_rest = Restriction(name="father", nested=[[
         Restriction(name="amod", gov="(.*amod.*)", no_sons_of="nsubj.*")
     ]])
@@ -343,7 +386,7 @@ def amod_propagation(sentence):
         father.add_edge(add_extra_info("nsubj", "amod"), amod)
 
 
-def acl_propagation(sentence):
+def extra_acl_propagation(sentence):
     acl_rest = Restriction(name="father", nested=[[
         Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
     ]])
@@ -413,7 +456,7 @@ def acl_propagation(sentence):
 #         marked.append(candidates)
 
 
-def dep_propagation(sentence):
+def extra_dep_propagation(sentence):
     dep_rest = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="dep", no_sons_of="nsubj.*"),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
@@ -449,7 +492,7 @@ def subj_obj_nmod_propagation_of_nmods_per_type(sentence, rest):
         nmod.add_edge(add_extra_info(mediator_rel, "like-such-as"), receiver)
 
 
-def subj_obj_nmod_propagation_of_nmods(sentence):
+def extra_subj_obj_nmod_propagation_of_nmods(sentence):
     obj_rest = Restriction(name="receiver", nested=[[
         Restriction(name="mediator", gov="dobj", nested=[[
             Restriction(name="nmod", gov="nmod:(such_as|like)")
@@ -486,7 +529,7 @@ def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=Fal
             nmod.add_edge(add_extra_info(nmod_rel, "conj", uncertain=True), receiver)
 
 
-def conj_propagation_of_nmods(sentence):
+def extra_conj_propagation_of_nmods(sentence):
     son_rest = Restriction(name="receiver", no_sons_of="nmod", nested=[[
         Restriction(gov="conj", nested=[[
             Restriction(name="nmod", gov="nmod(?!(:.*extra|:poss.*))")
@@ -502,7 +545,7 @@ def conj_propagation_of_nmods(sentence):
         conj_propagation_of_nmods_per_type(sentence, conj_restriction)
 
 
-def conj_propagation_of_poss(sentence):
+def extra_conj_propagation_of_poss(sentence):
     poss_rest = Restriction(nested=[[
         Restriction(name="receiver", no_sons_of="nmod:poss.*", gov="conj"),
         Restriction(name="nmod", gov="nmod(?!:.*extra)")
@@ -512,7 +555,7 @@ def conj_propagation_of_poss(sentence):
 
 
 # phenomena: indexicals
-def advmod_propagation(sentence):
+def extra_advmod_propagation(sentence):
     advmod_rest = Restriction(name="gov", nested=[[
         Restriction(name="middle_man", gov="(.?obj|nsubj.*|nmod.*)", nested=[[
             Restriction(name="advmod", gov="advmod", form=advmod_list)
@@ -532,7 +575,7 @@ def advmod_propagation(sentence):
 
 
 # "I went back to prison"
-def nmod_advmod_reconstruction(sentence):
+def extra_nmod_advmod_reconstruction(sentence):
     # the reason for the form restriction: we dont want to catch "all in all"
     nmod_advmod_rest = Restriction(name="gov", nested=[[
         Restriction(name="advmod", gov="advmod", form= "(?!(^(?i:all)$))", nested=[[
@@ -567,7 +610,7 @@ def nmod_advmod_reconstruction(sentence):
             nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(nmod_rel, mwe), "auto-mwe"), advmod, gov)
 
 
-def appos_propagation(sentence):
+def extra_appos_propagation(sentence):
     appos_rest = Restriction(name="gov", nested=[[
         Restriction(name="appos", gov="appos")
     ]])
@@ -599,7 +642,7 @@ def attach_best_cc(conj, ccs, noun, verb):
         closest_cc.replace_edge("cc", add_extra_info("cc", "copula"), noun, verb)
 
 
-def copula_reconstruction(sentence):
+def extra_copula_reconstruction(sentence):
     cop_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(?!:(VB.?|BES|HVS))", nested=[[
             Restriction(name="cop", gov="cop"),
@@ -694,7 +737,7 @@ def split_concats_by_index(prep_list, prep_len):
 # would be replaced with:
 #   case(you-6, across-4)
 #   mwe(across-4, from-5)
-def process_simple_2wp(sentence):
+def eudpp_process_simple_2wp(sentence):
     forms = split_concats_by_index(two_word_preps_regular, 2)
     
     restriction = Restriction(nested=[[
@@ -730,7 +773,7 @@ def process_simple_2wp(sentence):
 #   case(me-6, close-3)
 #   mwe(close-3, to-4)
 #   root(ROOT-0, me-6)
-def process_complex_2wp(sentence):
+def eudpp_process_complex_2wp(sentence):
     forms = split_concats_by_index(two_word_preps_complex, 2)
 
     inner_rest = Restriction(gov="nmod", name="gov2", nested=[[
@@ -786,7 +829,7 @@ def process_complex_2wp(sentence):
 #   mwe(in-3, front-4)
 #   mwe(in-3, of-5)
 #   root(ROOT-0, you-6)
-def process_3wp(sentence):
+def eudpp_process_3wp(sentence):
     forms = split_concats_by_index(three_word_preps, 3)
     
     restriction = Restriction(name="gov", nested=[[
@@ -870,7 +913,7 @@ def demote_per_type(sentence, restriction):
         [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels()]
 
 
-def demote_quantificational_modifiers(sentence):
+def eudpp_demote_quantificational_modifiers(sentence):
     quant_3w = Restriction(nested=[[
         Restriction(name="w2", no_sons_of="amod", form=quant_mod_3w, followed_by="w3", nested=[[
             Restriction(name="w1", gov="det", form="(?i:an?)"),
@@ -931,7 +974,7 @@ def assign_refs(ret):
 # for the ref TypedDependency.
 # Then we collapse the referent relation such as follows. e.g.:
 # "The man that I love ... " dobj(love, that) -> ref(man, that) dobj(love, man)
-def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
+def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
     child_rest = Restriction(name="child_ref", form=relativizing_word_regex)
     grandchild_rest = Restriction(nested=[[
         Restriction(name="grand_ref", form=relativizing_word_regex)
@@ -1008,6 +1051,14 @@ def add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra):
             gov.add_edge(add_extra_info(leftmost_rel, "reduced-relcl"), leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
+def eudpp_add_ref_and_collapse(sentence):
+    add_ref_and_collapse_general(sentence, True, False)
+
+
+def extra_add_ref_and_collapse(sentence):
+    add_ref_and_collapse_general(sentence, False, True)
+
+
 # resolves the following multi word conj phrases:
 #   a. 'but(cc) not', 'if not', 'instead of', 'rather than', 'but(cc) rather'. GO TO negcc
 #   b. 'as(cc) well as', 'but(cc) also', 'not to mention', '&'. GO TO and
@@ -1053,7 +1104,7 @@ def assign_ccs_to_conjs(sentence, ret):
 
 # Adds the type of conjunction to all conjunct relations
 # Some multi-word coordination markers are collapsed to conj:and or conj:negcc
-def conj_info(sentence):
+def eud_conj_info(sentence):
     restriction = Restriction(name="gov", nested=[[
         Restriction(name="cc", gov="^(cc)$"),
         Restriction(name="conj", gov="^(conj)$")
@@ -1141,7 +1192,7 @@ def expand_per_type(sentence, restriction, is_pp):
 # in the following new relations:
 #   conj:and(flies, flies')
 #   nmod(flies', Serbia)
-def expand_pp_or_prep_conjunctions(sentence):
+def eudpp_expand_pp_or_prep_conjunctions(sentence):
     pp_restriction = Restriction(name="to_copy", nested=[[
         Restriction(name="gov", gov="^(nmod|acl|advcl)$", nested=[[
             Restriction(gov="case"),
@@ -1166,7 +1217,7 @@ def expand_pp_or_prep_conjunctions(sentence):
 
 
 # TODO: remove when moving to UD-version2
-def fix_nmod_npmod(sentence):
+def extra_fix_nmod_npmod(sentence):
     restriction = Restriction(nested=[[
         Restriction(name="npmod", gov="^nmod:npmod$")
     ]])
@@ -1180,7 +1231,7 @@ def fix_nmod_npmod(sentence):
         npmod.replace_edge(npmod_rel, "compound", npmod_head, npmod_head)
 
 
-def hyphen_reconstruction(sentence):
+def extra_hyphen_reconstruction(sentence):
     restriction = Restriction(name="subj", nested=[[
         Restriction(name="verb", gov="^(amod)$", xpos="VB.", nested=[[
             Restriction(name="hyphen", form="-", gov="^(punct)$", xpos="HYPH"),
@@ -1202,7 +1253,7 @@ def hyphen_reconstruction(sentence):
 
 
 # The bottle was broken by me.
-def passive_alteration(sentence):
+def extra_passive_alteration(sentence):
     restriction = Restriction(name="predicate", nested=[
         [
             Restriction(name="subjpass", gov=".subjpass"),
@@ -1236,77 +1287,73 @@ def passive_alteration(sentence):
         subj.add_edge(add_extra_info(subj_new_rel, "passive"), predicate)
     
 
-def convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra, remove_node_adding_conversions):
-    # correctDependencies - correctSubjPass, processNames and removeExactDuplicates.
-    # the last two have been skipped. processNames for future treatment, removeExactDuplicates for redundancy.
-    correct_subj_pass(sentence)
+def convert_sentence(sentence):
+    # The order of wud and eudpp is according to the order of the original CoreNLP.
+    # The extra are our enhancements in which been added where we thought it best.
     
-    if enhanced_extra:
-        if not remove_node_adding_conversions:
-            copula_reconstruction(sentence)
-        fix_nmod_npmod(sentence)
-        hyphen_reconstruction(sentence)
+    eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
     
-    if enhanced_plus_plus:
-        # processMultiwordPreps: processSimple2WP, processComplex2WP, process3WP
-        process_simple_2wp(sentence)
-        process_complex_2wp(sentence)
-        process_3wp(sentence)
-        # demoteQuantificationalModifiers
-        demote_quantificational_modifiers(sentence)
-        # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-        if not remove_node_adding_conversions:
-            expand_pp_or_prep_conjunctions(sentence)
+    extra_copula_reconstruction(sentence)
+    extra_fix_nmod_npmod(sentence)
+    extra_hyphen_reconstruction(sentence)
 
-    if enhanced_extra:
-        nmod_advmod_reconstruction(sentence)
+    eudpp_process_simple_2wp(sentence)  # processMultiwordPreps: processSimple2WP
+    eudpp_process_complex_2wp(sentence)  # processMultiwordPreps: processComplex2WP
+    eudpp_process_3wp(sentence)  # processMultiwordPreps: process3WP
+    eudpp_demote_quantificational_modifiers(sentence)  # demoteQuantificationalModifiers
+    eudpp_expand_pp_or_prep_conjunctions(sentence) # add copy nodes: expandPPConjunctions, expandPrepConjunctions
 
-    if enhanced:
-        # addCaseMarkerInformation
-        if not g_remove_enhanced_extra_info:
-            passive_agent(sentence)
-        prep_patterns(sentence, '^nmod$', 'case')
-        prep_patterns(sentence, '^(advcl|acl)$', '^(mark|case)$')
-        
-        if not g_remove_enhanced_extra_info:
-            # addConjInformation
-            conj_info(sentence)
-    
-    # referent: addRef, collapseReferent
-    if enhanced_plus_plus or enhanced_extra:
-        add_ref_and_collapse(sentence, enhanced_plus_plus, enhanced_extra)
+    extra_nmod_advmod_reconstruction(sentence)
 
-    if enhanced:
-        # treatCC
-        heads_of_conjuncts(sentence)
-        subj_of_conjoined_verbs(sentence)
-        
-        # addExtraNSubj
-        xcomp_propagation(sentence)
+    eud_passive_agent(sentence)  # addCaseMarkerInformation
+    eud_prep_patterns(sentence)  # addCaseMarkerInformation
+    eud_conj_info(sentence)  # addConjInformation
+
+    extra_add_ref_and_collapse(sentence)
+    eudpp_add_ref_and_collapse(sentence)  # referent: addRef, collapseReferent
+
+    eud_heads_of_conjuncts(sentence)  # treatCC
+    eud_subj_of_conjoined_verbs(sentence)  # treatCC
+    eud_xcomp_propagation(sentence)  # addExtraNSubj
+
+    extra_xcomp_propagation_no_to(sentence)
+    extra_advcl_propagation(sentence)
+    extra_acl_propagation(sentence)
+    extra_amod_propagation(sentence)
+    extra_dep_propagation(sentence)
+    extra_conj_propagation_of_nmods(sentence)
+    extra_conj_propagation_of_poss(sentence)
+    extra_advmod_propagation(sentence)
+    extra_appos_propagation(sentence)
+    extra_subj_obj_nmod_propagation_of_nmods(sentence)
+    extra_passive_alteration(sentence)
     
-    if enhanced_extra:
-        xcomp_propagation_no_to(sentence)
-        advcl_propagation(sentence)
-        acl_propagation(sentence)
-        amod_propagation(sentence)
-        dep_propagation(sentence)
-        conj_propagation_of_nmods(sentence)
-        conj_propagation_of_poss(sentence)
-        advmod_propagation(sentence)
-        appos_propagation(sentence)
-        subj_obj_nmod_propagation_of_nmods(sentence)
-        passive_alteration(sentence)
-    
-    # correctSubjPass
-    correct_subj_pass(sentence)
+    eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
     
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions):
+def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, funcs_to_cancel):
+    if not enhanced:
+        funcs_to_cancel.update_funcs_by_prefix('eud')
+    if not enhanced_plus_plus:
+        funcs_to_cancel.update_funcs_by_prefix('eudpp')
+    if not enhanced_extra:
+        funcs_to_cancel.update_funcs_by_prefix('extra')
+    if remove_enhanced_extra_info:
+        funcs_to_cancel.update_funcs(['eud_passive_agent', 'eud_conj_info'])
+    if remove_node_adding_conversions:
+        funcs_to_cancel.update_funcs(['extra_copula_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
+    
+    funcs_to_cancel.override_funcs()
+
+
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, funcs_to_cancel=ConvsCanceler()):
     global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_aryeh_extra_info = remove_aryeh_extra_info
+
+    override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, funcs_to_cancel)
     
     last_converted_sentences = []
     converted_sentences = parsed
@@ -1317,7 +1364,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
         last_converted_sentences = set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
         temp = []
         for sentence in converted_sentences:
-            temp.append(convert_sentence(sentence, enhanced, enhanced_plus_plus, enhanced_extra, remove_node_adding_conversions))
+            temp.append(convert_sentence(sentence))
         converted_sentences = temp
         i += 1
     
