@@ -39,8 +39,12 @@ class ConvsCanceler:
         self._func_names = self.original.keys()
     
     def __del__(self):
-        for func_name, func_pointer in self.original.items():
-            setattr(sys.modules[__name__], func_name, func_pointer)
+        # best effort in cleanup
+        try:
+            for func_name, func_pointer in self.original.items():
+                setattr(sys.modules[__name__], func_name, func_pointer)
+        except KeyError:
+            pass
     
     def override_funcs(self):
         if self.cancel_list:
