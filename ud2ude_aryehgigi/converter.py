@@ -34,8 +34,13 @@ g_remove_aryeh_extra_info = False
 class ConvsCanceler:
     def __init__(self, cancel_list: List[str] = None):
         self.cancel_list = cancel_list
-        self._func_names = {func_name for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
+        self.original = {func_name: func_pointer for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
                             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
+        self._func_names = self.original.keys()
+    
+    def __del__(self):
+        for func_name, func_pointer in self.original.items():
+            setattr(sys.modules[__name__], func_name, func_pointer)
     
     def override_funcs(self):
         if self.cancel_list:
