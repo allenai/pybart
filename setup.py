@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="ud2ude_aryehgigi",
-    version="2.0.1",
+    name="ud2ude-aryehgigi",
+    version="2.1.0",
     author="Aryeh Tiktinsky",
     author_email="aryehgigi@gmail.com",
     description="python converter from UD to enhanced UD representations",
