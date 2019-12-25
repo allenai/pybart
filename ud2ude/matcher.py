@@ -3,9 +3,9 @@ from collections import namedtuple
 
 fields = ('name', 'gov', 'no_sons_of', 'form', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
 # TODO - when moving to python 3.7 replace to:
-#   Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
-Restriction = namedtuple("Restriction", fields)
-Restriction.__new__.__defaults__ = (None,) * len(Restriction._fields)
+Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
+# Restriction = namedtuple("Restriction", fields)
+# Restriction.__new__.__defaults__ = (None,) * len(Restriction._fields)
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
