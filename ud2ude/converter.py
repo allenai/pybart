@@ -35,7 +35,7 @@ class ConvsCanceler:
     def __init__(self, cancel_list: List[str] = None):
         self.cancel_list = cancel_list
         self.original = {func_name: func_pointer for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
-                            if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
+                         if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
         self._func_names = self.original.keys()
     
     def restore_funcs(self):
@@ -379,6 +379,7 @@ def extra_advcl_propagation(sentence):
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
+
 def extra_amod_propagation(sentence):
     amod_rest = Restriction(name="father", nested=[[
         Restriction(name="amod", gov="(.*amod.*)", no_sons_of="nsubj.*")
@@ -586,7 +587,7 @@ def extra_advmod_propagation(sentence):
 def extra_nmod_advmod_reconstruction(sentence):
     # the reason for the form restriction: we dont want to catch "all in all"
     nmod_advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(name="advmod", gov="advmod", form= "(?!(^(?i:all)$))", nested=[[
+        Restriction(name="advmod", gov="advmod", form="(?!(^(?i:all)$))", nested=[[
             Restriction(name="nmod", gov="nmod", nested=[[
                 Restriction(name="case", gov="case")
             ]])
@@ -1046,7 +1047,7 @@ def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
                 objs = [child for child, rel in leftmost_head.get_children_with_rels() if rel == 'dobj']
                 for obj in objs:
                     rels_with_pos_obj = {(relation, child.get_conllu_field('xpos')): child for
-                                     (child, relation) in obj.get_children_with_rels()}
+                                         (child, relation) in obj.get_children_with_rels()}
                     if (('nmod', 'IN') in rels_with_pos_obj) or (('nmod', 'RB') in rels_with_pos_obj):
                         case = rels_with_pos_obj[('nmod', 'IN')] if ('nmod', 'IN') in rels_with_pos_obj else rels_with_pos_obj[('nmod', 'RB')]
                         gov.add_edge(add_extra_info(add_eud_info("nmod", case.get_conllu_field('form')), "reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
@@ -1309,7 +1310,7 @@ def convert_sentence(sentence):
     eudpp_process_complex_2wp(sentence)  # processMultiwordPreps: processComplex2WP
     eudpp_process_3wp(sentence)  # processMultiwordPreps: process3WP
     eudpp_demote_quantificational_modifiers(sentence)  # demoteQuantificationalModifiers
-    eudpp_expand_pp_or_prep_conjunctions(sentence) # add copy nodes: expandPPConjunctions, expandPrepConjunctions
+    eudpp_expand_pp_or_prep_conjunctions(sentence)  # add copy nodes: expandPPConjunctions, expandPrepConjunctions
 
     extra_nmod_advmod_reconstruction(sentence)
 
@@ -1382,5 +1383,3 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     
     funcs_to_cancel.restore_funcs()
     return converted_sentences, i
-
-
