@@ -38,7 +38,7 @@ class ConvsCanceler:
                             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
         self._func_names = self.original.keys()
     
-    def __del__(self):
+    def restore_funcs(self):
         # best effort in cleanup
         try:
             for func_name, func_pointer in self.original.items():
@@ -1380,6 +1380,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
             break
         i += 1
     
+    funcs_to_cancel.restore_funcs()
     return converted_sentences, i
 
 
