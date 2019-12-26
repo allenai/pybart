@@ -26,6 +26,7 @@ neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
+evidential_list = "(seem|look|appear)"
 EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
 g_remove_aryeh_extra_info = False
@@ -633,27 +634,22 @@ def attach_best_cc(conj, ccs, noun, verb):
             closest_cc = cur_cc
             closest_dist = conj.dist(closest_cc)
     if closest_cc:
-        closest_cc.replace_edge("cc", add_extra_info("cc", "copula"), noun, verb)
+        closest_cc.replace_edge("cc", "cc", noun, verb)
 
 
-def extra_copula_reconstruction(sentence):
-    cop_rest = Restriction(name="father", nested=[[
-        Restriction(name="old_root", xpos="(?!:(VB.?|BES|HVS))", nested=[[
-            Restriction(name="cop", gov="cop"),
-        ]])
-    ]])
+def per_weak_verbs_reconstruction(sentence, cop_rest, evidential):
     ret = match(sentence.values(), [[cop_rest]])
     if not ret:
         return
 
     for name_space in ret:
         old_root, _, _ = name_space['old_root']
-        cop, _, _ = name_space['cop']
+        predecessor, _, _ = name_space['cop'] if 'cop' in name_space else name_space['old_root']
         
-        new_id = cop.get_conllu_field('id') + 0.1
-        new_root = cop.copy(
+        new_id = predecessor.get_conllu_field('id') + 0.1
+        new_root = predecessor.copy(
             new_id=new_id,
-            form="_",
+            form="STATE",
             lemma="_",
             upos="_",
             xpos="_",
@@ -665,38 +661,89 @@ def extra_copula_reconstruction(sentence):
         # transfer old-root's outgoing relation to new-root
         for head, rel in old_root.get_new_relations():
             old_root.remove_edge(rel, head)
-            new_root.add_edge(add_extra_info(rel, "copula"), head)
+            new_root.add_edge(rel, head)
 
         # transfer all old-root's children that are to be transferred
         ccs = [cc_child for cc_child, cc_rel in old_root.get_children_with_rels() if cc_rel == "cc"]
         subjs = []
         new_out_rel = "xcomp"
         for child, rel in old_root.get_children_with_rels():
-            if re.match("(aux.*|discourse|mark|punct|advcl|xcomp|ccomp|advmod|expl|parataxis)", rel):
-                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
+            if re.match("(discourse|mark|punct|advcl|xcomp|ccomp|expl|parataxis)", rel):
+                child.replace_edge(rel, rel, old_root, new_root)
+            elif re.match("(aux.*|advmod)", rel) and not evidential:
+                child.replace_edge(rel, rel, old_root, new_root)
             elif re.match("(.subj.*)", rel):
-                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
+                child.replace_edge(rel, rel, old_root, new_root)
                 subjs.append(child)
             elif re.match("(case)", rel):
                 new_out_rel = "nmod"
             elif "cop" == rel:
-                child.replace_edge(rel, add_extra_info("aux", "copula"), old_root, new_root)
-            elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
-                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
+                child.replace_edge(rel, "aux", old_root, new_root)
+            elif ("conj" == rel) and re.match("(VB.?)", child.get_conllu_field("xpos")) and not evidential:
+                child.replace_edge(rel, rel, old_root, new_root)
                 attach_best_cc(child, ccs, old_root, new_root)
+            elif re.match("nmod(?!:poss)", rel) and evidential:
+                child.replace_edge(rel, rel, old_root, new_root)
             # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
         
         # update old-root's outgoing relation
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
             for subj in subjs:
-                old_root.add_edge(add_extra_info("amod", "copula"), subj)
-            new_root.set_conllu_field("form", "QUALITY")
-        else:
-            new_root.set_conllu_field("form", "STATE")
+                old_root.add_edge(add_extra_info("amod", "cop"), subj)
         
-        old_root.add_edge(add_extra_info(new_out_rel, "copula"), new_root)
+        old_root.add_edge('ev' if evidential else new_out_rel, new_root)
         
         sentence[new_id] = new_root
+
+
+def extra_copula_reconstruction(sentence):
+    cop_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
+            Restriction(name="cop", gov="cop"),
+        ]])
+    ]])
+
+    per_weak_verbs_reconstruction(sentence, cop_rest, False)
+
+
+def extra_evidential_reconstruction(sentence):
+    # part1: find all evidential with no following(xcomp that is) main verb,
+    #   and add a new node and transfer to him the rootness, like in copula
+    ev_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list)
+    ]])
+
+    per_weak_verbs_reconstruction(sentence, ev_rest, True)
+    
+    # part2: find all evidential with following(xcomp that is) main verb,
+    #   and transfer to the main verb rootness
+    ev_xcomp_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
+            Restriction(name="new_root", gov="xcomp", xpos="(?!JJ)"),
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[ev_xcomp_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        old_root, _, _ = name_space['old_root']
+        new_root, _, _ = name_space['new_root']
+
+        # transfer old-root's outgoing relation to new-root
+        for head, rel in old_root.get_new_relations():
+            old_root.remove_edge(rel, head)
+            new_root.add_edge(rel, head)
+
+        # transfer
+        for child, rel in old_root.get_children_with_rels():
+            if rel == 'xcomp':
+                assert child == new_root
+                new_root.remove_edge('xcomp', old_root)
+                old_root.add_edge(add_extra_info('ev', 'xcomp(evidential)'), new_root)
+            elif re.match("(?!advmod|aux.*|cc|conj).*", rel):
+                child.replace_edge(rel, rel, old_root, new_root)  # TODO: should we add here extra info?
 
 
 def create_mwe(words, head, rel):
@@ -1288,6 +1335,7 @@ def convert_sentence(sentence):
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
     
     extra_copula_reconstruction(sentence)
+    extra_evidential_reconstruction(sentence)
     extra_fix_nmod_npmod(sentence)
     extra_hyphen_reconstruction(sentence)
 
