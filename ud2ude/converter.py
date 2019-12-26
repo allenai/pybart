@@ -312,9 +312,9 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
 #   Similarly, "The law tells them when to do so"
 #   Instead of nsubj(do, law) we want nsubj(do, them)
 def eud_xcomp_propagation(sentence):
-    to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
-    basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
-        Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
+    to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", xpos="^(TO)$")
+    basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", xpos="(?!(^(TO)$)).", nested=[[
+        Restriction(gov="^(aux|mark)$", xpos="(^(TO)$)")
     ]])
 
     for xcomp_restriction in [to_xcomp_rest, basic_xcomp_rest]:
@@ -322,7 +322,7 @@ def eud_xcomp_propagation(sentence):
 
 
 def extra_xcomp_propagation_no_to(sentence):
-    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
+    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", xpos="(?!(^(TO)$)).")
     
     xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
 
