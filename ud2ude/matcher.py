@@ -1,11 +1,8 @@
 import re
 from collections import namedtuple
 
-fields = ('name', 'gov', 'no_sons_of', 'form', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
-# TODO - when moving to python 3.7 replace to:
+fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
 Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
-# Restriction = namedtuple("Restriction", fields)
-# Restriction.__new__.__defaults__ = (None,) * len(Restriction._fields)
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
@@ -38,6 +35,10 @@ def named_nodes_restrictions(restriction, named_nodes):
 def match_child(child, restriction, head):
     if restriction.form:
         if child.is_root_node() or not re.match(restriction.form, child.get_conllu_field('form')):
+            return
+    
+    if restriction.lemma:
+        if child.is_root_node() or not re.match(restriction.lemma, child.get_conllu_field('lemma')):
             return
     
     if restriction.xpos:
