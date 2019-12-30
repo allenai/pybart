@@ -26,7 +26,7 @@ neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
-evidential_list = "(seem|look|appear)"  # TODO: add more. not sure about: smells/sounds/..
+evidential_list = "(seem|look|appear|be)"  # TODO: add more. not sure about: smells/sounds/..
 aspectual_list = "(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)"  # TODO: also "give up" but it needs special treatment
 EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
@@ -642,10 +642,14 @@ def per_type_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
     ret = match(sentence.values(), [[cop_rest]])
     if not ret:
         return
-
+    
     for name_space in ret:
         old_root, _, _ = name_space['old_root']
         predecessor, _, _ = name_space['cop'] if 'cop' in name_space else name_space['old_root']
+        
+        if "STATE" in [head.get_conllu_field("form") for head, rel in old_root.get_new_relations()] or \
+           'ev' in [rel.split(":")[0] for head, rel in old_root.get_new_relations()]:
+            continue
         
         new_id = predecessor.get_conllu_field('id') + 0.1
         new_root = predecessor.copy(
@@ -663,13 +667,18 @@ def per_type_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
         for head, rel in old_root.get_new_relations():
             old_root.remove_edge(rel, head)
             new_root.add_edge(rel, head)
-
+        
         # transfer all old-root's children that are to be transferred
         ccs = [cc_child for cc_child, cc_rel in old_root.get_children_with_rels() if cc_rel == "cc"]
         subjs = []
         new_out_rel = "xcomp"
+        new_amod = old_root
         for child, rel in old_root.get_children_with_rels():
-            if re.match("(discourse|mark|punct|advcl|xcomp|ccomp|expl|parataxis)", rel):
+            if re.match("(discourse|mark|punct|advcl|ccomp|expl|parataxis)", rel):
+                child.replace_edge(rel, rel, old_root, new_root)
+            elif rel == "xcomp":
+                if evidential:
+                    new_amod = child
                 child.replace_edge(rel, rel, old_root, new_root)
             elif re.match("(aux.*|advmod)", rel) and not evidential:
                 child.replace_edge(rel, rel, old_root, new_root)
@@ -679,7 +688,7 @@ def per_type_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
             elif re.match("(case)", rel):
                 new_out_rel = "nmod"
             elif "cop" == rel:
-                child.replace_edge(rel, "aux", old_root, new_root)
+                child.replace_edge(rel, "ev", old_root, new_root)
             elif ("conj" == rel) and re.match("(VB.?)", child.get_conllu_field("xpos")) and not evidential:
                 child.replace_edge(rel, rel, old_root, new_root)
                 attach_best_cc(child, ccs, old_root, new_root)
@@ -688,9 +697,9 @@ def per_type_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
             # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
         
         # update old-root's outgoing relation
-        if re.match("JJ.?", old_root.get_conllu_field("xpos")):
+        if re.match("JJ.?", new_amod.get_conllu_field("xpos")):
             for subj in subjs:
-                old_root.add_edge(add_extra_info("amod", "cop"), subj)
+                new_amod.add_edge(add_extra_info("amod", "cop"), subj)
         
         old_root.add_edge('ev' if evidential else new_out_rel, new_root)
         
@@ -732,15 +741,7 @@ def extra_copula_reconstruction(sentence):
 
 
 def extra_evidential_reconstruction(sentence):
-    # part1: find all evidential with no following(xcomp that is) main verb,
-    #   and add a new node and transfer to him the rootness, like in copula
-    ev_rest = Restriction(name="father", nested=[[
-        Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list)
-    ]])
-
-    per_type_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
-    
-    # part2: find all evidential with following(xcomp that is) main verb,
+    # part1: find all evidential with following(xcomp that is) main verb,
     #   and transfer to the main verb rootness
     ev_xcomp_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
@@ -749,6 +750,14 @@ def extra_evidential_reconstruction(sentence):
     ]])
 
     per_type_weak_modified_verb_reconstruction(sentence, ev_xcomp_rest, "evidential")
+    
+    # part2: find all evidential with no following(xcomp that is) main verb,
+    #   and add a new node and transfer to him the rootness, like in copula
+    ev_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list)
+    ]])
+
+    per_type_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
 
 
 def extra_aspectual_reconstruction(sentence):
@@ -1351,7 +1360,7 @@ def convert_sentence(sentence):
     
     extra_copula_reconstruction(sentence)
     extra_evidential_reconstruction(sentence)
-    extra_evidential_reconstruction(sentence)
+    extra_aspectual_reconstruction(sentence)
     extra_fix_nmod_npmod(sentence)
     extra_hyphen_reconstruction(sentence)
 
