@@ -26,8 +26,9 @@ neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
-evidential_list = "(seem|look|appear|be)"  # TODO: add more. not sure about: smells/sounds/..
-aspectual_list = "(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)"  # TODO: also "give up" but it needs special treatment
+evidential_list = "^(seem|appear|be|sound)$"
+aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
+reported_list = "^(say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explainclarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
 EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
 g_remove_aryeh_extra_info = False
@@ -639,79 +640,101 @@ def attach_best_cc(conj, ccs, noun, verb):
 
 
 def per_type_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
-    ret = match(sentence.values(), [[cop_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        old_root, _, _ = name_space['old_root']
-        predecessor, _, _ = name_space['cop'] if 'cop' in name_space else name_space['old_root']
+    # NOTE: we do this as long as we find what to change, and each time change only one match, instead of fixing all matches found each time.
+    #   As every change we do might change what can be found next, and old relations that are matched might be out dated.
+    #   But this is bad practice. we dont use the matching properly, and we use while true which might run forever!
+    while True:
+        i = 0
+        ret = match(sentence.values(), [[cop_rest]])
+        if not ret:
+            return
         
-        if "STATE" in [head.get_conllu_field("form") for head, rel in old_root.get_new_relations()] or \
-           'ev' in [rel.split(":")[0] for head, rel in old_root.get_new_relations()]:
-            continue
+        # As we might catch unwanted constructions (which the matcher couldnt handle), we added this while to find the first true match.
+        while True:
+            name_space = ret[i]
+            old_root, _, _ = name_space['old_root']
+            # the evidential should be the predecessor of the STATE as the cop is (event though he is also the old root of the construct).
+            predecessor, _, _ = name_space['cop'] if 'cop' in name_space else name_space['old_root']
+            
+            # The old_root's father cant be 'STATE' or connect ia ev. as it means we were already handled.
+            #   The old_root's childs cant be 'xcomp'(+'JJ') or 'ccomp' as they are handled sseperatly.
+            if not ("STATE" in [head.get_conllu_field("form") for head, rel in old_root.get_new_relations()] or
+                'ev' in [rel.split(":")[0] for head, rel in old_root.get_new_relations()] or
+                'xcomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels() if not child.get_conllu_field('xpos').startswith('JJ')] or
+                'ccomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels()]):
+                break
+            i += 1
+            if i == len(ret):
+                return
         
         new_id = predecessor.get_conllu_field('id') + 0.1
-        new_root = predecessor.copy(
-            new_id=new_id,
-            form="STATE",
-            lemma="_",
-            upos="_",
-            xpos="_",
-            feats="_",
-            head="_",
-            deprel="_",
-            deps=None)
+        new_root = predecessor.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
         
         # transfer old-root's outgoing relation to new-root
         for head, rel in old_root.get_new_relations():
             old_root.remove_edge(rel, head)
             new_root.add_edge(rel, head)
-        
+
         # transfer all old-root's children that are to be transferred
         ccs = [cc_child for cc_child, cc_rel in old_root.get_children_with_rels() if cc_rel == "cc"]
         subjs = []
         new_out_rel = "xcomp"
         new_amod = old_root
         for child, rel in old_root.get_children_with_rels():
-            if re.match("(discourse|mark|punct|advcl|ccomp|expl|parataxis)", rel):
+            if re.match("((.subj.*)|discourse|punct|advcl|xcomp|ccomp|expl|parataxis)", rel):
+                # transfer any of the following childs
                 child.replace_edge(rel, rel, old_root, new_root)
-            elif rel == "xcomp":
-                if evidential:
+                # store subj childs for later
+                if re.match("(.subj.*)", rel):
+                    subjs.append(child)
+                # since only non verbal xcomps childs get here, this child becomes an amod connection canidate (see later on)
+                elif (rel == "xcomp") and evidential:
                     new_amod = child
-                child.replace_edge(rel, rel, old_root, new_root)
+            elif rel == "mark":
+                if child.get_conllu_field('xpos') != 'TO':
+                    # transfer any non 'to' markers
+                    child.replace_edge(rel, rel, old_root, new_root)
+                elif not evidential:
+                    # make the 'to' be the son of the 'be' evidential (instead the copula old.
+                    child.replace_edge(rel, rel, old_root, predecessor)
+                # else: child is 'to' but it is the evidential case, so no need to change it's father.
             elif re.match("(aux.*|advmod)", rel) and not evidential:
-                child.replace_edge(rel, rel, old_root, new_root)
-            elif re.match("(.subj.*)", rel):
-                child.replace_edge(rel, rel, old_root, new_root)
-                subjs.append(child)
+                # simply these are to be transfered only in the copula case, to the 'cop' itself, as it is in the evidential case.
+                child.replace_edge(rel, rel, old_root, predecessor)
             elif re.match("(case)", rel):
                 new_out_rel = "nmod"
             elif "cop" == rel:
+                # 'cop' becomes 'ev' (for event/evidential) to the new root
                 child.replace_edge(rel, "ev", old_root, new_root)
             elif ("conj" == rel) and re.match("(VB.?)", child.get_conllu_field("xpos")) and not evidential:
+                # transfer 'conj' only if it is a verb conjuction, as we want it to be attached to the new (verb/state) root 
                 child.replace_edge(rel, rel, old_root, new_root)
+                # find best 'cc' to attach the new root as complinece with the transfered 'conj'.
                 attach_best_cc(child, ccs, old_root, new_root)
             elif re.match("nmod(?!:poss)", rel) and evidential:
                 child.replace_edge(rel, rel, old_root, new_root)
             # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
         
-        # update old-root's outgoing relation
+        # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjactive.
+        #   new_amod can be the old_root if it was a copula construct, or the old_root's 'xcomp' son if not.
         if re.match("JJ.?", new_amod.get_conllu_field("xpos")):
             for subj in subjs:
                 new_amod.add_edge(add_extra_info("amod", "cop"), subj)
         
+        # connect the old_root as son of the new_root as 'ev' if it was an evidiential root,
+        # or with the proper complement if it was an adjectivial root under the copula constrcut
         old_root.add_edge('ev' if evidential else new_out_rel, new_root)
         
         sentence[new_id] = new_root
 
 
 def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
-    ret = match(sentence.values(), [[rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
+    while True:
+        ret = match(sentence.values(), [[rest]])
+        if not ret:
+            return
+        
+        name_space = ret[0]
         old_root, _, _ = name_space['old_root']
         new_root, _, _ = name_space['new_root']
         
@@ -721,16 +744,37 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
             new_root.add_edge(rel, head)
         
         # transfer
+        removed_ccomp = False
         for child, rel in old_root.get_children_with_rels():
-            if rel == 'xcomp':
-                assert child == new_root
-                new_root.remove_edge('xcomp', old_root)
-                old_root.add_edge(add_extra_info('ev', f'xcomp({type_})'), new_root)
+            if rel == 'xcomp' or rel == 'ccomp':
+                new_root.remove_edge(rel, old_root)
+                if rel == 'ccomp':
+                    # remmember  we removed ccoomp
+                    removed_ccomp = True
+                # find lowest 'ev' of the new root, and make us his 'ev' son
+                inter_root = new_root
+                ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split(':')[0]]
+                while ev_sons:
+                    inter_root = ev_sons[0]
+                    ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split(':')[0]]
+                old_root.add_edge(add_extra_info('ev', f'{rel}({type_})'), inter_root)
+            elif rel == "mark":
+                # see notes in copula
+                if child.get_conllu_field('xpos') != 'TO':
+                    child.replace_edge(rel, rel, old_root, new_root)
+                elif 'cop' in name_space:
+                    child.replace_edge(rel, rel, old_root, predecessor)
+            elif re.match("(.subj.*)", rel):
+                # transfer the subj only if it is not the special case of ccomp
+                if ('ccomp' not in [rel for child, rel in old_root.get_children_with_rels()]) and not removed_ccomp:
+                    child.replace_edge(rel, rel, old_root, new_root)
             elif re.match("(?!advmod|aux.*|cc|conj).*", rel):
-                child.replace_edge(rel, rel, old_root, new_root)  # TODO: should we add here extra info?
+                child.replace_edge(rel, rel, old_root, new_root)
 
 
 def extra_copula_reconstruction(sentence):
+    # NOTE: the xpos restriction comes to make sure we catch only non verbal copulas to reconstructe
+    #   (even though it should have been 'aux' instead of 'cop')
     cop_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
             Restriction(name="cop", gov="cop"),
@@ -741,23 +785,27 @@ def extra_copula_reconstruction(sentence):
 
 
 def extra_evidential_reconstruction(sentence):
-    # part1: find all evidential with following(xcomp that is) main verb,
+    # part1: find all evidential with no following(xcomp that is) main verb,
+    #   and add a new node and transfer to him the rootness, like in copula
+    # NOTE: we avoid the auxilary sense of the evidential (in the 'be' case), with the gov restriction
+    ev_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", gov="(?!aux.*).", xpos="(VB.?)", lemma=evidential_list)
+    ]])
+    
+    per_type_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
+    
+    # part2: find all evidential with following(xcomp that is) main verb,
     #   and transfer to the main verb rootness
+    # NOTE:
+    #   1. xpos rest. avoids adjectives as we already treated them.
+    #   2. The gov rest. includes 'ccomp' cause we treat evidential+'ccomp' differently see per_type_weak_modified_verb_reconstruction.
     ev_xcomp_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
-            Restriction(name="new_root", gov="xcomp", xpos="(?!JJ)"),
+            Restriction(name="new_root", gov="(xcomp|ccomp)", xpos="(?!JJ)"),
         ]])
     ]])
 
     per_type_weak_modified_verb_reconstruction(sentence, ev_xcomp_rest, "evidential")
-    
-    # part2: find all evidential with no following(xcomp that is) main verb,
-    #   and add a new node and transfer to him the rootness, like in copula
-    ev_rest = Restriction(name="father", nested=[[
-        Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list)
-    ]])
-
-    per_type_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
 
 
 def extra_aspectual_reconstruction(sentence):
@@ -768,6 +816,26 @@ def extra_aspectual_reconstruction(sentence):
     ]])
     
     per_type_weak_modified_verb_reconstruction(sentence, aspect_xcomp_rest, "aspectual")
+
+
+def extra_reported_evidentiality(sentence):
+    reported_rest = Restriction(name="father", nested=[[
+        Restriction(name="ev", lemma=reported_list, followed_by="that", nested=[[
+            Restriction(name="new_root", gov="ccomp", nested=[[
+                Restriction(name="that", gov="mark")
+            ]]),
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[reported_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        ev, _, _ = name_space['ev']
+        new_root, _, _ = name_space['new_root']
+        
+        ev.add_edge(add_extra_info("ev", "ccomp(REPORTED)"), new_root)
 
 
 def create_mwe(words, head, rel):
@@ -1361,6 +1429,7 @@ def convert_sentence(sentence):
     extra_copula_reconstruction(sentence)
     extra_evidential_reconstruction(sentence)
     extra_aspectual_reconstruction(sentence)
+    extra_reported_evidentiality(sentence)
     extra_fix_nmod_npmod(sentence)
     extra_hyphen_reconstruction(sentence)
 
