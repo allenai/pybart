@@ -1402,6 +1402,9 @@ def extra_passive_alteration(sentence):
     for name_space in ret:
         subj, _, subj_rel = name_space['subjpass']
         predicate, _, _ = name_space['predicate']
+        if subj.match_rel(".obj", predicate):
+            # avoid fixing a fixed passive.
+            continue
         if 'agent' in name_space:
             agent, _, _ = name_space['agent']
             agent.add_edge(add_extra_info("nsubj", "passive"), predicate)
