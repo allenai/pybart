@@ -323,7 +323,7 @@ def eud_xcomp_propagation(sentence):
 
 
 def extra_xcomp_propagation_no_to(sentence):
-    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", xpos="(?!(^(TO)$)).")
+    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", xpos="(VB.?)")
     
     xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
 
