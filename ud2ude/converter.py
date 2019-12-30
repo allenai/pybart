@@ -639,7 +639,7 @@ def attach_best_cc(conj, ccs, noun, verb):
         closest_cc.replace_edge("cc", "cc", noun, verb)
 
 
-def per_type_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
+def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
     # NOTE: we do this as long as we find what to change, and each time change only one match, instead of fixing all matches found each time.
     #   As every change we do might change what can be found next, and old relations that are matched might be out dated.
     #   But this is bad practice. we dont use the matching properly, and we use while true which might run forever!
@@ -781,7 +781,7 @@ def extra_copula_reconstruction(sentence):
         ]])
     ]])
 
-    per_type_weak_modifier_verb_reconstruction(sentence, cop_rest, False)
+    extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, False)
 
 
 def extra_evidential_reconstruction(sentence):
@@ -792,7 +792,7 @@ def extra_evidential_reconstruction(sentence):
         Restriction(name="old_root", gov="(?!aux.*).", xpos="(VB.?)", lemma=evidential_list)
     ]])
     
-    per_type_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
+    extra_inner_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
     
     # part2: find all evidential with following(xcomp that is) main verb,
     #   and transfer to the main verb rootness
@@ -1481,7 +1481,7 @@ def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced
     if remove_enhanced_extra_info:
         funcs_to_cancel.update_funcs(['eud_passive_agent', 'eud_conj_info'])
     if remove_node_adding_conversions:
-        funcs_to_cancel.update_funcs(['extra_copula_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
+        funcs_to_cancel.update_funcs(['extra_inner_weak_modifier_verb_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
     
     funcs_to_cancel.override_funcs()
 
