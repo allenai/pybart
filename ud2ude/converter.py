@@ -568,7 +568,7 @@ def extra_advmod_propagation(sentence):
         gov, _, _ = name_space['gov']
         
         if gov not in advmod.get_parents():
-            advmod.add_edge(add_extra_info(advmod_rel, "indexical"), gov)
+            advmod.add_edge(add_extra_info(advmod_rel, "indexical", uncertain=True), gov)
 
 
 # "I went back to prison"
