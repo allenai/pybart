@@ -384,8 +384,28 @@ def extra_advcl_propagation(sentence):
 
 
 def extra_acl_propagation(sentence):
+    # part1: take care of all acl's that are marked by 'to'
+    acl_to_rest = Restriction(name="root_or_so", nested=[[
+        Restriction(name="verb", xpos="(VB.?)", nested=[[
+            Restriction(name="subj", gov=".subj.*"),
+            Restriction(name="father", diff="subj", nested=[[
+                Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*", nested=[[
+                    Restriction(name="to", gov="mark", xpos="TO")
+                ]])
+            ]])
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[acl_to_rest]])
+    if ret:
+        for name_space in ret:
+            subj, _, _ = name_space['subj']
+            acl, _, _ = name_space['acl']
+            subj.add_edge(add_extra_info("nsubj", "acl"), acl)
+    
+    # part2: take care of all acl's that are not marked by 'to'
     acl_rest = Restriction(name="father", nested=[[
-        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="(nsubj.*|mark)")  # TODO: validate that mark can be here only 'to'.
     ]])
     
     ret = match(sentence.values(), [[acl_rest]])
@@ -396,61 +416,6 @@ def extra_acl_propagation(sentence):
         father, _, _ = name_space['father']
         acl, _, _ = name_space['acl']
         father.add_edge(add_extra_info("nsubj", "acl"), acl)
-
-
-# def acl_propagation(sentence):
-#     # The apple chosen by me. {nsubj(chosen, apple)}
-#     # The apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
-#     # I ate the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # I ate from the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # From the apple chosen by god, I have tried. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # I ate a slice of the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # A slice of the apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
-#     basic_rest = Restriction(name="father", nested=[[
-#         Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
-#     ]])
-#     subj_rest = Restriction(name="subj", gov=".?subj.*", diff="father")
-#     acl_rest = Restriction(name="root_or_predicate", nested=[
-#         [basic_rest, subj_rest],
-#         [basic_rest]
-#     ])
-#
-#     ret = match(sentence.values(), [[acl_rest]])
-#     if not ret:
-#         return
-#     marked = []
-#     iid = 0
-#     for name_space in ret:
-#         cur_iid = iid
-#         father, _, _ = name_space['father']
-#         dep, _, _ = name_space['dep']
-#         root_or_predicate, _, _ = name_space['root_or_predicate']
-#         rp_heads = root_or_predicate.get_parents()
-#         subjs = []
-#
-#         # find subjects that are siblings of the acl's head, and of its parent(s).
-#         for rp_head in rp_heads:
-#             subjs += [child for (child, rel) in rp_head.get_children_with_rels() if (re.match(".subj.*", rel) and (child not in [father, root_or_predicate]))]
-#         if 'subj' in name_space:
-#             subj, _, _ = name_space['subj']
-#             subjs += [subj]
-#
-#         candidates = set(subjs + [father])
-#         if candidates in marked:
-#             continue
-#
-#         # if no subject found, we have no competition on the new subject title.
-#         if not subjs:
-#             cur_iid = None
-#         else:
-#             iid += 1
-#
-#         # add subj relation from the verb of the acl relation to the found subjects,
-#         # and to the head of that relation as well.
-#         for subj in subjs:
-#             subj.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
-#         father.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
-#         marked.append(candidates)
 
 
 def extra_dep_propagation(sentence):
