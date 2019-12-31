@@ -727,8 +727,6 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
                 # see notes in copula
                 if child.get_conllu_field('xpos') != 'TO':
                     child.replace_edge(rel, rel, old_root, new_root)
-                elif 'cop' in name_space:
-                    child.replace_edge(rel, rel, old_root, predecessor)
             elif re.match("(.subj.*)", rel):
                 # transfer the subj only if it is not the special case of ccomp
                 if ('ccomp' not in [rel for child, rel in old_root.get_children_with_rels()]) and not removed_ccomp:
