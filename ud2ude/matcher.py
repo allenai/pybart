@@ -109,6 +109,8 @@ def match_rl(children, restriction_list, head):
         # every new rest_ret should be merged to any previous rest_ret
         ret = rest_ret if not ret else \
             [{**ns_ret, **ns_rest_ret} for ns_rest_ret in rest_ret for ns_ret in ret]
+        # fix ret in case we have two identical name_spaces
+        ret = [r for i, r in enumerate(ret) if r not in ret[i + 1:]]
         
         ret_was_empty_beforehand = False
         if not ret:
