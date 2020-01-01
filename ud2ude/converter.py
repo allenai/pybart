@@ -483,7 +483,10 @@ def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=Fal
         i = 0
         for child, rel in sorted(token.get_children_with_rels(), reverse=True):
             if rel.startswith('conj'):
-                cc_assignments[child] = ccs[i if i < len(ccs) else -1]
+                if len(ccs) == 0:
+                    cc_assignments[child] = 'and'
+                else:
+                    cc_assignments[child] = ccs[i if i < len(ccs) else -1]
                 i += 1
         
     for name_space in ret:
