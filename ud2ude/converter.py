@@ -721,7 +721,7 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
         # transfer
         removed_ccomp = False
         for child, rel in old_root.get_children_with_rels():
-            if rel == 'xcomp' or rel == 'ccomp':
+            if child == new_root:
                 new_root.remove_edge(rel, old_root)
                 if rel == 'ccomp':
                     # remember  we removed ccomp
