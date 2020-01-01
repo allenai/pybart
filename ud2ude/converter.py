@@ -26,6 +26,9 @@ neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
+evidential_list = "^(seem|appear|be|sound)$"
+aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
+reported_list = "^(say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explainclarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
 EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
 g_remove_aryeh_extra_info = False
@@ -35,10 +38,10 @@ class ConvsCanceler:
     def __init__(self, cancel_list: List[str] = None):
         self.cancel_list = cancel_list
         self.original = {func_name: func_pointer for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
-                            if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
+                         if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
         self._func_names = self.original.keys()
     
-    def __del__(self):
+    def restore_funcs(self):
         # best effort in cleanup
         try:
             for func_name, func_pointer in self.original.items():
@@ -75,20 +78,21 @@ def add_eud_info(orig, extra):
     return orig + ((":" + extra) if not g_remove_enhanced_extra_info else "")
 
 
-def add_extra_info(orig, dep, iid=None, uncertain=False):
+def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=False, prevs=None):
     global g_remove_aryeh_extra_info
     
-    if g_remove_aryeh_extra_info:
-        return orig
+    source_str = ""
+    if not g_remove_aryeh_extra_info:
+        iid_str = ""
+        if iid is not None:
+            iid_str = "#" + str(iid)
+        prevs_str = ""
+        if (prevs is not None) and (len(prevs.split("@")) > 1):
+            prevs_str = "+" + prevs.split("@")[-1]
+        dep_args = ", ".join([x for x in [dep_type, phrase, "UNC" if uncertain else None] if x])
+        source_str = "@" + dep + "(" + dep_args + ")" + iid_str + prevs_str
     
-    unc = ""
-    if uncertain:
-        unc = "_unc"
-    iid_str = ""
-    if iid is not None:
-        iid_str = "_id=" + str(iid)
-    
-    return orig + ":" + dep + "_extra" + unc + iid_str
+    return orig + source_str
 
 
 # correctDependencies - correctSubjPass
@@ -287,10 +291,10 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
         return
     
     for name_space in ret:
-        new_subj, _, _ = name_space['new_subj']
+        new_subj, _, rel = name_space['new_subj']
         dep, _, _ = name_space['dep']
-        rel = add_eud_info("nsubj", "xsubj")
-        new_subj.add_edge(rel if not is_extra else add_extra_info(rel, "xcomp_no_to"), dep)
+        new_subj.add_edge(add_eud_info("nsubj", "xcomp(INF)") if not is_extra else
+                          add_extra_info("nsubj", "xcomp", dep_type="GERUND", prevs=rel), dep)
 
 
 # Add extra nsubj dependencies when collapsing basic dependencies.
@@ -310,9 +314,9 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
 #   Similarly, "The law tells them when to do so"
 #   Instead of nsubj(do, law) we want nsubj(do, them)
 def eud_xcomp_propagation(sentence):
-    to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", form="^(?i:to)$")
-    basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", form="(?!(^(?i:to)$)).", nested=[[
-        Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
+    to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", xpos="^(TO)$")
+    basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", xpos="(?!(^(TO)$)).", nested=[[
+        Restriction(gov="^(aux|mark)$", xpos="(^(TO)$)")
     ]])
 
     for xcomp_restriction in [to_xcomp_rest, basic_xcomp_rest]:
@@ -320,7 +324,7 @@ def eud_xcomp_propagation(sentence):
 
 
 def extra_xcomp_propagation_no_to(sentence):
-    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", form="(?!(^(?i:to)$)).")
+    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", xpos="(VB.?)")
     
     xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
 
@@ -341,22 +345,23 @@ def advcl_propagation_per_type(sentence, restriction, iids):
             cur_iid = iids[father]
             new_subj_str = 'new_subj_opt'
         
-        new_subj, _, _ = name_space[new_subj_str]
+        new_subj, _, rel = name_space[new_subj_str]
         dep, _, _ = name_space['dep']
-        new_subj.add_edge(add_extra_info("nsubj", "advcl", iid=cur_iid), dep)
+        mark, _, _ = name_space['mark'] if 'mark' in name_space else (None, _, _)
+        new_subj.add_edge(add_extra_info("nsubj", "advcl", phrase=mark.get_conllu_field("form") if mark else "NULL", prevs=rel, iid=cur_iid), dep)
 
 
 def extra_advcl_propagation(sentence):
     advcl_to_rest = Restriction(nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
-            Restriction(gov="^(aux|mark)$", form="(^(?i:to)$)")
+            Restriction(name="mark", gov="^(aux|mark)$", form="(^(?i:to)$)")
         ]]),
         Restriction(name="new_subj", gov=".?obj")
     ]])
     
     basic_advcl_rest = Restriction(no_sons_of=".?obj", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
-            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
+            Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
@@ -366,7 +371,7 @@ def extra_advcl_propagation(sentence):
     ]])
     ambiguous_advcl_rest = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
-            Restriction(gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
+            Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
@@ -379,24 +384,30 @@ def extra_advcl_propagation(sentence):
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
-def extra_amod_propagation(sentence):
-    amod_rest = Restriction(name="father", nested=[[
-        Restriction(name="amod", gov="(.*amod.*)", no_sons_of="nsubj.*")
-    ]])
-
-    ret = match(sentence.values(), [[amod_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        father, _, _ = name_space['father']
-        amod, _, _ = name_space['amod']
-        father.add_edge(add_extra_info("nsubj", "amod"), amod)
-
 
 def extra_acl_propagation(sentence):
+    # part1: take care of all acl's that are marked by 'to'
+    acl_to_rest = Restriction(name="root_or_so", nested=[[
+        Restriction(name="verb", xpos="(VB.?)", nested=[[
+            Restriction(name="subj", gov=".subj.*"),
+            Restriction(name="father", diff="subj", nested=[[
+                Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*", nested=[[
+                    Restriction(name="to", gov="mark", xpos="TO")
+                ]])
+            ]])
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[acl_to_rest]])
+    if ret:
+        for name_space in ret:
+            subj, _, _ = name_space['subj']
+            acl, _, rel = name_space['acl']
+            subj.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
+    
+    # part2: take care of all acl's that are not marked by 'to'
     acl_rest = Restriction(name="father", nested=[[
-        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
+        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="(nsubj.*|mark)")  # TODO: validate that mark can be here only 'to'.
     ]])
     
     ret = match(sentence.values(), [[acl_rest]])
@@ -405,63 +416,8 @@ def extra_acl_propagation(sentence):
     
     for name_space in ret:
         father, _, _ = name_space['father']
-        acl, _, _ = name_space['acl']
-        father.add_edge(add_extra_info("nsubj", "acl"), acl)
-
-
-# def acl_propagation(sentence):
-#     # The apple chosen by me. {nsubj(chosen, apple)}
-#     # The apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
-#     # I ate the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # I ate from the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # From the apple chosen by god, I have tried. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # I ate a slice of the apple chosen by god. {nsubj(chosen, apple), nsubj(chosen, I)}
-#     # A slice of the apple chosen by god, was eaten by me. {nsubj(chosen, apple)}
-#     basic_rest = Restriction(name="father", nested=[[
-#         Restriction(name="dep", gov="acl(?!:relcl)", no_sons_of="nsubj.*")
-#     ]])
-#     subj_rest = Restriction(name="subj", gov=".?subj.*", diff="father")
-#     acl_rest = Restriction(name="root_or_predicate", nested=[
-#         [basic_rest, subj_rest],
-#         [basic_rest]
-#     ])
-#
-#     ret = match(sentence.values(), [[acl_rest]])
-#     if not ret:
-#         return
-#     marked = []
-#     iid = 0
-#     for name_space in ret:
-#         cur_iid = iid
-#         father, _, _ = name_space['father']
-#         dep, _, _ = name_space['dep']
-#         root_or_predicate, _, _ = name_space['root_or_predicate']
-#         rp_heads = root_or_predicate.get_parents()
-#         subjs = []
-#
-#         # find subjects that are siblings of the acl's head, and of its parent(s).
-#         for rp_head in rp_heads:
-#             subjs += [child for (child, rel) in rp_head.get_children_with_rels() if (re.match(".subj.*", rel) and (child not in [father, root_or_predicate]))]
-#         if 'subj' in name_space:
-#             subj, _, _ = name_space['subj']
-#             subjs += [subj]
-#
-#         candidates = set(subjs + [father])
-#         if candidates in marked:
-#             continue
-#
-#         # if no subject found, we have no competition on the new subject title.
-#         if not subjs:
-#             cur_iid = None
-#         else:
-#             iid += 1
-#
-#         # add subj relation from the verb of the acl relation to the found subjects,
-#         # and to the head of that relation as well.
-#         for subj in subjs:
-#             subj.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
-#         father.add_edge(add_extra_info("nsubj", "acl", iid=cur_iid), dep)
-#         marked.append(candidates)
+        acl, _, rel = name_space['acl']
+        father.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase="REDUCED", prevs=rel), acl)
 
 
 def extra_dep_propagation(sentence):
@@ -478,75 +434,78 @@ def extra_dep_propagation(sentence):
     iids = dict()
     for name_space in ret:
         new_subj_opt, _, _ = name_space['new_subj_opt']
-        dep, _, _ = name_space['dep']
+        dep, _, rel = name_space['dep']
         father, _, _ = name_space['father']
         if father not in iids:
             iids[father] = iid
             iid += 1
-        new_subj_opt.add_edge(add_extra_info("nsubj", "dep", iid=iids[father], uncertain=True), dep)
+        new_subj_opt.add_edge(add_extra_info("nsubj", "dep", iid=iids[father], uncertain=True, prevs=rel), dep)
 
 
 # TODO - unify with other nmods props
-def subj_obj_nmod_propagation_of_nmods_per_type(sentence, rest):
+def extra_subj_obj_nmod_propagation_of_nmods(sentence):
+    rest = Restriction(name="receiver", nested=[[
+        Restriction(name="mediator", gov="(dobj|.subj.*|nmod)", nested=[[
+            Restriction(name="nmod", gov="nmod", nested=[
+                [Restriction(name="like", gov="case", form="like")],
+                [Restriction(name="such_as", gov="case", form="such", nested= [[
+                    Restriction(gov="mwe", form="as")
+                ]])]
+            ])
+        ]])
+    ]])
+
     ret = match(sentence.values(), [[rest]])
     if not ret:
         return
-    
+
     for name_space in ret:
         nmod, _, nmod_rel = name_space['nmod']
         receiver, _, _ = name_space['receiver']
         mediator_rel = name_space['mediator'][2]
-        
-        nmod.add_edge(add_extra_info(mediator_rel, "like-such-as"), receiver)
-
-
-def extra_subj_obj_nmod_propagation_of_nmods(sentence):
-    obj_rest = Restriction(name="receiver", nested=[[
-        Restriction(name="mediator", gov="dobj", nested=[[
-            Restriction(name="nmod", gov="nmod:(such_as|like)")
-        ]])
-    ]])
     
-    subj_rest = Restriction(name="receiver", nested=[[
-        Restriction(name="mediator", gov=".subj.*", nested=[[
-            Restriction(name="nmod", gov="nmod:(such_as|like)")
-        ]])
-    ]])
-    
-    nmod_rest = Restriction(name="receiver", nested=[[
-        Restriction(name="mediator", gov="nmod", nested=[[
-            Restriction(name="nmod", gov="nmod:(such_as|like)")
-        ]])
-    ]])
-    
-    for mediator_restriction in [obj_rest, subj_rest, nmod_rest]:
-        subj_obj_nmod_propagation_of_nmods_per_type(sentence, mediator_restriction)
+        phrase = "like" if "like" in name_space else "such_as"
+        nmod.add_edge(add_extra_info(mediator_rel.split("@")[0], "nmod", phrase=phrase, prevs=mediator_rel), receiver)
 
 
 def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=False):
     ret = match(sentence.values(), [[rest]])
     if not ret:
         return
-    
+
+    # TODO: move this code to a global func, and share code with other cc-assignments
+    cc_assignments = dict()
+    for token in sentence.values():
+        ccs = []
+        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
+            if 'cc' == rel:
+                ccs.append(child.get_conllu_field("form"))
+        i = 0
+        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
+            if rel.startswith('conj'):
+                cc_assignments[child] = ccs[i if i < len(ccs) else -1]
+                i += 1
+        
     for name_space in ret:
         nmod, _, nmod_rel = name_space['nmod']
         receiver, _, _ = name_space['receiver']
+        conj, _, _ = name_space['conj'] if 'conj' in name_space else name_space['receiver']
         
         if '.' not in str(receiver.get_conllu_field("id")) and \
                 (dont_check_precedence or nmod.get_conllu_field("id") > receiver.get_conllu_field("id")):
-            nmod.add_edge(add_extra_info(nmod_rel, "conj", uncertain=True), receiver)
+            nmod.add_edge(add_extra_info(nmod_rel.split("@")[0], "conj", uncertain=True, phrase=cc_assignments[conj], prevs=nmod_rel), receiver)
 
 
 def extra_conj_propagation_of_nmods(sentence):
     son_rest = Restriction(name="receiver", no_sons_of="nmod", nested=[[
-        Restriction(gov="conj", nested=[[
-            Restriction(name="nmod", gov="nmod(?!(:.*extra|:poss.*))")
+        Restriction(name="conj", gov="conj", nested=[[
+            Restriction(name="nmod", gov="nmod(?!(:.*@|:poss.*))")
         ]])
     ]])
 
     father_rest = Restriction(nested=[[
         Restriction(name="receiver", gov="conj"),  # TODO: validate no_sons_of="nmod" isn't needed.
-        Restriction(name="nmod", gov="nmod(?!:.*extra)")
+        Restriction(name="nmod", gov="nmod(?!(:.*@|:poss.*))")
     ]])
     
     for conj_restriction in [son_rest, father_rest]:
@@ -556,7 +515,7 @@ def extra_conj_propagation_of_nmods(sentence):
 def extra_conj_propagation_of_poss(sentence):
     poss_rest = Restriction(nested=[[
         Restriction(name="receiver", no_sons_of="nmod:poss.*", gov="conj"),
-        Restriction(name="nmod", gov="nmod(?!:.*extra)")
+        Restriction(name="nmod", gov="nmod:poss(?!.*@)")
     ]])
     
     conj_propagation_of_nmods_per_type(sentence, poss_rest, True)
@@ -565,8 +524,9 @@ def extra_conj_propagation_of_poss(sentence):
 # phenomena: indexicals
 def extra_advmod_propagation(sentence):
     advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(name="middle_man", gov="(.?obj|nsubj.*|nmod.*)", nested=[[
-            Restriction(name="advmod", gov="advmod", form=advmod_list)
+        Restriction(name="middle_man", gov="(nmod.*)", nested=[[
+            Restriction(name="advmod", gov="advmod", form=advmod_list),
+            Restriction(name="case", gov="case")
         ]])
     ]])
     ret = match(sentence.values(), [[advmod_rest]])
@@ -577,16 +537,17 @@ def extra_advmod_propagation(sentence):
         advmod, _, advmod_rel = name_space['advmod']
         _, _, middle_man_rel = name_space['middle_man']
         gov, _, _ = name_space['gov']
+        case, _, _ = name_space['case']
         
         if gov not in advmod.get_parents():
-            advmod.add_edge(add_extra_info(advmod_rel, "indexical"), gov)
+            advmod.add_edge(add_extra_info(advmod_rel.split("@")[0], "nmod", dep_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True, prevs=middle_man_rel), gov)
 
 
 # "I went back to prison"
 def extra_nmod_advmod_reconstruction(sentence):
     # the reason for the form restriction: we dont want to catch "all in all"
     nmod_advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(name="advmod", gov="advmod", form= "(?!(^(?i:all)$))", nested=[[
+        Restriction(name="advmod", gov="advmod", form="(?!(^(?i:all)$))", nested=[[
             Restriction(name="nmod", gov="nmod", nested=[[
                 Restriction(name="case", gov="case")
             ]])
@@ -611,11 +572,11 @@ def extra_nmod_advmod_reconstruction(sentence):
         
         mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
         if mwe in nmod_advmod_complex:
-            nmod.add_edge(add_extra_info(add_eud_info(nmod_rel, case.get_conllu_field("form").lower()), "auto-mwe"), gov)
+            nmod.add_edge(add_extra_info(add_eud_info(nmod_rel.split("@")[0], case.get_conllu_field("form").lower()), "advmod_prep"), gov)
         else:
-            advmod.replace_edge(advmod_rel, add_extra_info(case_rel, "auto-mwe"), gov, nmod)
-            case.replace_edge(case_rel, add_extra_info("mwe", "auto-mwe"), nmod, advmod)
-            nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(nmod_rel, mwe), "auto-mwe"), advmod, gov)
+            advmod.replace_edge(advmod_rel, add_extra_info(case_rel.split("@")[0], "advmod_prep"), gov, nmod)
+            case.replace_edge(case_rel, add_extra_info("mwe", "advmod_prep"), nmod, advmod)
+            nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(nmod_rel.split("@")[0], mwe), "advmod_prep"), advmod, gov)
 
 
 def extra_appos_propagation(sentence):
@@ -632,7 +593,7 @@ def extra_appos_propagation(sentence):
         
         for (gov_head, gov_rel) in gov.get_new_relations():
             if (gov_head, gov_rel) not in appos.get_new_relations():
-                appos.add_edge(add_extra_info(gov_rel, "appos"), gov_head)
+                appos.add_edge(add_extra_info(gov_rel.split("@")[0], "appos", prevs=gov_rel), gov_head)
 
 
 # find the closest cc to the conj with precedence for left hand ccs
@@ -647,70 +608,204 @@ def attach_best_cc(conj, ccs, noun, verb):
             closest_cc = cur_cc
             closest_dist = conj.dist(closest_cc)
     if closest_cc:
-        closest_cc.replace_edge("cc", add_extra_info("cc", "copula"), noun, verb)
+        closest_cc.replace_edge("cc", "cc", noun, verb)
 
 
-def extra_copula_reconstruction(sentence):
-    cop_rest = Restriction(name="father", nested=[[
-        Restriction(name="old_root", xpos="(?!:(VB.?|BES|HVS))", nested=[[
-            Restriction(name="cop", gov="cop"),
-        ]])
-    ]])
-    ret = match(sentence.values(), [[cop_rest]])
-    if not ret:
-        return
-
-    for name_space in ret:
-        old_root, _, _ = name_space['old_root']
-        cop, _, _ = name_space['cop']
+def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
+    # NOTE: we do this as long as we find what to change, and each time change only one match, instead of fixing all matches found each time.
+    #   As every change we do might change what can be found next, and old relations that are matched might be out dated.
+    #   But this is bad practice. we dont use the matching properly, and we use while true which might run forever!
+    while True:
+        i = 0
+        ret = match(sentence.values(), [[cop_rest]])
+        if not ret:
+            return
         
-        new_id = cop.get_conllu_field('id') + 0.1
-        new_root = cop.copy(
-            new_id=new_id,
-            form="_",
-            lemma="_",
-            upos="_",
-            xpos="_",
-            feats="_",
-            head="_",
-            deprel="_",
-            deps=None)
+        # As we might catch unwanted constructions (which the matcher couldnt handle), we added this while to find the first true match.
+        while True:
+            name_space = ret[i]
+            old_root, _, _ = name_space['old_root']
+            # the evidential should be the predecessor of the STATE as the cop is (event though he is also the old root of the construct).
+            predecessor, _, _ = name_space['cop'] if 'cop' in name_space else name_space['old_root']
+            
+            # The old_root's father cant be 'STATE' or connect ia ev. as it means we were already handled.
+            #   The old_root's children cant be 'xcomp'(+'JJ') or 'ccomp' as they are handled separately.
+            if not ("STATE" in [head.get_conllu_field("form") for head, rel in old_root.get_new_relations()] or
+                    'ev' in [rel.split(":")[0] for head, rel in old_root.get_new_relations()] or
+                    'xcomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels() if not child.get_conllu_field('xpos').startswith('JJ')] or
+                    'ccomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels()]):
+                break
+            i += 1
+            if i == len(ret):
+                return
+        
+        new_id = predecessor.get_conllu_field('id') + 0.1
+        new_root = predecessor.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
         
         # transfer old-root's outgoing relation to new-root
         for head, rel in old_root.get_new_relations():
             old_root.remove_edge(rel, head)
-            new_root.add_edge(add_extra_info(rel, "copula"), head)
+            new_root.add_edge(rel, head)
 
         # transfer all old-root's children that are to be transferred
         ccs = [cc_child for cc_child, cc_rel in old_root.get_children_with_rels() if cc_rel == "cc"]
         subjs = []
         new_out_rel = "xcomp"
+        new_amod = old_root
         for child, rel in old_root.get_children_with_rels():
-            if re.match("(aux.*|discourse|mark|punct|advcl|xcomp|ccomp|advmod|expl|parataxis)", rel):
-                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
-            elif re.match("(.subj.*)", rel):
-                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
-                subjs.append(child)
+            if re.match("((.subj.*)|discourse|punct|advcl|xcomp|ccomp|expl|parataxis)", rel):
+                # transfer any of the following children
+                child.replace_edge(rel, rel, old_root, new_root)
+                # store subj children for later
+                if re.match("(.subj.*)", rel):
+                    subjs.append(child)
+                # since only non verbal xcomps children get here, this child becomes an amod connection candidate (see later on)
+                elif (rel == "xcomp") and evidential:
+                    new_amod = child
+            elif rel == "mark":
+                if child.get_conllu_field('xpos') != 'TO':
+                    # transfer any non 'to' markers
+                    child.replace_edge(rel, rel, old_root, new_root)
+                elif not evidential:
+                    # make the 'to' be the son of the 'be' evidential (instead the copula old).
+                    child.replace_edge(rel, rel, old_root, predecessor)
+                # else: child is 'to' but it is the evidential case, so no need to change it's father.
+            elif re.match("(aux.*|advmod)", rel) and not evidential:
+                # simply these are to be transferred only in the copula case, to the 'cop' itself, as it is in the evidential case.
+                child.replace_edge(rel, rel, old_root, predecessor)
             elif re.match("(case)", rel):
                 new_out_rel = "nmod"
             elif "cop" == rel:
-                child.replace_edge(rel, add_extra_info("aux", "copula"), old_root, new_root)
-            elif ("conj" == rel) and (re.match("(VB.?|BES|HVS|JJ.?)", child.get_conllu_field("xpos"))):
-                child.replace_edge(rel, add_extra_info(rel, "copula"), old_root, new_root)
+                # 'cop' becomes 'ev' (for event/evidential) to the new root
+                child.replace_edge(rel, "ev", old_root, new_root)
+            elif ("conj" == rel) and re.match("(VB.?)", child.get_conllu_field("xpos")) and not evidential:
+                # transfer 'conj' only if it is a verb conjunction, as we want it to be attached to the new (verb/state) root
+                child.replace_edge(rel, rel, old_root, new_root)
+                # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
                 attach_best_cc(child, ccs, old_root, new_root)
+            elif re.match("nmod(?!:poss)", rel) and evidential:
+                child.replace_edge(rel, rel, old_root, new_root)
             # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
         
-        # update old-root's outgoing relation
-        if re.match("JJ.?", old_root.get_conllu_field("xpos")):
+        # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
+        #   new_amod can be the old_root if it was a copula construct, or the old_root's 'xcomp' son if not.
+        if re.match("JJ.?", new_amod.get_conllu_field("xpos")):
             for subj in subjs:
-                old_root.add_edge(add_extra_info("amod", "copula"), subj)
-            new_root.set_conllu_field("form", "QUALITY")
-        else:
-            new_root.set_conllu_field("form", "STATE")
+                new_amod.add_edge(add_extra_info("amod", "cop"), subj)
         
-        old_root.add_edge(add_extra_info(new_out_rel, "copula"), new_root)
+        # connect the old_root as son of the new_root as 'ev' if it was an evidential root,
+        # or with the proper complement if it was an adjectival root under the copula construct
+        old_root.add_edge('ev' if evidential else new_out_rel, new_root)
         
         sentence[new_id] = new_root
+
+
+def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
+    while True:
+        ret = match(sentence.values(), [[rest]])
+        if not ret:
+            return
+        
+        name_space = ret[0]
+        old_root, _, _ = name_space['old_root']
+        new_root, _, _ = name_space['new_root']
+        
+        # transfer old-root's outgoing relation to new-root
+        for head, rel in old_root.get_new_relations():
+            old_root.remove_edge(rel, head)
+            new_root.add_edge(rel, head)
+        
+        # transfer
+        removed_ccomp = False
+        for child, rel in old_root.get_children_with_rels():
+            if rel == 'xcomp' or rel == 'ccomp':
+                new_root.remove_edge(rel, old_root)
+                if rel == 'ccomp':
+                    # remember  we removed ccomp
+                    removed_ccomp = True
+                # find lowest 'ev' of the new root, and make us his 'ev' son
+                inter_root = new_root
+                ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split(':')[0]]
+                while ev_sons:
+                    inter_root = ev_sons[0]
+                    ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split(':')[0]]
+                old_root.add_edge(add_extra_info('ev', rel, dep_type=type_), inter_root)
+            elif rel == "mark":
+                # see notes in copula
+                if child.get_conllu_field('xpos') != 'TO':
+                    child.replace_edge(rel, rel, old_root, new_root)
+            elif re.match("(.subj.*)", rel):
+                # transfer the subj only if it is not the special case of ccomp
+                if ('ccomp' not in [rel for child, rel in old_root.get_children_with_rels()]) and not removed_ccomp:
+                    child.replace_edge(rel, rel, old_root, new_root)
+            elif re.match("(?!advmod|aux.*|cc|conj).*", rel):
+                child.replace_edge(rel, rel, old_root, new_root)
+
+
+def extra_copula_reconstruction(sentence):
+    # NOTE: the xpos restriction comes to make sure we catch only non verbal copulas to reconstruct
+    #   (even though it should have been 'aux' instead of 'cop')
+    cop_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
+            Restriction(name="cop", gov="cop"),
+        ]])
+    ]])
+
+    extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, False)
+
+
+def extra_evidential_reconstruction(sentence):
+    # part1: find all evidential with no following(xcomp that is) main verb,
+    #   and add a new node and transfer to him the rootness, like in copula
+    # NOTE: we avoid the auxiliary sense of the evidential (in the 'be' case), with the gov restriction
+    ev_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", gov="(?!aux.*).", xpos="(VB.?)", lemma=evidential_list)
+    ]])
+    
+    extra_inner_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
+    
+    # part2: find all evidential with following(xcomp that is) main verb,
+    #   and transfer to the main verb rootness
+    # NOTE:
+    #   1. xpos rest. avoids adjectives as we already treated them.
+    #   2. The gov rest. includes 'ccomp' cause we treat evidential+'ccomp' differently see per_type_weak_modified_verb_reconstruction.
+    ev_xcomp_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
+            Restriction(name="new_root", gov="(xcomp|ccomp)", xpos="(?!JJ)"),
+        ]])
+    ]])
+
+    per_type_weak_modified_verb_reconstruction(sentence, ev_xcomp_rest, "evidential")
+
+
+def extra_aspectual_reconstruction(sentence):
+    aspect_xcomp_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(VB.?)", lemma=aspectual_list, nested=[[
+            Restriction(name="new_root", gov="xcomp", xpos="(?!JJ)"),
+        ]])
+    ]])
+    
+    per_type_weak_modified_verb_reconstruction(sentence, aspect_xcomp_rest, "aspectual")
+
+
+def extra_reported_evidentiality(sentence):
+    reported_rest = Restriction(name="father", nested=[[
+        Restriction(name="ev", lemma=reported_list, followed_by="that", nested=[[
+            Restriction(name="new_root", gov="ccomp", nested=[[
+                Restriction(name="that", gov="mark")
+            ]]),
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[reported_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        ev, _, _ = name_space['ev']
+        new_root, _, _ = name_space['new_root']
+        
+        ev.add_edge(add_extra_info("ev", "ccomp", dep_type="REPORTED"), new_root)
 
 
 def create_mwe(words, head, rel):
@@ -1014,22 +1109,26 @@ def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
                 gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
         # this is for reduce-relative-clause
         elif enhanced_extra:
-            leftmost_head, _, _ = name_space['mod']
+            leftmost_head, _, prevs_rel = name_space['mod']
             rels_with_pos = {(relation, child.get_conllu_field('xpos')): child.get_conllu_field('form') for (child, relation) in leftmost_head.get_children_with_rels()}
             rels_only = [rel for (rel, pos) in rels_with_pos.keys()]
 
+            phrase = "REDUCED"
             if ("nsubj" not in rels_only) and ("nsubjpass" not in rels_only):
                 leftmost_rel = 'nsubj'
-            
             # some relativizers that were simply missing on the eUD.
             elif 'where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
                 leftmost_rel = 'nmod'
+                phrase = 'where'
             elif 'how' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
                 leftmost_rel = 'nmod'
+                phrase = 'how'
             elif 'when' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
                 leftmost_rel = 'nmod:tmod'
+                phrase = 'when'
             elif 'why' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
                 leftmost_rel = add_eud_info('nmod', 'because_of')
+                phrase = 'why'
             
             # continue with *reduced* relcl, cased of orphan case/marker should become nmod and not obj
             elif ('nmod', 'RB') in rels_with_pos:
@@ -1039,24 +1138,28 @@ def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
             elif ('nmod', 'IN') in rels_with_pos:
                 leftmost_rel = add_eud_info('nmod', rels_with_pos[('nmod', 'IN')])
             
-            # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
-            # as sometimes the relcl modifies the should-have-been-inner-object's-modifier
-            # TODO: add an example, this is very unclear
-            elif 'dobj' in rels_only:
-                objs = [child for child, rel in leftmost_head.get_children_with_rels() if rel == 'dobj']
-                for obj in objs:
-                    rels_with_pos_obj = {(relation, child.get_conllu_field('xpos')): child for
-                                     (child, relation) in obj.get_children_with_rels()}
-                    if (('nmod', 'IN') in rels_with_pos_obj) or (('nmod', 'RB') in rels_with_pos_obj):
-                        case = rels_with_pos_obj[('nmod', 'IN')] if ('nmod', 'IN') in rels_with_pos_obj else rels_with_pos_obj[('nmod', 'RB')]
-                        gov.add_edge(add_extra_info(add_eud_info("nmod", case.get_conllu_field('form')), "reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
-                        case.add_edge(add_extra_info("case", "reduced-relcl"), gov)
-                        return
-                # this means we didn't found so rel should be dobj, but we didn't reach the last else because  we had some other objects.
-                leftmost_rel = 'dobj'
+            # NOTE: I couldn't find an example for the following commented out very specific adjusment. TODO - remove in near future.
+            # # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
+            # # as sometimes the relcl modifies the should-have-been-inner-object's-modifier
+            # elif 'dobj' in rels_only:
+            #     objs = [child for child, rel in leftmost_head.get_children_with_rels() if rel == 'dobj']
+            #     found = False
+            #     for obj in objs:
+            #         rels_with_pos_obj = {(relation, child.get_conllu_field('xpos')): child for
+            #                              (child, relation) in obj.get_children_with_rels()}
+            #         if (('nmod', 'IN') in rels_with_pos_obj) or (('nmod', 'RB') in rels_with_pos_obj):
+            #             case = rels_with_pos_obj[('nmod', 'IN')] if ('nmod', 'IN') in rels_with_pos_obj else rels_with_pos_obj[('nmod', 'RB')]
+            #             gov.add_edge(add_extra_info(add_eud_info("nmod", case.get_conllu_field('form')), "reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
+            #             case.add_edge(add_extra_info("case", "reduced-relcl"), gov)
+            #             found = True
+            #             break
+            #     if found:
+            #         continue
+            #     # this means we didn't find so rel should be dobj
+            #     leftmost_rel = 'dobj'
             else:
                 leftmost_rel = 'dobj'
-            gov.add_edge(add_extra_info(leftmost_rel, "reduced-relcl"), leftmost_head, extra_info=EXTRA_INFO_STUB)
+            gov.add_edge(add_extra_info(leftmost_rel, "acl", dep_type="RELCL", phrase=phrase, prevs=prevs_rel), leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
 def eudpp_add_ref_and_collapse(sentence):
@@ -1252,12 +1355,12 @@ def extra_hyphen_reconstruction(sentence):
         return
     
     for name_space in ret:
-        subj, _, _ = name_space['subj']
+        subj, _, subj_rel = name_space['subj']
         verb, _, _ = name_space['verb']
-        noun, _, _ = name_space['noun']
+        noun, _, noun_rel = name_space['noun']
         
-        subj.add_edge(add_extra_info("nsubj", "hyph"), verb)
-        noun.add_edge(add_extra_info("nmod", "hyph"), verb)
+        subj.add_edge(add_extra_info("nsubj", "compound", dep_type="HYPHEN", prevs=subj_rel), verb)
+        noun.add_edge(add_extra_info("nmod", "compound", dep_type="HYPHEN", prevs=noun_rel), verb)
 
 
 # The bottle was broken by me.
@@ -1277,9 +1380,12 @@ def extra_passive_alteration(sentence):
     for name_space in ret:
         subj, _, subj_rel = name_space['subjpass']
         predicate, _, _ = name_space['predicate']
+        if subj.match_rel(".obj", predicate):
+            # avoid fixing a fixed passive.
+            continue
         if 'agent' in name_space:
-            agent, _, _ = name_space['agent']
-            agent.add_edge(add_extra_info("nsubj", "passive"), predicate)
+            agent, _, agent_rel = name_space['agent']
+            agent.add_edge(add_extra_info("nsubj", "passive", prevs=agent_rel), predicate)
         
         # the special case of csubj (divided into ccomp and xcomp according to 'that' and 'to' subordinates.
         subj_new_rel = "dobj"
@@ -1292,7 +1398,7 @@ def extra_passive_alteration(sentence):
         elif "dobj" in [rel for (_, rel) in predicate.get_children_with_rels()]:
             subj_new_rel = "iobj"
         
-        subj.add_edge(add_extra_info(subj_new_rel, "passive"), predicate)
+        subj.add_edge(add_extra_info(subj_new_rel, "passive", prevs=subj_rel), predicate)
     
 
 def convert_sentence(sentence):
@@ -1302,6 +1408,9 @@ def convert_sentence(sentence):
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
     
     extra_copula_reconstruction(sentence)
+    extra_evidential_reconstruction(sentence)
+    extra_aspectual_reconstruction(sentence)
+    extra_reported_evidentiality(sentence)
     extra_fix_nmod_npmod(sentence)
     extra_hyphen_reconstruction(sentence)
 
@@ -1309,7 +1418,7 @@ def convert_sentence(sentence):
     eudpp_process_complex_2wp(sentence)  # processMultiwordPreps: processComplex2WP
     eudpp_process_3wp(sentence)  # processMultiwordPreps: process3WP
     eudpp_demote_quantificational_modifiers(sentence)  # demoteQuantificationalModifiers
-    eudpp_expand_pp_or_prep_conjunctions(sentence) # add copy nodes: expandPPConjunctions, expandPrepConjunctions
+    eudpp_expand_pp_or_prep_conjunctions(sentence)  # add copy nodes: expandPPConjunctions, expandPrepConjunctions
 
     extra_nmod_advmod_reconstruction(sentence)
 
@@ -1327,7 +1436,6 @@ def convert_sentence(sentence):
     extra_xcomp_propagation_no_to(sentence)
     extra_advcl_propagation(sentence)
     extra_acl_propagation(sentence)
-    extra_amod_propagation(sentence)
     extra_dep_propagation(sentence)
     extra_conj_propagation_of_nmods(sentence)
     extra_conj_propagation_of_poss(sentence)
@@ -1351,7 +1459,7 @@ def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced
     if remove_enhanced_extra_info:
         funcs_to_cancel.update_funcs(['eud_passive_agent', 'eud_conj_info'])
     if remove_node_adding_conversions:
-        funcs_to_cancel.update_funcs(['extra_copula_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
+        funcs_to_cancel.update_funcs(['extra_inner_weak_modifier_verb_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
     
     funcs_to_cancel.override_funcs()
 
@@ -1380,6 +1488,5 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
             break
         i += 1
     
+    funcs_to_cancel.restore_funcs()
     return converted_sentences, i
-
-

@@ -1,11 +1,8 @@
 import re
 from collections import namedtuple
 
-fields = ('name', 'gov', 'no_sons_of', 'form', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
-# TODO - when moving to python 3.7 replace to:
-#   Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
-Restriction = namedtuple("Restriction", fields)
-Restriction.__new__.__defaults__ = (None,) * len(Restriction._fields)
+fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
+Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
@@ -38,6 +35,10 @@ def named_nodes_restrictions(restriction, named_nodes):
 def match_child(child, restriction, head):
     if restriction.form:
         if child.is_root_node() or not re.match(restriction.form, child.get_conllu_field('form')):
+            return
+    
+    if restriction.lemma:
+        if child.is_root_node() or not re.match(restriction.lemma, child.get_conllu_field('lemma')):
             return
     
     if restriction.xpos:
@@ -108,6 +109,8 @@ def match_rl(children, restriction_list, head):
         # every new rest_ret should be merged to any previous rest_ret
         ret = rest_ret if not ret else \
             [{**ns_ret, **ns_rest_ret} for ns_rest_ret in rest_ret for ns_ret in ret]
+        # fix ret in case we have two identical name_spaces
+        ret = [r for i, r in enumerate(ret) if r not in ret[i + 1:]]
         
         ret_was_empty_beforehand = False
         if not ret:
