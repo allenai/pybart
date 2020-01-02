@@ -401,7 +401,7 @@ def extra_of_prep_alteration(sentence):
     for name_space in ret:
         father, _, _ = name_space['father']
         nmod, _, rel = name_space['nmod']
-        father.add_edge(add_extra_info("compound", "nmod", phrase="of", prevs=rel), nmod)
+        nmod.add_edge(add_extra_info("compound", "nmod", phrase="of", prevs=rel), father)
 
 
 def extra_compound_propagation(sentence):
