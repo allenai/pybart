@@ -385,6 +385,21 @@ def extra_advcl_propagation(sentence):
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
 
+def extra_amod_propagation(sentence):
+    amod_rest = Restriction(name="father", nested=[[
+        Restriction(name="amod", gov="amod", no_sons_of="nsubj.*")
+    ]])
+    
+    ret = match(sentence.values(), [[amod_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        father, _, _ = name_space['father']
+        amod, _, rel = name_space['amod']
+        father.add_edge(add_extra_info("nsubj", "amod", prevs=rel), amod)
+
+
 def extra_acl_propagation(sentence):
     # part1: take care of all acl's that are marked by 'to'
     acl_to_rest = Restriction(name="root_or_so", nested=[[
@@ -1439,6 +1454,7 @@ def convert_sentence(sentence):
     extra_xcomp_propagation_no_to(sentence)
     extra_advcl_propagation(sentence)
     extra_acl_propagation(sentence)
+    extra_amod_propagation(sentence)
     extra_dep_propagation(sentence)
     extra_conj_propagation_of_nmods(sentence)
     extra_conj_propagation_of_poss(sentence)
