@@ -385,6 +385,24 @@ def extra_advcl_propagation(sentence):
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
 
+def extra_compound_propagation(sentence):
+    compound_rest = Restriction(name="father", nested=[[
+        Restriction(name="middle_man", gov="(dobj|.subj.*)", xpos="NN.*", nested=[[
+            Restriction(name="compound", gov="compound", xpos="NN.*")
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[compound_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        father, _, _ = name_space['father']
+        _, _, rel = name_space['middle_man']
+        compound, _, _ = name_space['amod']
+        compound.add_edge(add_extra_info(rel.split("@")[0], "compound", prevs=rel), father)
+
+
 def extra_amod_propagation(sentence):
     amod_rest = Restriction(name="father", nested=[[
         Restriction(name="amod", gov="amod", no_sons_of="nsubj.*")
@@ -1462,6 +1480,7 @@ def convert_sentence(sentence):
     extra_appos_propagation(sentence)
     extra_subj_obj_nmod_propagation_of_nmods(sentence)
     extra_passive_alteration(sentence)
+    extra_compound_propagation(sentence)
     
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
     
