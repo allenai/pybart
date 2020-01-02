@@ -400,7 +400,7 @@ def extra_compound_propagation(sentence):
         father, _, _ = name_space['father']
         _, _, rel = name_space['middle_man']
         compound, _, _ = name_space['amod']
-        compound.add_edge(add_extra_info(rel.split("@")[0], "compound", prevs=rel), father)
+        compound.add_edge(add_extra_info(rel.split("@")[0], "compound", uncertain=True, prevs=rel), father)
 
 
 def extra_amod_propagation(sentence):
