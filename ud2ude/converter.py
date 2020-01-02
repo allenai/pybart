@@ -385,6 +385,25 @@ def extra_advcl_propagation(sentence):
         advcl_propagation_per_type(sentence, advcl_restriction, iids)
 
 
+def extra_of_prep_alteration(sentence):
+    of_prep_rest = Restriction(name="root", nested=[[
+        Restriction(name="father", xpos="NN.*", nested=[[
+            Restriction(name="nmod", xpos="NN.*", gov="nmod", nested=[[
+                Restriction(gov="case", form="(?i:of)")
+            ]])
+        ]])
+    ]])
+    
+    ret = match(sentence.values(), [[of_prep_rest]])
+    if not ret:
+        return
+    
+    for name_space in ret:
+        father, _, _ = name_space['father']
+        nmod, _, rel = name_space['nmod']
+        father.add_edge(add_extra_info("compound", "nmod", phrase="of", prevs=rel), nmod)
+
+
 def extra_compound_propagation(sentence):
     compound_rest = Restriction(name="father", nested=[[
         Restriction(name="middle_man", gov="(dobj|.subj.*)", xpos="NN.*", nested=[[
@@ -1480,6 +1499,7 @@ def convert_sentence(sentence):
     extra_appos_propagation(sentence)
     extra_subj_obj_nmod_propagation_of_nmods(sentence)
     extra_passive_alteration(sentence)
+    extra_of_prep_alteration(sentence)
     extra_compound_propagation(sentence)
     
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
