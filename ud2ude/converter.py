@@ -652,7 +652,7 @@ def extra_appos_propagation(sentence):
         
         for (gov_son, gov_out_rel) in gov.get_children_with_rels():
             if re.match("(acl|amod)", gov_out_rel) and (gov_son, gov_out_rel) not in appos.get_children_with_rels():
-                appos.add_edge(add_extra_info(gov_out_rel.split("@")[0], "appos", prevs=gov_out_rel), gov_son)
+                gov_son.add_edge(add_extra_info(gov_out_rel.split("@")[0], "appos", prevs=gov_out_rel), appos)
 
 
 # find the closest cc to the conj with precedence for left hand ccs
