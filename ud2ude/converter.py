@@ -646,9 +646,13 @@ def extra_appos_propagation(sentence):
         appos, _, _ = name_space['appos']
         gov, _, _ = name_space['gov']
         
-        for (gov_head, gov_rel) in gov.get_new_relations():
-            if (gov_head, gov_rel) not in appos.get_new_relations():
-                appos.add_edge(add_extra_info(gov_rel.split("@")[0], "appos", prevs=gov_rel), gov_head)
+        for (gov_head, gov_in_rel) in gov.get_new_relations():
+            if (gov_head, gov_in_rel) not in appos.get_new_relations():
+                appos.add_edge(add_extra_info(gov_in_rel.split("@")[0], "appos", prevs=gov_in_rel), gov_head)
+        
+        for (gov_son, gov_out_rel) in gov.get_children_with_rels():
+            if re.match("(acl|amod)", gov_out_rel) and (gov_son, gov_out_rel) not in appos.get_children_with_rels():
+                appos.add_edge(add_extra_info(gov_out_rel.split("@")[0], "appos", prevs=gov_out_rel), gov_son)
 
 
 # find the closest cc to the conj with precedence for left hand ccs
@@ -683,11 +687,12 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
             # the evidential should be the predecessor of the STATE as the cop is (event though he is also the old root of the construct).
             predecessor, _, _ = name_space['cop'] if 'cop' in name_space else name_space['old_root']
             
-            # The old_root's father cant be 'STATE' or connect ia ev. as it means we were already handled.
+            # The old_root's father cant be 'STATE' or connect via ev. as it means we were already handled.
             #   The old_root's children cant be 'xcomp'(+'JJ') or 'ccomp' as they are handled separately.
             if not ("STATE" in [head.get_conllu_field("form") for head, rel in old_root.get_new_relations()] or
-                    'ev' in [rel.split(":")[0] for head, rel in old_root.get_new_relations()] or
-                    'xcomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels() if not child.get_conllu_field('xpos').startswith('JJ')] or
+                    'ev' in [rel.split("@")[0] for head, rel in old_root.get_new_relations()] or
+                    'xcomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels() if child.get_conllu_field('xpos').startswith('VB')
+                                or child.get_conllu_field('form') == 'STATE'] or
                     'ccomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels()]):
                 break
             i += 1
@@ -780,10 +785,10 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
                     removed_ccomp = True
                 # find lowest 'ev' of the new root, and make us his 'ev' son
                 inter_root = new_root
-                ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split(':')[0]]
+                ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 while ev_sons:
                     inter_root = ev_sons[0]
-                    ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split(':')[0]]
+                    ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 old_root.add_edge(add_extra_info('ev', rel, dep_type=type_), inter_root)
             elif rel == "mark":
                 # see notes in copula
@@ -830,7 +835,7 @@ def extra_evidential_reconstruction(sentence):
         ]])
     ]])
 
-    per_type_weak_modified_verb_reconstruction(sentence, ev_xcomp_rest, "evidential")
+    per_type_weak_modified_verb_reconstruction(sentence, ev_xcomp_rest, "EVIDENTIAL")
 
 
 def extra_aspectual_reconstruction(sentence):
@@ -840,7 +845,7 @@ def extra_aspectual_reconstruction(sentence):
         ]])
     ]])
     
-    per_type_weak_modified_verb_reconstruction(sentence, aspect_xcomp_rest, "aspectual")
+    per_type_weak_modified_verb_reconstruction(sentence, aspect_xcomp_rest, "ASPECTUAL")
 
 
 def extra_reported_evidentiality(sentence):
