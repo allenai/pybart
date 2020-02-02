@@ -859,10 +859,10 @@ def extra_aspectual_reconstruction(sentence):
 
 def extra_reported_evidentiality(sentence):
     reported_rest = Restriction(name="father", nested=[[
-        Restriction(name="ev", lemma=reported_list, followed_by="that", nested=[[
-            Restriction(name="new_root", gov="ccomp", nested=[[
-                Restriction(name="that", gov="mark")
-            ]]),
+        Restriction(name="ev", lemma=reported_list, nested=[[  # TODO: is -followed_by="that"- needed?
+            Restriction(name="new_root", gov="ccomp")  #, nested=[[
+            #     Restriction(name="that", gov="mark")
+            # ]]),
         ]])
     ]])
     
