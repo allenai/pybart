@@ -28,7 +28,7 @@ and_conjp_next = ["as_well", "but_also"]
 advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
 evidential_list = "^(seem|appear|be|sound)$"
 aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
-reported_list = "^(say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
+reported_list = "^(say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explainclarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
 EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
 g_remove_aryeh_extra_info = False
@@ -456,13 +456,6 @@ def extra_acl_propagation(sentence):
             subj, _, _ = name_space['subj']
             acl, _, rel = name_space['acl']
             subj.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
-                if 'subj' in name_space:
-                    subj, _, _ = name_space['subj']
-                    subj.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
-                else if 'subj' not in
-                    bla = subj
-                
-                father.add_edge(add_extra_info(bla, "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
     
     # part2: take care of all acl's that are not marked by 'to'
     acl_rest = Restriction(name="father", nested=[[
@@ -476,8 +469,6 @@ def extra_acl_propagation(sentence):
     for name_space in ret:
         father, _, _ = name_space['father']
         acl, _, rel = name_space['acl']
-        if 'to' in [c.get_conllu_field("form").lower() for c, r in acl.get_children_with_rels()]:
-            continue
         father.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase="REDUCED", prevs=rel), acl)
 
 
