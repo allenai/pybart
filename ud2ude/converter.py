@@ -837,7 +837,7 @@ def extra_evidential_reconstruction(sentence):
     #   2. The gov rest. includes 'ccomp' cause we treat evidential+'ccomp' differently see per_type_weak_modified_verb_reconstruction.
     ev_xcomp_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
-            Restriction(name="new_root", gov="(xcomp|ccomp)", xpos="(VB.?)"),
+            Restriction(name="new_root", gov="(xcomp|ccomp)", xpos="(?!(JJ.*|NN.*))"),
         ]])
     ]])
 
