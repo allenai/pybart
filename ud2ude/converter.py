@@ -832,7 +832,9 @@ def extra_evidential_reconstruction(sentence):
     #   and add a new node and transfer to him the rootness, like in copula
     # NOTE: we avoid the auxiliary sense of the evidential (in the 'be' case), with the gov restriction
     ev_rest = Restriction(name="father", nested=[[
-        Restriction(name="old_root", gov="(?!aux.*).", xpos="(VB.?)", lemma=evidential_list)
+        Restriction(name="old_root", gov="(?!aux.*).", xpos="(VB.?)", lemma=evidential_list, nested=[[
+            Restriction(name="new_root", xpos="(JJ.*|NN.*)"),
+        ]])
     ]])
     
     extra_inner_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
@@ -844,7 +846,7 @@ def extra_evidential_reconstruction(sentence):
     #   2. The gov rest. includes 'ccomp' cause we treat evidential+'ccomp' differently see per_type_weak_modified_verb_reconstruction.
     ev_xcomp_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
-            Restriction(name="new_root", gov="(xcomp|ccomp)", xpos="(?!JJ)"),
+            Restriction(name="new_root", gov="(xcomp|ccomp)", xpos="(VB.?)"),
         ]])
     ]])
 
