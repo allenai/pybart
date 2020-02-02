@@ -449,17 +449,33 @@ def extra_acl_propagation(sentence):
             ]])
         ]])
     ]])
+    acl_to_rest_mini = Restriction(name="root_or_so", nested=[[
+        Restriction(name="father", diff="subj", nested=[[
+            Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*", nested=[[
+                Restriction(name="to", gov="mark", xpos="TO")
+            ]])
+        ]])
+    ]])
     
-    ret = match(sentence.values(), [[acl_to_rest]])
-    if ret:
-        for name_space in ret:
-            subj, _, _ = name_space['subj']
-            acl, _, rel = name_space['acl']
-            subj.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
+    for acl_ret in [acl_to_rest, acl_to_rest_mini]:
+        ret = match(sentence.values(), [[acl_ret]])
+        if ret:
+            for name_space in ret:
+                acl, _, rel = name_space['acl']
+                father, _, _ = name_space['father']
+                if 'subj' in name_space:
+                    subj, _, _ = name_space['subj']
+                    subj.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
+                if no dobj:
+                    bla = dobj
+                else if 'subj' not in
+                    bla = subj
+                
+                father.add_edge(add_extra_info(bla, "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
     
     # part2: take care of all acl's that are not marked by 'to'
     acl_rest = Restriction(name="father", nested=[[
-        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="(nsubj.*|mark)")  # TODO: validate that mark can be here only 'to'.
+        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="(nsubj.*)")
     ]])
     
     ret = match(sentence.values(), [[acl_rest]])
@@ -469,6 +485,8 @@ def extra_acl_propagation(sentence):
     for name_space in ret:
         father, _, _ = name_space['father']
         acl, _, rel = name_space['acl']
+        if 'to' in [c.get_conllu_field("form").lower() for c, r in acl.get_children_with_rels()]:
+            continue
         father.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase="REDUCED", prevs=rel), acl)
 
 
