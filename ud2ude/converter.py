@@ -770,6 +770,10 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
 
 
 def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
+    # this is dangerous, but needed as after we change the clause once, we might created a new weak-modified-verb
+    # so we we change the clause once, and then start again, theoretically this should converge.
+    # e.g "He seems to appear eating." appear-eating might be matched first, and so he would transfer
+    #   its 'xcomp' parent with seems to eating, creating a new evidential.
     while True:
         ret = match(sentence.values(), [[rest]])
         if not ret:
@@ -789,26 +793,26 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
         for child, rel in old_root.get_children_with_rels():
             if child == new_root:
                 new_root.remove_edge(rel, old_root)
-                if rel == 'ccomp':
-                    # remember  we removed ccomp
+                if rel == 'ccomp':  # TODO1: validate ccomp should have a different behavior
+                    # remember we removed ccomp
                     removed_ccomp = True
                 # find lowest 'ev' of the new root, and make us his 'ev' son
                 inter_root = new_root
                 ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 while ev_sons:
-                    inter_root = ev_sons[0]
+                    inter_root = ev_sons[0]  # TODO2: change to 'ev' son with lowest index?
                     ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 old_root.add_edge(add_extra_info('ev', rel, dep_type=type_), inter_root)
             elif rel == "mark":
                 # see notes in copula
                 if child.get_conllu_field('xpos') != 'TO':
-                    child.replace_edge(rel, rel, old_root, new_root)
+                    child.replace_edge(rel, rel, old_root, new_root) # TODO3: is this needed maybe all markers shouldnt be moved?
             elif re.match("(.subj.*)", rel):
                 # transfer the subj only if it is not the special case of ccomp
                 if ('ccomp' not in [rel for child, rel in old_root.get_children_with_rels()]) and not removed_ccomp:
                     child.replace_edge(rel, rel, old_root, new_root)
             elif re.match("(?!advmod|aux.*|cc|conj).*", rel):
-                child.replace_edge(rel, rel, old_root, new_root)
+                child.replace_edge(rel, rel, old_root, new_root)  # TODO4: consult regarding all cases in the world.
 
 
 def extra_copula_reconstruction(sentence):
