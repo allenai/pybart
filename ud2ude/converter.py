@@ -770,10 +770,10 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
 
 
 def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
-    # this is dangerous, but needed as after we change the clause once, we might created a new weak-modified-verb
-    # so we we change the clause once, and then start again, theoretically this should converge.
-    # e.g "He seems to appear eating." appear-eating might be matched first, and so he would transfer
-    #   its 'xcomp' parent with seems to eating, creating a new evidential.
+    # Copied NOTE from extra_inner_weak_modifier_verb_reconstruction: we do this as long as we find what to change,
+    #   and each time change only one match,instead of fixing all matches found each time.
+    #   As every change we do might change what can be found next, and old relations that are matched might be out dated.
+    #   But this is bad practice. we dont use the matching properly, and we use while true which might run forever!
     while True:
         ret = match(sentence.values(), [[rest]])
         if not ret:
