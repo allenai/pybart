@@ -329,60 +329,62 @@ def extra_xcomp_propagation_no_to(sentence):
     xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
 
 
-def advcl_propagation_per_type(sentence, restriction, iids):
+def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc, iids):
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
     
     for name_space in ret:
+        dep, _, _ = name_space['dep']
         if 'new_subj' in name_space:
             new_subj_str = 'new_subj'
             cur_iid = None
+            # in case the father has more than one subject, we dont want to take care now, but later.
+            if len([rel for child, rel in name_space['father'][0].get_children_with_rels() if re.match(".subj.*", rel)]) > 1:
+                continue
         else:
-            father, _, _ = name_space["father"]
-            if father not in iids:
-                iids[father] = 0 if len(iids.values()) == 0 else (max(iids.values()) + 1)
-            cur_iid = iids[father]
+            if dep not in iids:
+                iids[dep] = 0 if len(iids.values()) == 0 else (max(iids.values()) + 1)
+            cur_iid = iids[dep]
             new_subj_str = 'new_subj_opt'
         
         new_subj, _, rel = name_space[new_subj_str]
-        dep, _, _ = name_space['dep']
         mark, _, _ = name_space['mark'] if 'mark' in name_space else (None, _, _)
-        new_subj.add_edge(add_extra_info("nsubj", "advcl", phrase=mark.get_conllu_field("form") if mark else "NULL", prevs=rel, iid=cur_iid), dep)
+        phrase = mark.get_conllu_field("form") if mark else "NULL"
+        new_subj.add_edge(add_extra_info("nsubj", type_, phrase=phrase, prevs=rel, iid=cur_iid, uncertain=unc), dep)
 
 
-def extra_advcl_propagation(sentence):
-    advcl_to_rest = Restriction(nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
+def extra_advcl_propagation(sentence, iids):
+    advcl_to_rest = Restriction(name="father", nested=[[
+        Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
             Restriction(name="mark", gov="^(aux|mark)$", form="(^(?i:to)$)")
         ]]),
         Restriction(name="new_subj", gov=".?obj")
     ]])
     
-    basic_advcl_rest = Restriction(no_sons_of=".?obj", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
+    basic_advcl_rest = Restriction(name="father", no_sons_of=".?obj", nested=[[
+        Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
             Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
-    basic_advcl_rest_no_mark = Restriction(no_sons_of=".?obj", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of="(nsubj.*|aux|mark)"),
+    basic_advcl_rest_no_mark = Restriction(name="father", no_sons_of=".?obj", nested=[[
+        Restriction(name="dep", gov="advcl", no_sons_of="(.subj.*|aux|mark)"),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
     ambiguous_advcl_rest = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of="nsubj.*", nested=[[
+        Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
             Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
         ]]),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
     ambiguous_advcl_rest_no_mark = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of="(nsubj.*|aux|mark)"),
+        Restriction(name="dep", gov="advcl", no_sons_of="(.subj.*|aux|mark)"),
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
-
-    iids = dict()
+    
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
-        advcl_propagation_per_type(sentence, advcl_restriction, iids)
+        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False, iids)
 
 
 def extra_of_prep_alteration(sentence):
@@ -406,7 +408,7 @@ def extra_of_prep_alteration(sentence):
 
 def extra_compound_propagation(sentence):
     compound_rest = Restriction(name="father", nested=[[
-        Restriction(name="middle_man", gov="(dobj|.subj.*)", xpos="NN.*", nested=[[
+        Restriction(name="middle_man", gov="(.obj|.subj.*)", xpos="NN.*", nested=[[
             Restriction(name="compound", gov="compound", xpos="NN.*")
         ]])
     ]])
@@ -419,7 +421,10 @@ def extra_compound_propagation(sentence):
         father, _, _ = name_space['father']
         _, _, rel = name_space['middle_man']
         compound, _, _ = name_space['compound']
-        compound.add_edge(add_extra_info(rel.split("@")[0], "compound", dep_type="NULL", uncertain=True, prevs=rel), father)
+        pure_rel = rel.split("@")[0]
+        if any([re.match("(.obj|.subj.*)", rel) for head, rel in compound.get_new_relations()]):
+            continue
+        compound.add_edge(add_extra_info(pure_rel, "compound", dep_type="NULL", uncertain=True, prevs=rel), father)
 
 
 def extra_amod_propagation(sentence):
@@ -472,26 +477,19 @@ def extra_acl_propagation(sentence):
         father.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase="REDUCED", prevs=rel), acl)
 
 
-def extra_dep_propagation(sentence):
-    dep_rest = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="dep", no_sons_of="nsubj.*"),
-        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
+def extra_dep_propagation(sentence, iids):
+    dep_rest = Restriction(name="father", no_sons_of = ".?obj", nested=[[
+        Restriction(name="dep", gov="dep", no_sons_of=".subj.*"),
+        Restriction(name="new_subj", gov="(nsubj.*)")
     ]])
 
-    ret = match(sentence.values(), [[dep_rest]])
-    if not ret:
-        return
+    ambiguous_dea_rest = Restriction(name="father", nested=[[
+        Restriction(name="dep", gov="dep", no_sons_of=".subj.*"),
+        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
+    ]])
     
-    iid = 0
-    iids = dict()
-    for name_space in ret:
-        new_subj_opt, _, _ = name_space['new_subj_opt']
-        dep, _, rel = name_space['dep']
-        father, _, _ = name_space['father']
-        if father not in iids:
-            iids[father] = iid
-            iid += 1
-        new_subj_opt.add_edge(add_extra_info("nsubj", "dep", iid=iids[father], uncertain=True, prevs=rel), dep)
+    for rest in [dep_rest, ambiguous_dea_rest]:
+        advcl_or_dep_propagation_per_type(sentence, rest, "dep", True, iids)
 
 
 # TODO - unify with other nmods props
@@ -1467,7 +1465,7 @@ def extra_passive_alteration(sentence):
         subj.add_edge(add_extra_info(subj_new_rel, "passive", prevs=subj_rel), predicate)
     
 
-def convert_sentence(sentence):
+def convert_sentence(sentence, iids):
     # The order of wud and eudpp is according to the order of the original CoreNLP.
     # The extra are our enhancements in which been added where we thought it best.
     
@@ -1499,19 +1497,19 @@ def convert_sentence(sentence):
     eud_subj_of_conjoined_verbs(sentence)  # treatCC
     eud_xcomp_propagation(sentence)  # addExtraNSubj
 
+    extra_of_prep_alteration(sentence)
+    extra_compound_propagation(sentence)
     extra_xcomp_propagation_no_to(sentence)
-    extra_advcl_propagation(sentence)
+    extra_advcl_propagation(sentence, iids)
     extra_acl_propagation(sentence)
     extra_amod_propagation(sentence)
-    extra_dep_propagation(sentence)
+    extra_dep_propagation(sentence, iids)
     extra_conj_propagation_of_nmods(sentence)
     extra_conj_propagation_of_poss(sentence)
     extra_advmod_propagation(sentence)
     extra_appos_propagation(sentence)
     extra_subj_obj_nmod_propagation_of_nmods(sentence)
     extra_passive_alteration(sentence)
-    extra_of_prep_alteration(sentence)
-    extra_compound_propagation(sentence)
     
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
     
@@ -1541,7 +1539,8 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_aryeh_extra_info = remove_aryeh_extra_info
-
+    iids = dict()
+    
     override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, funcs_to_cancel)
     
     # we iterate till convergence or till user defined maximum is reached - the first to come.
@@ -1551,7 +1550,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
         last_converted_sentences = get_rel_set(converted_sentences)
         temp = []
         for sentence in converted_sentences:
-            temp.append(convert_sentence(sentence))
+            temp.append(convert_sentence(sentence, iids))
         converted_sentences = temp
         if get_rel_set(converted_sentences) == last_converted_sentences:
             break
