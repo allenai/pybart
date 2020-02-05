@@ -113,3 +113,19 @@ class Token(object):
     
     def dist(self, other):
         return other.get_conllu_field('id') - self.get_conllu_field('id')
+
+
+def add_basic_edges(sentence):
+    """Purpose: adds each basic deprel relation and the relevant father to its son.
+
+    Args:
+        (dict) The parsed sentence.
+    """
+    for (cur_id, token) in sentence.items():
+        if cur_id == 0:
+            continue
+        
+        # add the relation
+        head = token.get_conllu_field('head')
+        if head != "_":
+            sentence[cur_id].add_edge(token.get_conllu_field('deprel'), sentence[token.get_conllu_field('head')])
