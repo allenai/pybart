@@ -822,7 +822,7 @@ def extra_evidential_reconstruction(sentence):
     # NOTE: we avoid the auxiliary sense of the evidential (in the 'be' case), with the gov restriction
     ev_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", gov="(?!aux.*).", xpos="(VB.?)", lemma=evidential_list, nested=[[
-            Restriction(name="new_root", gov="xcomp", xpos="(JJ.*|NN.*)"),
+            Restriction(name="new_root", gov="(xcomp|nmod)", xpos="(JJ.*|NN.*)"),
         ]])
     ]])
     
