@@ -2,7 +2,7 @@ from spacy.tokens import Doc, Token as SpacyToken
 from spacy import attrs
 import numpy as np
 
-from .graph_token import Token, add_basic_edges
+from .graph_token import Token, add_basic_edges, parse_bart_label
 
 # this is here because it needs to happen only once (per import)
 SpacyToken.set_extension("parent_list", default=[])
@@ -25,35 +25,6 @@ def parse_spacy_doc(doc):
     add_basic_edges(sentence)
     
     return sentence
-
-
-def parse_bart_label(rel, is_state_head_node):
-    rel_l = rel.split("@")
-    
-    # defaults
-    src = "UD" if not is_state_head_node else "BART"
-    alt = None
-    unc = False
-    
-    # if new info exists parse it
-    if len(rel_l) > 1:
-        # alternatives info
-        if len(rel_l[1].split("#")) > 1:
-            alt = int(rel_l[1].split("#")[1])
-        # extra info
-        src = rel_l[1].split("(")[0]
-        extras = rel_l[1].split("(")[1].split(")")[0].split(", ")
-        if '' in extras:
-            extras.remove('')
-        # uncertinty info
-        if "UNC" in extras:
-            unc = True
-            extras.remove("UNC")
-        if len(extras) > 0:
-            src = (src,) + tuple(extras)
-    new_rel = rel_l[0]
-    
-    return new_rel, src, unc, alt
 
 
 def serialize_spacy_doc(orig, converted_):

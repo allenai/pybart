@@ -129,3 +129,32 @@ def add_basic_edges(sentence):
         head = token.get_conllu_field('head')
         if head != "_":
             sentence[cur_id].add_edge(token.get_conllu_field('deprel'), sentence[token.get_conllu_field('head')])
+
+
+def parse_bart_label(rel, is_state_head_node):
+    rel_l = rel.split("@")
+    
+    # defaults
+    src = "UD" if not is_state_head_node else "BART"
+    alt = None
+    unc = False
+    
+    # if new info exists parse it
+    if len(rel_l) > 1:
+        # alternatives info
+        if len(rel_l[1].split("#")) > 1:
+            alt = int(rel_l[1].split("#")[1])
+        # extra info
+        src = rel_l[1].split("(")[0]
+        extras = rel_l[1].split("(")[1].split(")")[0].split(", ")
+        if '' in extras:
+            extras.remove('')
+        # uncertinty info
+        if "UNC" in extras:
+            unc = True
+            extras.remove("UNC")
+        if len(extras) > 0:
+            src = (src,) + tuple(extras)
+    new_rel = rel_l[0]
+    
+    return new_rel, src, unc, alt
