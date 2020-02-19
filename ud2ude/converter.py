@@ -1330,7 +1330,6 @@ def expand_per_type(sentence, restriction, is_pp):
         # Check if we already copied this node in this same match (as it is hard to restrict that).
         # This is relevant only for the prep type.
         already_copied = False
-        import pdb;pdb.set_trace()
         for node in sentence.values():
             if (node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}") and ('modifier' in name_space):
                 mod_rel = name_space['modifier'][2].split(":")[0]
