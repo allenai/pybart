@@ -1529,7 +1529,7 @@ def convert_sentence(sentence, iids):
     return sentence
 
 
-def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, funcs_to_cancel):
+def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
     if not enhanced:
         funcs_to_cancel.update_funcs_by_prefix('eud')
     if not enhanced_plus_plus:
@@ -1540,6 +1540,12 @@ def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced
         funcs_to_cancel.update_funcs(['eud_passive_agent', 'eud_conj_info'])
     if remove_node_adding_conversions:
         funcs_to_cancel.update_funcs(['extra_inner_weak_modifier_verb_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
+    if remove_unc:
+        funcs_to_cancel.update_funcs(['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods', 'extra_advmod_propagation'])
+    if query_mode:
+        all_funcs = ConvsCanceler.get_conversion_names()
+        all_funcs.difference_update(['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_passive_agent', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers'])
+        funcs_to_cancel.update_funcs(all_funcs)
     
     funcs_to_cancel.override_funcs()
 
@@ -1548,13 +1554,13 @@ def get_rel_set(converted_sentences):
     return set([(head.get_conllu_field("form"), rel) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, funcs_to_cancel):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
     global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_aryeh_extra_info = remove_aryeh_extra_info
     iids = dict()
     
-    override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, funcs_to_cancel)
+    override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
     
     # we iterate till convergence or till user defined maximum is reached - the first to come.
     converted_sentences = parsed
