@@ -1327,6 +1327,19 @@ def expand_per_type(sentence, restriction, is_pp):
             continue
         cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
         
+        # Check if we already copied this node in this same match (as it is hard to restrict that).
+        # This is relevant only for the prep type.
+        already_copied = False
+        import pdb;pdb.set_trace()
+        for node in sentence.values():
+            if (node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}") and ('modifier' in name_space):
+                mod_rel = name_space['modifier'][2].split(":")[0]
+                if any([((rel.split(":")[0] == mod_rel) and (rel.split(":")[1] == conj.get_conllu_field("form").lower())) for (ch, rel) in node.get_children_with_rels()]):
+                    already_copied = True
+                    break
+        if already_copied:
+            continue
+        
         # create a copy node,
         # add conj:cc_info('to_copy', copy_node)
         nodes_copied = 1 if to_copy.get_conllu_field('id') != last_copy_id else nodes_copied + 1
