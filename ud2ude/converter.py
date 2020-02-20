@@ -372,6 +372,12 @@ def extra_advcl_propagation(sentence, iids):
         Restriction(name="dep", gov="advcl", no_sons_of="(.subj.*|aux|mark)"),
         Restriction(name="new_subj", gov="nsubj.*")
     ]])
+    
+    for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark]:
+        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False, iids)
+
+
+def extra_advcl_ambiguous_propagation(sentence, iids):
     ambiguous_advcl_rest = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
             Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
@@ -383,7 +389,7 @@ def extra_advcl_propagation(sentence, iids):
         Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
     ]])
     
-    for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark, ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
+    for advcl_restriction in [ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
         advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False, iids)
 
 
@@ -1513,6 +1519,7 @@ def convert_sentence(sentence, iids):
     extra_compound_propagation(sentence)
     extra_xcomp_propagation_no_to(sentence)
     extra_advcl_propagation(sentence, iids)
+    extra_advcl_ambiguous_propagation(sentence, iids)
     extra_acl_propagation(sentence)
     extra_amod_propagation(sentence)
     extra_dep_propagation(sentence, iids)
@@ -1540,7 +1547,7 @@ def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced
     if remove_node_adding_conversions:
         funcs_to_cancel.update_funcs(['extra_inner_weak_modifier_verb_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
     if remove_unc:
-        funcs_to_cancel.update_funcs(['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods', 'extra_advmod_propagation'])
+        funcs_to_cancel.update_funcs(['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation'])
     if query_mode:
         all_funcs = ConvsCanceler.get_conversion_names()
         all_funcs.difference_update(['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_passive_agent', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers'])
