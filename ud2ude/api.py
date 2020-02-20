@@ -33,12 +33,11 @@ def convert_ud2ude_tacred(tacred_json, enhance_ud=True, enhanced_plus_plus=True,
     return converted_sents
 
 
-# for now assuming doc is one sent
 def convert_spacy_doc(doc, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=ConvsCanceler()):
-    from .spacy_wrapper import parse_spacy_doc, serialize_spacy_doc
-    parsed = parse_spacy_doc(doc)
-    converted, _ = convert([parsed], enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
-    return serialize_spacy_doc(doc, converted[0])
+    from .spacy_wrapper import parse_spacy_sent, serialize_spacy_doc
+    parsed = [parse_spacy_sent(sent) for sent in doc.sents]
+    converted, _ = convert(parsed, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
+    return serialize_spacy_doc(doc, converted)
 
 
 class Converter:
