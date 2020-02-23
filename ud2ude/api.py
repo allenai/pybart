@@ -35,9 +35,9 @@ def convert_ud2ude_tacred(tacred_json, enhance_ud=True, enhanced_plus_plus=True,
 
 def convert_spacy_doc(doc, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=ConvsCanceler()):
     from .spacy_wrapper import parse_spacy_sent, serialize_spacy_doc
-    parsed = [parse_spacy_sent(sent) for sent in doc.sents]
-    converted, _ = convert(parsed, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
-    return serialize_spacy_doc(doc, converted)
+    parsed_doc = [parse_spacy_sent(sent) for sent in doc.sents]
+    converted, convs_done = convert(parsed_doc, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
+    return serialize_spacy_doc(doc, converted), parsed_doc, convs_done
 
 
 class Converter:
@@ -45,7 +45,16 @@ class Converter:
         self.config = (enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
     
     def __call__(self, doc):
-        return convert_spacy_doc(doc, *self.config)
+        serialized_spacy_doc, parsed_doc, convs_done = convert_spacy_doc(doc, *self.config)
+        self._parsed_doc = parsed_doc
+        self._convs_done = convs_done
+        return serialized_spacy_doc
+    
+    def get_parsed_doc(self):
+        return self._parsed_doc
+    
+    def get_max_convs(self):
+        return self._convs_done
 
 
 def get_conversion_names():
