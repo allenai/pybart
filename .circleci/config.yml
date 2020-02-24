@@ -15,7 +15,7 @@ jobs:
           command: ls
           name: Bla
       - run:
-          command: python -m pytest /tests
+          command: python -m pytest ./tests
           name: Test
 
 workflows:
