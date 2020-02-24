@@ -12,9 +12,6 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run:
-          command: ls
-          name: Bla
-      - run:
           command: python -m pytest ./tests
           name: Test
 
