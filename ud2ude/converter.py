@@ -1537,11 +1537,11 @@ def convert_sentence(sentence, iids):
 
 def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
     if not enhanced:
-        funcs_to_cancel.update_funcs_by_prefix('eud')
+        funcs_to_cancel.update_funcs_by_prefix('eud_')
     if not enhanced_plus_plus:
-        funcs_to_cancel.update_funcs_by_prefix('eudpp')
+        funcs_to_cancel.update_funcs_by_prefix('eudpp_')
     if not enhanced_extra:
-        funcs_to_cancel.update_funcs_by_prefix('extra')
+        funcs_to_cancel.update_funcs_by_prefix('extra_')
     if remove_enhanced_extra_info:
         funcs_to_cancel.update_funcs(['eud_passive_agent', 'eud_conj_info'])
     if remove_node_adding_conversions:
