@@ -11,7 +11,7 @@ class TestConversions:
         g_remove_aryeh_extra_info = False
         
         dir_ = str(pathlib.Path(__file__).parent.absolute())
-        with open(dir_ + "\\handcrafted_tests.conllu") as f:
+        with open(dir_ + "/handcrafted_tests.conllu") as f:
             text = f.read()
             parsed, all_comments = parse_conllu(text)
         
@@ -30,7 +30,7 @@ class TestConversions:
         cls.gold = dict()
         test_name = ""
         specification = ""
-        for gold_line in open(dir_ + "\\expected_handcrafted_tests_output.conllu", 'r').readlines():
+        for gold_line in open(dir_ + "/expected_handcrafted_tests_output.conllu", 'r').readlines():
             if gold_line.startswith('#'):
                 if gold_line.split(":")[0] == "# test":
                     test_name = gold_line.split(":")[1].split("-")[0]
