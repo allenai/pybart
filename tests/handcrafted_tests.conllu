@@ -1,4 +1,4 @@
-# test:correct_subj_pass-blackbox1
+# test:eud_correct_subj_pass-blackbox1
 # purpose: test basic functionality
 1	He		he		PRON	PRP	_	3	nsubj	_	_
 2	was		be		AUX		VBD	_	3	auxpass	_	_
@@ -6,7 +6,7 @@
 4	by		by		ADP		IN	_	5	case	_	_
 5	them	they	PRON	PRP	_	3	nmod	_	_
 
-# test:correct_subj_pass-blackbox2
+# test:eud_correct_subj_pass-blackbox2
 # purpose: test two matches in one sentence
 1	He		he		PRON	PRP	_	3	nsubj	_	_
 2	was		be		AUX		VBD	_	3	auxpass	_	_
@@ -20,7 +20,7 @@
 10	by		by		ADP		IN	_	11	case	_	_
 11	him		he		PRON	PRP	_	9	nmod	_	_
 
-# test:correct_subj_pass-blackbox3
+# test:eud_correct_subj_pass-blackbox3
 # purpose: test csubj
 1	What	what	PRON	WP	_	3	dobj	_	_
 2	I		I		PRON	PRP	_	3	nsubj	_	_
@@ -30,7 +30,7 @@
 6	by		by		ADP		IN	_	7	case	_	_
 7	them	they	PRON	PRP	_	5	nmod	_	_
 
-# test:process_simple_2wp-blackbox1
+# test:eudpp_process_simple_2wp-blackbox1
 # purpose: test basic functionality
 1       The     _       DT      DT      _       2       det     _       _
 2       street  _       NN      NN      _       6       nsubj   _       _
@@ -39,7 +39,7 @@
 5       from    _       IN      IN      _       6       case    _       _
 6       you     _       PRP     PRP     _       0       root    _       _
 
-# test:process_simple_2wp-blackbox2
+# test:eudpp_process_simple_2wp-blackbox2
 # purpose: test two matches in one sentence
 1       The     _       DT      DT      _       2       det     _       _
 2       street  _       NN      NN      _       6       nsubj   _       _
@@ -52,7 +52,7 @@
 9       from    _       IN      IN      _       10      case    _       _
 10		me		_		PRP		PRP		_		6		conj	_		_
 
-# test:process_simple_2wp-whitebox1
+# test:eudpp_process_simple_2wp-whitebox1
 # purpose: test separated prep
 1       The     _       DT      DT      _       2       det     _       _
 2       street  _       NN      NN      _       7       nsubj   _       _
@@ -62,7 +62,7 @@
 6       from    _       IN      IN      _       7       case    _       _
 7       you     _       PRP     PRP     _       0       root    _       _
 
-# test:process_complex_2wp-blackbox1
+# test:eudpp_process_complex_2wp-blackbox1
 # purpose: test basic functionality, also checks for w1 as root, and transfer of w1's children
 1       He      _       PRP     PRP     _       3       nsubj   _       _
 2       is      _       VBZ     VBZ     _       3       cop     _       _
@@ -70,7 +70,7 @@
 4       to      _       TO      TO      _       5       case    _       _
 5       me      _       PRP     PRP     _       3       nmod    _       _
 
-# test:process_complex_2wp-blackbox2
+# test:eudpp_process_complex_2wp-blackbox2
 # purpose: test two matches in one sentence, for a different governor. also test for gov2's relation type (cop+advcl)
 1       He      _       PRP     PRP     _       3       nsubj   _       _
 2       is      _       VBZ     VBZ     _       3       cop     _       _
@@ -84,7 +84,7 @@
 10      by      _       IN      IN      _       11      case    _       _
 11      me      _       PRP     PRP     _       9       nmod    _       _
 
-# test:process_complex_2wp-blackbox3
+# test:eudpp_process_complex_2wp-blackbox3
 # purpose: test for gov2's relation type (nmod)
 1       As      _       IN      IN      _       2       case    _       _
 2       close   _       NN      NN      _       7       nmod    _       _
@@ -94,16 +94,16 @@
 6       can     _       MD      MD      _       7       aux     _       _
 7       be      _       VB      VB      _       0       root    _       _
 
-# test:process_complex_2wp-whitebox1
-# purpose: test separated prep (not sequential)
-1       He      _       PRP     PRP     _       3       nsubj   _       _
-2       is      _       VBZ     VBZ     _       3       cop     _       _
-3       close   _       JJ      JJ      _       0       root    _       _
-4       ahead   _       IN      IN      _       6       case    _       _
-5       to      _       TO      TO      _       6       case    _       _
-6       me      _       PRP     PRP     _       3       nmod    _       _
+# # oldtest:eudpp_process_complex_2wp-whitebox1
+# # purpose: test separated prep (not sequential)
+# 1       He      _       PRP     PRP     _       3       nsubj   _       _
+# 2       is      _       VBZ     VBZ     _       3       cop     _       _
+# 3       close   _       JJ      JJ      _       0       root    _       _
+# 4       ahead   _       IN      IN      _       6       case    _       _
+# 5       to      _       TO      TO      _       6       case    _       _
+# 6       me      _       PRP     PRP     _       3       nmod    _       _
 
-# test:process_3wp-blackbox1
+# test:eudpp_process_3wp-blackbox1
 # purpose: test basic functionality, and w1 will be case.
 1       I       _       PRP     PRP     _       4       nsubj   _       _
 2       am      _       VBP     VBP     _       4       cop     _       _
@@ -112,7 +112,7 @@
 5       of      _       IN      IN      _       6       case    _       _
 6       you     _       PRP     PRP     _       4       nmod    _       _
 
-# test:process_3wp-blackbox2
+# test:eudpp_process_3wp-blackbox2
 # purpose: test two matches in one sentence, for a different governor
 1       I       _       PRP     PRP     _       4       nsubj   _       _
 2       am      _       VBP     VBP     _       4       cop     _       _
@@ -128,7 +128,7 @@
 12      to      _       IN      IN      _       13      case    _       _
 13      me      _       PRP     PRP     _       11      nmod    _       _
 
-# test:process_3wp-blackbox3
+# test:eudpp_process_3wp-blackbox3
 # purpose: test for gov2's relation type (acl/advcl while w2's rel is nmod). and w1 will be mark.
 1       As      _       IN      IN      _       3       case    _       _
 2       in      _       IN      IN      _       3       case    _       _
@@ -140,24 +140,24 @@
 8       can     _       MD      MD      _       9       aux     _       _
 9       be      _       VB      VB      _       0       root    _       _
 
-# test:process_3wp-whitebox1
-# purpose: test separated prep (not sequential)
-1       I       _       PRP     PRP     _       4       nsubj   _       _
-2       am      _       VBP     VBP     _       4       cop     _       _
-3       in      _       IN      IN      _       4       case    _       _
-4       front   _       NN      NN      _       0       root    _       _
-5       ahead   _       IN      IN      _       7       case    _       _
-6       of      _       IN      IN      _       7       case    _       _
-7       you     _       PRP     PRP     _       4       nmod    _       _
+# # oldtest:eudpp_process_3wp-whitebox1
+# # purpose: test separated prep (not sequential)
+# 1       I       _       PRP     PRP     _       4       nsubj   _       _
+# 2       am      _       VBP     VBP     _       4       cop     _       _
+# 3       in      _       IN      IN      _       4       case    _       _
+# 4       front   _       NN      NN      _       0       root    _       _
+# 5       ahead   _       IN      IN      _       7       case    _       _
+# 6       of      _       IN      IN      _       7       case    _       _
+# 7       you     _       PRP     PRP     _       4       nmod    _       _
 
-# test:demote_quantificational_modifiers-blackbox1
+# test:eudpp_demote_quantificational_modifiers-blackbox1
 # purpose: test basic functionality of 3w + 'A'
 1       A       _       DT      DT      _       2       det     _       _
 2       couple  _       NN      NN      _       0       root    _       _
 3       of      _       IN      IN      _       4       case    _       _
 4       people  _       NNS     NNS     _       2       nmod    _       _
 
-# test:demote_quantificational_modifiers-blackbox2
+# test:eudpp_demote_quantificational_modifiers-blackbox2
 # purpose: test with an amod
 1       An      _       DT      DT      _       3       det     _       _
 2       angry   _       JJ      JJ      _       3       amod    _       _
@@ -165,14 +165,14 @@
 4       of      _       IN      IN      _       5       case    _       _
 5       people  _       NNS     NNS     _       3       nmod    _       _
 
-# test:demote_quantificational_modifiers-blackbox3
+# test:eudpp_demote_quantificational_modifiers-blackbox3
 # purpose: test with word out of dict
 1       An      _       DT      DT      _       2       det     _       _
 2       horde   _       NN      NN      _       0       root    _       _
 3       of      _       IN      IN      _       4       case    _       _
 4       people  _       NNS     NNS     _       2       nmod    _       _
 
-# test:demote_quantificational_modifiers-blackbox4
+# test:eudpp_demote_quantificational_modifiers-blackbox4
 # purpose: test with w3 not sequential
 1       A       _       DT      DT      _       2       det     _       _
 2       ton     _       NN      NN      _       0       root    _       _
@@ -181,14 +181,14 @@
 5       of      _       IN      IN      _       6       case    _       _
 6       people  _       NNS     NNS     _       2       nmod    _       _
 
-# test:demote_quantificational_modifiers-blackbox5
+# test:eudpp_demote_quantificational_modifiers-blackbox5
 # purpose: test gov2 not as NN or PRP
 1       A       _       DT      DT      _       2       det     _       _
 2       ton     _       NN      NN      _       0       root    _       _
 3       of      _       IN      IN      _       4       case    _       _
 4       what    _       WP      WP      _       2       nmod    _       _
 
-# test:demote_quantificational_modifiers-blackbox6
+# test:eudpp_demote_quantificational_modifiers-blackbox6
 # purpose: test basic functionality of 2w and 2w+det. also test two matches in one sentence
 1       Several _       JJ      JJ      _       5       nsubj   _       _
 2       of      _       IN      IN      _       3       case    _       _
@@ -203,7 +203,7 @@
 11      are     _       VBP     VBP     _       12      aux     _       _
 12      reading _       VBG     VBG     _       5       advcl   _       _
 
-# test:expand_pp_or_prep_conjunctions-blackbox1
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox1
 # purpose: test basic functionality
 1	Bill	Bill	PROPN	NNP	_	2	nsubj	_	_
 2	flies	fly		VERB	VBZ	_	0	root	_	_
@@ -213,7 +213,7 @@
 6	from	from	ADP		IN	_	7	case	_	_
 7	Serbia	Serbia	PROPN	NNP	_	4	conj	_	_
 
-# test:expand_pp_or_prep_conjunctions-blackbox2
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox2
 # purpose: test multiple ccs and conjs, also test for multi word conj phrases
 1       Bill    _       NNP     NNP     _       2       nsubj   _       _
 2       flies   _       VBZ     VBZ     _       0       root    _       _
@@ -234,7 +234,7 @@
 17      from    _       IN      IN      _       18      case    _     	_
 18      Israel  _       NNP     NNP     _       4       conj    _		_
 
-# test:expand_pp_or_prep_conjunctions-blackbox3
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox3
 # purpose: test two separate matches in one sentence
 1       Bill    _       NNP     NNP     _       2       nsubj   _       _
 2       flies   _       VBZ     VBZ     _       0       root    _       _
@@ -252,7 +252,7 @@
 14      from    _       IN      IN      _       15      case    _       _
 15      Italy   _       NNP     NNP     _       12      conj    _       _
 
-# test:expand_pp_or_prep_conjunctions-blackbox4
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox4
 # purpose: test prep
 1       Bill    _       NNP     NNP     _       2       nsubj   _       _
 2       flies   _       VBZ     VBZ     _       0       root    _       _
@@ -261,7 +261,7 @@
 5       from    _       IN      IN      _       3       conj    _       _
 6       France  _       NNP     NNP     _       2       nmod    _       _
 
-# test:passive_agent-blackbox1
+# test:eud_passive_agent-blackbox1
 # purpose: test basic functionality
 1       He      _       PRP     PRP     _       3       nsubjpass   _       _
 2       was     _       VBD     VBD     _       3       auxpass 	_       _
@@ -269,7 +269,7 @@
 4       by      _       IN      IN      _       5       case    	_       _
 5       me      _       PRP     PRP     _       3       nmod    	_       _
 
-# test:passive_agent-blackbox2
+# test:eud_passive_agent-blackbox2
 # purpose: test two matches in one sentence
 1       He      _       PRP     PRP     _       3       nsubjpass   _       _
 2       was     _       VBD     VBD     _       3       auxpass 	_       _
@@ -283,14 +283,14 @@
 10      by      _       IN      IN      _       11      case    	_       _
 11      you     _       PRP     PRP     _       9       nmod    	_       _
 
-# test:passive_agent-blackbox3
+# test:eud_passive_agent-blackbox3
 # purpose: test with no auxpass
 1       They    	_       PRP     PRP     _       2       nsubj   _       _
 2       chose   	_       VBD     VBD     _       0       root    _       _
 3       by      	_       IN      IN      _       4       case    _       _
 4       themselves  _       PRP     PRP     _       2       nmod    _       _
 
-# test:passive_agent-blackbox4
+# test:eud_passive_agent-blackbox4
 # purpose: test with no by
 1       He      _       PRP     PRP     _       3       nsubjpass	_       _
 2       was     _       VBD     VBD     _       3       auxpass		_       _
@@ -298,7 +298,7 @@
 4       with    _       IN      IN      _       5       case   		_       _
 5       me      _       PRP     PRP     _       3       nmod    	_       _
 
-# test:add_ref_and_collapse-blackbox1
+# test:eudpp_add_ref_and_collapse-blackbox1
 # purpose: test two matches in one sentence
 1       The     _       DT      DT      _       2       det     	_       _
 2       boy     _       NN      NN      _       11      nsubj   	_       _
@@ -314,7 +314,7 @@
 12      the     _       DT      DT      _       13      det     	_       _
 13      tale    _       NN      NN      _       11      dobj    	_       _
 
-# test:add_ref_and_collapse-whitebox1
+# test:eudpp_add_ref_and_collapse-whitebox1
 # purpose: child is lefter than grandchild
 1	The		the		DET		DT		_	2	det			_	_
 2	boy		boy		NOUN	NN		_	0	root		_	_
@@ -324,7 +324,7 @@
 6	bla		bla		DET		DT		_	7	nsubj		_	_
 7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:add_ref_and_collapse-whitebox2
+# test:eudpp_add_ref_and_collapse-whitebox2
 # purpose: grandchild is lefter than child
 1	The		the		DET		DT		_	2	det			_	_
 2	boy		boy		NOUN	NN		_	0	root		_	_
@@ -334,7 +334,7 @@
 6	bla		bla		DET		DT		_	7	nsubj		_	_
 7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:add_ref_and_collapse-whitebox3
+# test:eudpp_add_ref_and_collapse-whitebox3
 # purpose: two grandchildren to same child
 1	The		the		DET		DT		_	2	det			_	_
 2	boy		boy		NOUN	NN		_	0	root		_	_
@@ -344,7 +344,7 @@
 6	bla		bla		DET		DT		_	7	nsubj		_	_
 7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:add_ref_and_collapse-whitebox4
+# test:eudpp_add_ref_and_collapse-whitebox4
 # purpose: two children to same child
 1	The		the		DET		DT		_	2	det			_	_
 2	boy		boy		NOUN	NN		_	0	root		_	_
@@ -354,7 +354,7 @@
 6	bla		bla		DET		DT		_	7	nsubj		_	_
 7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:add_ref_and_collapse-whitebox5
+# test:eudpp_add_ref_and_collapse-whitebox5
 # purpose: left most relative-word is not descentant of acl-relcl, and grandchild is true leftmost
 1	The		the		DET		DT		_	2	det			_	_
 2	boy		boy		NOUN	NN		_	0	root		_	_
@@ -364,7 +364,7 @@
 6	bla		bla		DET		DT		_	7	nsubj		_	_
 7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:add_ref_and_collapse-whitebox6
+# test:eudpp_add_ref_and_collapse-whitebox6
 # purpose: left most relative-word is not descentant of acl-relcl, and child is true leftmost
 1	The		the		DET		DT		_	2	det			_	_
 2	boy		boy		NOUN	NN		_	0	root		_	_
@@ -374,7 +374,7 @@
 6	bla		bla		DET		DT		_	7	nsubj		_	_
 7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:subj_of_conjoined_verbs-blackbox1
+# test:eud_subj_of_conjoined_verbs-blackbox1
 # purpose: test basic functionality, with different voice
 1       The     _       DT      DT      _       2       det     _       _
 2       store   _       NN      NN      _       4       nsubjpass       _       _
@@ -385,7 +385,7 @@
 7       sell    _       VB      VB      _       4       conj    _       _
 8       cameras _       NNS     NNS     _       7       dobj    _       _
 
-# test:subj_of_conjoined_verbs-blackbox1
+# test:eud_subj_of_conjoined_verbs-blackbox2
 # purpose: test with different voice (other direction)
 1       The     	_       DT      DT      _       2       det     _       _
 2       store   	_       NN      NN      _       3       nsubj   _       _
@@ -394,7 +394,7 @@
 5       was     	_       VBD     VBD     _       6       auxpass _       _
 6       sold    	_       VBN     VBN     _       3       conj    _       _
 
-# test:heads_of_conjuncts-blackbox1
+# test:eud_heads_of_conjuncts-blackbox1
 # purpose: test basic functionality, with nouns
 1	Sue     _       NNP     NNP     _       5       nsubj   _       _
 2   and     _       CC      CC      _       1       cc      _       _
@@ -402,7 +402,7 @@
 4   are     _       VBP     VBP     _       5       aux     _       _
 5   running _       VBG     VBG     _       0       root    _       _
 
-# test:heads_of_conjuncts-blackbox2
+# test:eud_heads_of_conjuncts-blackbox2
 # purpose: test basic functionality, with adjectives
 1       The     _       DT      DT      _       5       det     _       _
 2       long    _       JJ      JJ      _       5       amod    _       _
@@ -410,7 +410,7 @@
 4       wide    _       JJ      JJ      _       2       conj    _       _
 5       river   _       NN      NN      _       0       root    _       _
 
-# test:heads_of_conjuncts-blackbox3
+# test:eud_heads_of_conjuncts-blackbox3
 # purpose: test relcl issue
 1       The     _       DT      DT      _       2       det     	_   _
 2       boy     _       NN      NN      _       8       nsubj   	_	_
@@ -423,7 +423,7 @@
 9       the     _       DT      DT      _       10      det     	_	_
 10      tale    _       NN      NN      _       8       dobj    	_	_
 
-# test:heads_of_conjuncts-blackbox4
+# test:eud_heads_of_conjuncts-blackbox4
 # purpose: test relcl issue2
 1       The     _       DT      DT      _       2       det     	_       _
 2       boy     _       NN      NN      _       8       nsubj   	_       _
@@ -436,7 +436,7 @@
 9       the     _       DT      DT      _       10      det     	_       _
 10      tale    _       NN      NN      _       8       dobj    	_       _
 
-# test:heads_of_conjuncts-blackbox5
+# test:eud_heads_of_conjuncts-blackbox5
 # purpose: test relcl issue3
 1       The     _       DT      DT      _       2       det     	_       _
 2       boy     _       NN      NN      _       8       nsubj   	_       _
@@ -449,7 +449,7 @@
 9       the     _       DT      DT      _       10      det     	_       _
 10      tale    _       NN      NN      _       8       dobj    	_       _
 
-# test:xcomp_propagation-blackbox1
+# test:eud_xcomp_propagation-blackbox1
 # purpose: test basic functionality, with subject, and with verb that starts with 'to..' just to test the 'to' regex
 1       He      _       PRP     PRP     _       2       nsubj   	_       _
 2       wants   _       VBZ     VBZ     _       0       root    	_       _
@@ -458,7 +458,7 @@
 5       his     _       PRP$    PRP$    _       6       nmod:poss   _       _
 6       nose    _       NN      NN      _       4       dobj    	_       _
 
-# test:xcomp_propagation-blackbox2
+# test:eud_xcomp_propagation-blackbox2
 # purpose: test basic functionality, with only an object
 1       Asking  _       VBG     VBG     _       9       dep     	_       _
 2       the     _       DT      DT      _       3       det     	_       _
@@ -470,7 +470,7 @@
 8       was     _       VBD     VBD     _       9       cop     	_       _
 9       smart   _       JJ      JJ      _       0       root    	_       _
 
-# test:xcomp_propagation-blackbox3
+# test:eud_xcomp_propagation-blackbox3
 # purpose: test basic functionality, with both an object and a subject
 1       The     _       DT      DT      _       2       det     _       _
 2       law     _       NN      NN      _       3       nsubj   _       _
@@ -481,7 +481,7 @@
 7       do      _       VB      VB      _       3       xcomp   _       _
 8       so      _       RB      RB      _       7       advmod  _       _
 
-# test:xcomp_propagation-blackbox4
+# test:eud_xcomp_propagation-blackbox4
 # purpose: test multiple xcomps in one sentence
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       wants   _       VBZ     VBZ     _       0       root    _       _
@@ -497,14 +497,14 @@
 12      a       _       DT      DT      _       13      det     _       _
 13      trip    _       NN      NN      _       10      nmod    _       _
 
-# test:xcomp_propagation-blackbox5
+# test:eud_xcomp_propagation-blackbox5
 # purpose: test special case of 'to' with no following verb
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       decided _       VBD     VBD     _       0       root    _       _
 3       not     _       RB      RB      _       4       neg     _       _
 4       to      _       TO      TO      _       2       xcomp   _       _
 
-# test:xcomp_propagation-blackbox6
+# test:extra_aspectual_reconstruction-blackbox1
 # purpose: test special case of two verbs with no auxiliary such as 'to'
 1       FOX     	_       NN      NN      _       2       nsubj   _       _
 2       started 	_       VBD     VBD     _       0       root    _       _
@@ -512,15 +512,7 @@
 4       the     	_       DT      DT      _       5       det     _       _
 5       series  	_       NN      NN      _       3       dobj    _       _
 
-# test:xcomp_propagation-blackbox7
-# purpose: test special case of a verb and an adjective. and with no auxiliary such as 'to'
-1       They    _       PRP     PRP     _       2       nsubj   _       _
-2       get     _       VBP     VBP     _       0       root    _       _
-3       ready   _       JJ      JJ      _       2       xcomp   _       _
-4       to      _       TO      TO      _       5       case    _       _
-5       school  _       NN      NN      _       3       nmod    _       _
-
-# test:advcl_propagation-blackbox1
+# test:extra_advcl_propagation-blackbox1
 # purpose: test special case of a 'to' connecting to verbs in advcl fashion.
 1       I       _       PRP     PRP     _       2       nsubj   _       _
 2       told    _       VBD     VBD     _       0       root    _       _
@@ -530,7 +522,7 @@
 6       the     _       DT      DT      _       7       det     _       _
 7       car     _       NN      NN      _       5       dobj    _       _
 
-# test:advcl_propagation-blackbox2
+# test:extra_advcl_propagation-blackbox2
 # purpose: test basic functionality.
 1       I       _       PRP     PRP     _       2       nsubj   _       _
 2       ate     _       VBD     VBD     _       0       root    _       _
@@ -539,7 +531,7 @@
 5       a       _       DT      DT      _       6       det     _       _
 6       car     _       NN      NN      _       4       dobj    _       _
 
-# test:advcl_propagation-blackbox3
+# test:extra_advcl_propagation-blackbox3
 # purpose: test basic functionality, but with both subj and obj as candidates.
 1       I       _       PRP     PRP     _       2       nsubj   _       _
 2       saw     _       VBD     VBD     _       0       root    _       _
@@ -549,7 +541,7 @@
 6       a       _       DT      DT      _       7       det     _       _
 7       cake    _       NN      NN      _       5       dobj    _       _
 
-# test:acl_plus_propagation-blackbox1
+# test:extra_acl_propagation-blackbox1
 # purpose: test basic acl-nmod functionality.
 1       he      	_       PRP     PRP     _       2       nsubj   _       _
 2       faced   	_       VBD     VBD     _       0       root    _       _
@@ -560,7 +552,7 @@
 7       to      	_       TO      TO      _       8       mark    _       _
 8       win     	_       VB      VB      _       6       acl     _       _
 
-# test:acl_plus_propagation-blackbox2
+# test:extra_acl_propagation-blackbox2
 # purpose: test basic acl-dobj functionality.
 1       Putin   _       NNP     NNP     _       3       nsubj   _       _
 2       has     _       VBZ     VBZ     _       3       aux     _       _
@@ -572,7 +564,7 @@
 8       with    _       IN      IN      _       9       case    _       _
 9       Hu      _       NNP     NNP     _       6       nmod    _       _
 
-# test:acl_plus_propagation-blackbox3
+# test:extra_acl_propagation-blackbox3
 # purpose: test basic acl-dobj-dobj functionality.
 1       Korea   _       NNP     NNP     _       3       nsubj   _       _
 2       has     _       VBZ     VBZ     _       3       aux     _       _
@@ -586,7 +578,7 @@
 10      nuclear _       JJ      JJ      _       11      amod    _       _
 11      weapons _       NNS     NNS     _       9       dobj    _       _
 
-# test:acl_plus_propagation-blackbox4
+# test:extra_acl_propagation-blackbox4
 # purpose: test acl-dobj with obj propagation.
 1       soldiers	_       NNS     NNS     _       3       nsubj   _       _
 2       have    	_       VBP     VBP     _       3       aux     _       _
@@ -597,7 +589,7 @@
 7       around  	_       IN      IN      _       8       case    _       _
 8       baghdad 	_       NN      NN      _       6       nmod    _       _
 
-# test:dep_propagation-blackbox1
+# test:extra_dep_propagation-blackbox1
 # purpose: test basic functionality.
 1       They    	_       PRP     PRP     _       2       nsubj   _       _
 2       released	_       VBD     VBD     _       0       root    _       _
@@ -607,7 +599,7 @@
 6       kidnapped   _       VBN     VBN     _       2       dep     _       _
 7       nearby  	_       RB      RB      _       6       advmod  _       _
 
-# test:conj_propagation_of_nmods-blackbox1
+# test:extra_conj_propagation_of_nmods-blackbox1
 # purpose: test basic functionality, where nmod is attached to father.
 1       he      _       PRP     PRP     _       3       nsubjpass	_       _
 2       was     _       VBD     VBD     _       3       auxpass 	_       _
@@ -617,7 +609,7 @@
 6       in      _       IN      IN      _       7       case    	_       _
 7       Korea   _       NNP     NNP     _       3       nmod    	_       _
 
-# test:conj_propagation_of_nmods-blackbox2
+# test:extra_conj_propagation_of_nmods-blackbox2
 # purpose: test basic functionality, where nmod is attached to son.
 1       he      _       PRP     PRP     _       3       nsubjpass	_       _
 2       was     _       VBD     VBD     _       3       auxpass 	_       _
@@ -628,7 +620,7 @@
 7       in      _       IN      IN      _       8       case    	_       _
 8       Korea   _       NNP     NNP     _       6       nmod    	_       _
 
-# test:conj_propagation_of_nmods-blackbox3
+# test:extra_conj_propagation_of_nmods-blackbox3
 # purpose: test no propagation when governor has nmods of his own.
 1       he      	_       PRP     PRP     _       3       nsubjpass	_       _
 2       was     	_       VBD     VBD     _       3       auxpass 	_       _
