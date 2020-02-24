@@ -1083,7 +1083,7 @@ def demote_per_type(sentence, restriction):
         gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
         create_mwe(words, gov2, add_eud_info("det", "qmod"))
         # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
-        [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels()]
+        [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels() if rel != "mwe"]
 
 
 def eudpp_demote_quantificational_modifiers(sentence):
