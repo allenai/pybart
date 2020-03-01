@@ -1,9 +1,13 @@
 from ud2ude.conllu_wrapper import parse_conllu, serialize_conllu
 from ud2ude import converter
+from ud2ude import api
 import pathlib
+from pytest import fail
 
 
 class TestConversions:
+    test_names = set()
+    
     @classmethod
     def setup_class(cls):
         global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
@@ -21,6 +25,7 @@ class TestConversions:
                 splited = comment.split('# test:')
                 if len(splited) > 1:
                     test_name = splited[1].split("-")[0]
+                    cls.test_names.add(test_name)
                     specification = splited[1].split("-")[1]
                     if test_name in cls.out:
                         cls.out[test_name][specification] = sentence
@@ -46,6 +51,12 @@ class TestConversions:
                         cls.gold[test_name][specification] = [gold_line.split()]
                 else:
                     cls.gold[test_name] = {specification: [gold_line.split()]}
+
+    @classmethod
+    def teardown_class(cls):
+        missing_names = api.get_conversion_names().difference(cls.test_names)
+        if missing_names:
+            fail(f"following functions are not covered: {','.join(missing_names)}")
     
     def _inner_logic(self, name, tested_func):
         for spec, sent in self.out[name].items():
