@@ -7,6 +7,8 @@ from pytest import fail
 
 class TestConversions:
     test_names = set()
+    out = dict()
+    gold = dict()
     
     @classmethod
     def setup_class(cls):
@@ -19,11 +21,10 @@ class TestConversions:
             text = f.read()
             parsed, all_comments = parse_conllu(text)
         
-        cls.out = dict()
         for sentence, comments in zip(parsed, all_comments):
             for comment in comments:
                 splited = comment.split('# test:')
-                if len(splited) > 1:
+                if (len(splited) == 2) and (splited[0] == ''):
                     test_name = splited[1].split("-")[0]
                     cls.test_names.add(test_name)
                     specification = splited[1].split("-")[1]
@@ -32,7 +33,6 @@ class TestConversions:
                     else:
                         cls.out[test_name] = {specification: sentence}
         
-        cls.gold = dict()
         test_name = ""
         specification = ""
         for gold_line in open(dir_ + "/expected_handcrafted_tests_output.conllu", 'r').readlines():
@@ -51,46 +51,37 @@ class TestConversions:
                         cls.gold[test_name][specification] = [gold_line.split()]
                 else:
                     cls.gold[test_name] = {specification: [gold_line.split()]}
+    
+    # @classmethod
+    # def teardown_class(cls):
+    #     missing_names = api.get_conversion_names().difference(cls.test_names)
+    #     if missing_names:
+    #         fail(f"following functions are not covered: {','.join(missing_names)}")
 
     @classmethod
-    def teardown_class(cls):
-        missing_names = api.get_conversion_names().difference(cls.test_names)
-        if missing_names:
-            fail(f"following functions are not covered: {','.join(missing_names)}")
-    
-    def _inner_logic(self, name, tested_func):
-        for spec, sent in self.out[name].items():
-            tested_func(sent)
+    def common_logic(cls, cur_name):
+        name = cur_name.split("test_")[1]
+        tested_func = getattr(converter, name)
+        for spec, sent in cls.out[name].items():
+            try:
+                tested_func(sent)
+            except TypeError:
+                iids = dict()
+                tested_func(sent, iids)
             serialized_conllu = serialize_conllu([sent], [None], False)
-            for gold_line, out_line in zip(self.gold[name][spec], serialized_conllu.split("\n")):
-                assert gold_line == out_line.split()
-    
-    def test_eud_correct_subj_pass(self):
-        name = self.test_eud_correct_subj_pass.__name__.split("test_")[1]
-        tested_func = converter.eud_correct_subj_pass
-        self._inner_logic(name, tested_func)
-    
-    def test_eudpp_process_simple_2wp(self):
-        name = self.test_eudpp_process_simple_2wp.__name__.split("test_")[1]
-        tested_func = converter.eudpp_process_simple_2wp
-        self._inner_logic(name, tested_func)
-    
-    def test_eudpp_process_complex_2wp(self):
-        name = self.test_eudpp_process_complex_2wp.__name__.split("test_")[1]
-        tested_func = converter.eudpp_process_complex_2wp
-        self._inner_logic(name, tested_func)
-    
-    def test_eudpp_process_3wp(self):
-        name = self.test_eudpp_process_3wp.__name__.split("test_")[1]
-        tested_func = converter.eudpp_process_3wp
-        self._inner_logic(name, tested_func)
-    
-    def test_eudpp_demote_quantificational_modifiers(self):
-        name = self.test_eudpp_demote_quantificational_modifiers.__name__.split("test_")[1]
-        tested_func = converter.eudpp_demote_quantificational_modifiers
-        self._inner_logic(name, tested_func)
-    
-    # def test_eudpp_expand_pp_or_prep_conjunctions(self):
-    #     name = self.test_eudpp_expand_pp_or_prep_conjunctions.__name__.split("test_")[1]
-    #     tested_func = converter.eudpp_expand_pp_or_prep_conjunctions
-    #     self._inner_logic(name, tested_func)
+            for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
+                assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
+
+
+for cur_func_name in ['test_eud_correct_subj_pass', 'test_eudpp_process_simple_2wp', 'test_eudpp_process_complex_2wp',
+                      'test_eudpp_process_3wp', 'test_eudpp_demote_quantificational_modifiers', 'test_eudpp_expand_pp_or_prep_conjunctions',
+                      'test_eud_prep_patterns', 'test_eud_conj_info', 'test_eud_passive_agent', 'test_eudpp_add_ref_and_collapse',
+                      'test_eud_subj_of_conjoined_verbs', 'test_eud_heads_of_conjuncts', 'test_eud_xcomp_propagation',
+                      'test_extra_aspectual_reconstruction', 'test_extra_xcomp_propagation_no_to', 'test_extra_advcl_propagation',
+                      'test_extra_advcl_ambiguous_propagation', 'test_extra_dep_propagation', 'test_extra_acl_propagation',
+                      'test_extra_conj_propagation_of_nmods']:
+# for cur_func_name in api.get_conversion_names():
+#     if cur_func_name in ['extra_inner_weak_modifier_verb_reconstruction']:
+#         continue
+#     cur_func_name = "test_" + cur_func_name
+    setattr(TestConversions, cur_func_name, staticmethod(lambda func_name=cur_func_name: TestConversions.common_logic(func_name)))

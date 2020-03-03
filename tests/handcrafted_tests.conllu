@@ -94,15 +94,6 @@
 6       can     _       MD      MD      _       7       aux     _       _
 7       be      _       VB      VB      _       0       root    _       _
 
-# # oldtest:eudpp_process_complex_2wp-whitebox1
-# # purpose: test separated prep (not sequential)
-# 1       He      _       PRP     PRP     _       3       nsubj   _       _
-# 2       is      _       VBZ     VBZ     _       3       cop     _       _
-# 3       close   _       JJ      JJ      _       0       root    _       _
-# 4       ahead   _       IN      IN      _       6       case    _       _
-# 5       to      _       TO      TO      _       6       case    _       _
-# 6       me      _       PRP     PRP     _       3       nmod    _       _
-
 # test:eudpp_process_3wp-blackbox1
 # purpose: test basic functionality, and w1 will be case.
 1       I       _       PRP     PRP     _       4       nsubj   _       _
@@ -139,16 +130,6 @@
 7       as      _       IN      IN      _       9       advmod  _       _
 8       can     _       MD      MD      _       9       aux     _       _
 9       be      _       VB      VB      _       0       root    _       _
-
-# # oldtest:eudpp_process_3wp-whitebox1
-# # purpose: test separated prep (not sequential)
-# 1       I       _       PRP     PRP     _       4       nsubj   _       _
-# 2       am      _       VBP     VBP     _       4       cop     _       _
-# 3       in      _       IN      IN      _       4       case    _       _
-# 4       front   _       NN      NN      _       0       root    _       _
-# 5       ahead   _       IN      IN      _       7       case    _       _
-# 6       of      _       IN      IN      _       7       case    _       _
-# 7       you     _       PRP     PRP     _       4       nmod    _       _
 
 # test:eudpp_demote_quantificational_modifiers-blackbox1
 # purpose: test basic functionality of 3w + 'A'
@@ -410,45 +391,6 @@
 4       wide    _       JJ      JJ      _       2       conj    _       _
 5       river   _       NN      NN      _       0       root    _       _
 
-# test:eud_heads_of_conjuncts-blackbox3
-# purpose: test relcl issue
-1       The     _       DT      DT      _       2       det     	_   _
-2       boy     _       NN      NN      _       8       nsubj   	_	_
-3       who     _       WP      WP      _       4       nsubj   	_ 	_
-4       lived   _       VBD     VBD     _       2       acl:relcl	_   _
-5       and     _       CC      CC      _       2       cc      	_   _
-6       the     _       DT      DT      _       7       det     	_   _
-7       girl    _       NN      NN      _       2       conj    	_	_
-8       told    _       VBD     VBD     _       0       root    	_   _
-9       the     _       DT      DT      _       10      det     	_	_
-10      tale    _       NN      NN      _       8       dobj    	_	_
-
-# test:eud_heads_of_conjuncts-blackbox4
-# purpose: test relcl issue2
-1       The     _       DT      DT      _       2       det     	_       _
-2       boy     _       NN      NN      _       8       nsubj   	_       _
-3       and     _       CC      CC      _       2       cc      	_       _
-4       the     _       DT      DT      _       5       det     	_       _
-5       girl    _       NN      NN      _       2       conj    	_       _
-6       who     _       WP      WP      _       7       nsubj   	_       _
-7       lived   _       VBD     VBD     _       5       acl:relcl	_       _
-8       told    _       VBD     VBD     _       0       root    	_       _
-9       the     _       DT      DT      _       10      det     	_       _
-10      tale    _       NN      NN      _       8       dobj    	_       _
-
-# test:eud_heads_of_conjuncts-blackbox5
-# purpose: test relcl issue3
-1       The     _       DT      DT      _       2       det     	_       _
-2       boy     _       NN      NN      _       8       nsubj   	_       _
-3       and     _       CC      CC      _       2       cc      	_       _
-4       the     _       DT      DT      _       5       det     	_       _
-5       girl    _       NN      NN      _       2       conj    	_       _
-6       who     _       WP      WP      _       7       nsubj   	_       _
-7       lived   _       VBD     VBD     _       2       acl:relcl   _       _
-8       told    _       VBD     VBD     _       0       root    	_       _
-9       the     _       DT      DT      _       10      det     	_       _
-10      tale    _       NN      NN      _       8       dobj    	_       _
-
 # test:eud_xcomp_propagation-blackbox1
 # purpose: test basic functionality, with subject, and with verb that starts with 'to..' just to test the 'to' regex
 1       He      _       PRP     PRP     _       2       nsubj   	_       _
@@ -504,13 +446,71 @@
 3       not     _       RB      RB      _       4       neg     _       _
 4       to      _       TO      TO      _       2       xcomp   _       _
 
+# test:eud_prep_patterns-blackbox1
+# purpose: test basic case of preposition added to nmod
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       like    _       VBP     VBP     _       0       root    _       _
+3       animals _       NNS     NNS     _       2       dobj    _       _
+4       like    _       JJ      JJ      _       5       case    _       _
+5       dogs    _       NNS     NNS     _       3       nmod    _       _
+
+# test:eud_prep_patterns-blackbox2
+# purpose: test case of 2 word preposition added to nmod
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       like    _       VBP     VBP     _       0       root    _       _
+3       animals _       NNS     NNS     _       2       dobj    _       _
+4       such    _       JJ      JJ      _       6       case    _       _
+5       as      _       IN      IN      _       4       mwe     _       _
+6       dogs    _       NNS     NNS     _       3       nmod    _       _
+
+# test:eud_prep_patterns-blackbox3
+# purpose: test case of 2 word preposition added to advcl
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       cried   _       VBD     VBD     _       0       root    _       _
+3       in      _       IN      IN      _       6       mark    _       _
+4       order   _       NN      NN      _       3       mwe     _       _
+5       to      _       TO      TO      _       6       mark    _       _
+6       make    _       VB      VB      _       2       advcl   _       _
+7       you     _       PRP     PRP     _       8       nsubj   _       _
+8       feel    _       VB      VB      _       6       ccomp   _       _
+9       bad     _       JJ      JJ      _       8       xcomp   _       _
+
+# test:eud_conj_info-blackbox1
+# purpose: test cc's added to conj
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       love    _       VBP     VBP     _       0       root    _       _
+3       you     _       PRP     PRP     _       2       dobj    _       _
+4       but     _       CC      CC      _       3       cc      _       _
+5       also    _       RB      RB      _       6       advmod  _       _
+6       her     _       PRP     PRP     _       3       conj    _       _
+8       but     _       CC      CC      _       2       cc      _       _
+9       not     _       RB      RB      _       10      neg     _       _
+10      myself  _       VBZ     VBZ     _       2       conj    _       _
+
 # test:extra_aspectual_reconstruction-blackbox1
+# purpose: test basic case of aspectual verb followed by an clausal complement verb
+1       FOX     	_           NN      NN      _       2       nsubj   _       _
+2       started 	start       VBD     VBD     _       0       root    _       _
+3       launching   _           VBG     VBG     _       2       xcomp   _       _
+4       the     	_           DT      DT      _       5       det     _       _
+5       series  	_           NN      NN      _       3       dobj    _       _
+
+# test:extra_aspectual_reconstruction-blackbox2
+# purpose: test case of aspectual verb followed by another asbectual verb followed by a final clausal complement verb
+1       I       _           PRP     PRP     _       2       nsubj   _       _
+2       started start       VBD     VBD     _       0       root    _       _
+3       to      _           TO      TO      _       4       mark    _       _
+4       finish  finish      VB      VB      _       2       xcomp   _       _
+5       to      _           TO      TO      _       6       mark    _       _
+6       eat     _           VB      VB      _       4       xcomp   _       _
+
+# test:extra_xcomp_propagation_no_to-blackbox1
 # purpose: test special case of two verbs with no auxiliary such as 'to'
-1       FOX     	_       NN      NN      _       2       nsubj   _       _
-2       started 	_       VBD     VBD     _       0       root    _       _
-3       launching   _       VBG     VBG     _       2       xcomp   _       _
-4       the     	_       DT      DT      _       5       det     _       _
-5       series  	_       NN      NN      _       3       dobj    _       _
+1       I       _   PRP     PRP     _       2       nsubj   _       _
+2       love    _   VBD     VBD     _       0       root    _       _
+3       talking _   VB      VB      _       2       xcomp   _       _
+4       to      _   TO      TO      _       5       case    _       _
+5       friends _   VB      VB      _       3       nmod    _       _
 
 # test:extra_advcl_propagation-blackbox1
 # purpose: test special case of a 'to' connecting to verbs in advcl fashion.
@@ -531,7 +531,7 @@
 5       a       _       DT      DT      _       6       det     _       _
 6       car     _       NN      NN      _       4       dobj    _       _
 
-# test:extra_advcl_propagation-blackbox3
+# test:extra_advcl_ambiguous_propagation-blackbox1
 # purpose: test basic functionality, but with both subj and obj as candidates.
 1       I       _       PRP     PRP     _       2       nsubj   _       _
 2       saw     _       VBD     VBD     _       0       root    _       _
@@ -542,18 +542,7 @@
 7       cake    _       NN      NN      _       5       dobj    _       _
 
 # test:extra_acl_propagation-blackbox1
-# purpose: test basic acl-nmod functionality.
-1       he      	_       PRP     PRP     _       2       nsubj   _       _
-2       faced   	_       VBD     VBD     _       0       root    _       _
-3       pressure	_       NN      NN      _       2       dobj    _       _
-4       during  	_       IN      IN      _       6       case    _       _
-5       the     	_       DT      DT      _       6       det     _       _
-6       effort  	_       NN      NN      _       2       nmod    _       _
-7       to      	_       TO      TO      _       8       mark    _       _
-8       win     	_       VB      VB      _       6       acl     _       _
-
-# test:extra_acl_propagation-blackbox2
-# purpose: test basic acl-dobj functionality.
+# purpose: test noun modifying clauses(acl+infinitive)
 1       Putin   _       NNP     NNP     _       3       nsubj   _       _
 2       has     _       VBZ     VBZ     _       3       aux     _       _
 3       made    _       VBN     VBN     _       0       root    _       _
@@ -564,22 +553,8 @@
 8       with    _       IN      IN      _       9       case    _       _
 9       Hu      _       NNP     NNP     _       6       nmod    _       _
 
-# test:extra_acl_propagation-blackbox3
-# purpose: test basic acl-dobj-dobj functionality.
-1       Korea   _       NNP     NNP     _       3       nsubj   _       _
-2       has     _       VBZ     VBZ     _       3       aux     _       _
-3       made    _       VBN     VBN     _       0       root    _       _
-4       no      _       DT      DT      _       5       neg     _       _
-5       secret  _       NN      NN      _       3       dobj    _       _
-6       the     _       DT      DT      _       7       det     _       _
-7       plans   _       NN      NN      _       5       dobj    _       _
-8       to      _       TO      TO      _       9       mark    _       _
-9       develop _       VB      VB      _       7       acl     _       _
-10      nuclear _       JJ      JJ      _       11      amod    _       _
-11      weapons _       NNS     NNS     _       9       dobj    _       _
-
-# test:extra_acl_propagation-blackbox4
-# purpose: test acl-dobj with obj propagation.
+# test:extra_acl_propagation-blackbox2
+# purpose: test noun modifying clauses(acl+participle)
 1       soldiers	_       NNS     NNS     _       3       nsubj   _       _
 2       have    	_       VBP     VBP     _       3       aux     _       _
 3       discovered	_       VBN     VBN     _       0       root    _       _
@@ -634,3 +609,44 @@
 10      the     	_       DT      DT      _       12      det     	_       _
 11      U.S.    	_       NNP     NNP     _       12      compound    _       _
 12      hospital	_       NN      NN      _       8       nmod    	_       _
+
+# ------------------------------------------------ combined ---------------------------------------------
+#
+# # test:eud_heads_of_conjuncts-combined1
+# # purpose: test relcl issue
+# 1       The     _       DT      DT      _       2       det     	_   _
+# 2       boy     _       NN      NN      _       8       nsubj   	_	_
+# 3       who     _       WP      WP      _       4       nsubj   	_ 	_
+# 4       lived   _       VBD     VBD     _       2       acl:relcl	_   _
+# 5       and     _       CC      CC      _       2       cc      	_   _
+# 6       the     _       DT      DT      _       7       det     	_   _
+# 7       girl    _       NN      NN      _       2       conj    	_	_
+# 8       told    _       VBD     VBD     _       0       root    	_   _
+# 9       the     _       DT      DT      _       10      det     	_	_
+# 10      tale    _       NN      NN      _       8       dobj    	_	_
+#
+# # test:eud_heads_of_conjuncts-combined2
+# # purpose: test relcl issue2
+# 1       The     _       DT      DT      _       2       det     	_       _
+# 2       boy     _       NN      NN      _       8       nsubj   	_       _
+# 3       and     _       CC      CC      _       2       cc      	_       _
+# 4       the     _       DT      DT      _       5       det     	_       _
+# 5       girl    _       NN      NN      _       2       conj    	_       _
+# 6       who     _       WP      WP      _       7       nsubj   	_       _
+# 7       lived   _       VBD     VBD     _       5       acl:relcl	_       _
+# 8       told    _       VBD     VBD     _       0       root    	_       _
+# 9       the     _       DT      DT      _       10      det     	_       _
+# 10      tale    _       NN      NN      _       8       dobj    	_       _
+#
+# # test:eud_heads_of_conjuncts-combined3
+# # purpose: test relcl issue3
+# 1       The     _       DT      DT      _       2       det     	_       _
+# 2       boy     _       NN      NN      _       8       nsubj   	_       _
+# 3       and     _       CC      CC      _       2       cc      	_       _
+# 4       the     _       DT      DT      _       5       det     	_       _
+# 5       girl    _       NN      NN      _       2       conj    	_       _
+# 6       who     _       WP      WP      _       7       nsubj   	_       _
+# 7       lived   _       VBD     VBD     _       2       acl:relcl   _       _
+# 8       told    _       VBD     VBD     _       0       root    	_       _
+# 9       the     _       DT      DT      _       10      det     	_       _
+# 10      tale    _       NN      NN      _       8       dobj    	_       _
