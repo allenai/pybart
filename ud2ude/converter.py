@@ -558,13 +558,13 @@ def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=Fal
 def extra_conj_propagation_of_nmods(sentence):
     son_rest = Restriction(name="receiver", no_sons_of="nmod", nested=[[
         Restriction(name="conj", gov="conj", nested=[[
-            Restriction(name="nmod", gov="nmod(?!(:.*@|:poss.*))")
+            Restriction(name="nmod", gov="nmod(?!(.*@|:poss.*))")
         ]])
     ]])
 
     father_rest = Restriction(nested=[[
         Restriction(name="receiver", gov="conj"),  # TODO: validate no_sons_of="nmod" isn't needed.
-        Restriction(name="nmod", gov="nmod(?!(:.*@|:poss.*))")
+        Restriction(name="nmod", gov="nmod(?!(.*@|:poss.*))")
     ]])
     
     for conj_restriction in [son_rest, father_rest]:
@@ -1484,7 +1484,7 @@ def extra_passive_alteration(sentence):
     
 
 def convert_sentence(sentence, iids):
-    # The order of wud and eudpp is according to the order of the original CoreNLP.
+    # The order of eud and eudpp is according to the order of the original CoreNLP.
     # The extra are our enhancements in which been added where we thought it best.
     
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
