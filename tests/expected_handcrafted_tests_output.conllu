@@ -595,7 +595,7 @@
 7       home    _       NN      NN      _       6       dobj    6:dobj  _
 
 # test:extra_conj_propagation_of_poss-blackbox3
-1       My      _       PRP$    PRP$    _       2       nmod:poss       2:nmod:poss|5:nmod:poss@conj(and, UNC)  _
+1       My      _       PRP$    PRP$    _       2       nmod:poss       2:nmod:poss _
 2       father  _       NN      NN      _       6       nsubj   6:nsubj _
 3       and     _       CC      CC      _       2       cc      2:cc    _
 4       the     _       DT      DT      _       5       det     5:det   _
@@ -611,6 +611,22 @@
 5       father  _       NN      NN      _       2       conj    2:conj  _
 6       met     _       VBD     VBD     _       0       root    0:root  _
 7       yesterday       _       NN      NN      _       6       nmod:tmod       6:nmod:tmod     _
+
+# test:extra_conj_propagation_of_poss-blackbox5
+1       My      _       PRP$    PRP$    _       2       nmod:poss       2:nmod:poss _
+2       father  _       NN      NN      _       5       nsubj   5:nsubj _
+3       and     _       CC      CC      _       2       cc      2:cc    _
+4       you     _       PRP     PRP     _       2       conj    2:conj  _
+5       went    _       VBD     VBD     _       0       root    0:root  _
+6       home    _       NN      NN      _       5       dobj    5:dobj  _
+
+# test:extra_conj_propagation_of_poss-blackbox6
+1       My      _       PRP$    PRP$    _       2       nmod:poss       2:nmod:poss _
+2       father  _       NN      NN      _       5       nsubj   5:nsubj _
+3       and     _       CC      CC      _       2       cc      2:cc    _
+4       Bush    _       NNP     NNP     _       2       conj    2:conj  _
+5       went    _       VBD     VBD     _       0       root    0:root  _
+6       home    _       NN      NN      _       5       dobj    5:dobj  _
 
 # test:extra_advmod_propagation-blackbox1
 1       He      _       PRP     PRP     _       3       nsubj   3:nsubj _

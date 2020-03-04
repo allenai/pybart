@@ -650,7 +650,7 @@
 7       home    _       NN      NN      _       6       dobj    _       _
 
 # test:extra_conj_propagation_of_poss-blackbox3
-# purpose: test case that the propagation is wrong
+# purpose: test case where the second noun has a determiner
 1       My      _       PRP$    PRP$    _       2       nmod:poss       _       _
 2       father  _       NN      NN      _       6       nsubj   _       _
 3       and     _       CC      CC      _       2       cc      _       _
@@ -668,6 +668,24 @@
 5       father  _       NN      NN      _       2       conj    _       _
 6       met     _       VBD     VBD     _       0       root    _       _
 7       yesterday       _       NN      NN      _       6       nmod:tmod       _   _
+
+# test:extra_conj_propagation_of_poss-blackbox5
+# purpose: test case where the second noun is pronoun
+1       My      _       PRP$    PRP$    _       2       nmod:poss       _       _
+2       father  _       NN      NN      _       5       nsubj   _       _
+3       and     _       CC      CC      _       2       cc      _       _
+4       you     _       PRP     PRP     _       2       conj    _       _
+5       went    _       VBD     VBD     _       0       root    _       _
+6       home    _       NN      NN      _       5       dobj    _       _
+
+# test:extra_conj_propagation_of_poss-blackbox6
+# purpose: test case where the second noun is proper noun
+1       My      _       PRP$    PRP$    _       2       nmod:poss       _       _
+2       father  _       NN      NN      _       5       nsubj   _       _
+3       and     _       CC      CC      _       2       cc      _       _
+4       Bush    _       NNP     NNP     _       2       conj    _       _
+5       went    _       VBD     VBD     _       0       root    _       _
+6       home    _       NN      NN      _       5       dobj    _       _
 
 # test:extra_advmod_propagation-blackbox1
 # purpose: test basic case
