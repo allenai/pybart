@@ -573,7 +573,7 @@ def extra_conj_propagation_of_nmods(sentence):
 
 def extra_conj_propagation_of_poss(sentence):
     poss_rest = Restriction(nested=[[
-        Restriction(name="receiver", no_sons_of="nmod:poss.*", gov="conj"),
+        Restriction(name="receiver", no_sons_of="(nmod:poss.*|det)", gov="conj", xpos="(?!(PRP|NNP.?|WP))"),
         Restriction(name="nmod", gov="nmod:poss(?!.*@)")
     ]])
     
