@@ -560,6 +560,98 @@
 11      U.S.    	_       NNP     NNP     _       12      compound	12:compound     		_
 12      hospital	_       NN      NN      _       8       nmod	 	8:nmod       	    	_
 
+# test:extra_of_prep_alteration-blackbox1
+1       Army    _       NNP     NNP     _       0       root    0:root  _
+2       of      _       IN      IN      _       3       case    3:case  _
+3       zombies _       NNS     NNS     _       1       nmod    1:compound@nmod(of)|1:nmod      _
+
+# test:extra_compound_propagation-blackbox1
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj _
+2       used    _       VBD     VBD     _       0       root    0:root  _
+3       canola  _       NN      NN      _       4       compound        2:dobj@compound(NULL, UNC)|4:compound   _
+4       oil     _       NN      NN      _       2       dobj    2:dobj  _
+
+# test:extra_amod_propagation-blackbox1
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj _
+2       see     _       VBP     VBP     _       0       root    0:root  _
+3       dead    _       JJ      JJ      _       4       amod    4:amod  _
+4       people  _       NNS     NNS     _       2       dobj    2:dobj|3:nsubj@amod()   _
+
+# test:extra_conj_propagation_of_poss-blackbox1
+1       My      _       PRP$    PRP$    _       2       nmod:poss       2:nmod:poss|4:nmod:poss@conj(and, UNC)  _
+2       father  _       NN      NN      _       5       nsubj   5:nsubj _
+3       and     _       CC      CC      _       2       cc      2:cc    _
+4       mother  _       NN      NN      _       2       conj    2:conj  _
+5       went    _       VBD     VBD     _       0       root    0:root  _
+6       home    _       NN      NN      _       5       dobj    5:dobj  _
+
+# test:extra_conj_propagation_of_poss-blackbox2
+1       My      _       PRP$    PRP$    _       2       nmod:poss       2:nmod:poss     _
+2       father  _       NN      NN      _       6       nsubj   6:nsubj _
+3       and     _       CC      CC      _       2       cc      2:cc    _
+4       my      _       PRP$    PRP$    _       5       nmod:poss       5:nmod:poss     _
+5       mother  _       NN      NN      _       2       conj    2:conj  _
+6       went    _       VBD     VBD     _       0       root    0:root  _
+7       home    _       NN      NN      _       6       dobj    6:dobj  _
+
+# test:extra_conj_propagation_of_poss-blackbox3
+1       My      _       PRP$    PRP$    _       2       nmod:poss       2:nmod:poss|5:nmod:poss@conj(and, UNC)  _
+2       father  _       NN      NN      _       6       nsubj   6:nsubj _
+3       and     _       CC      CC      _       2       cc      2:cc    _
+4       the     _       DT      DT      _       5       det     5:det   _
+5       president        _       NN      NN      _       2       conj    2:conj  _
+6       met     _       VBD     VBD     _       0       root    0:root  _
+7       yesterday       _       NN      NN      _       6       nmod:tmod       6:nmod:tmod     _
+
+# test:extra_conj_propagation_of_poss-blackbox4
+1       The     _       DT      DT      _       2       det     2:det   _
+2       president       _       NN      NN      _       6       nsubj   6:nsubj _
+3       and     _       CC      CC      _       2       cc      2:cc    _
+4       my      _       PRP$    PRP$    _       5       nmod:poss       5:nmod:poss     _
+5       father  _       NN      NN      _       2       conj    2:conj  _
+6       met     _       VBD     VBD     _       0       root    0:root  _
+7       yesterday       _       NN      NN      _       6       nmod:tmod       6:nmod:tmod     _
+
+# test:extra_advmod_propagation-blackbox1
+1       He      _       PRP     PRP     _       3       nsubj   3:nsubj _
+2       was     _       VBD     VBD     _       3       aux     3:aux   _
+3       running _       VBG     VBG     _       0       root    0:root  _
+4       around  _       RP      RP      _       3       compound:prt    3:compound:prt  _
+5       in      _       IN      IN      _       7       case    7:case  _
+6       the     _       DT      DT      _       7       det     7:det   _
+7       woods   _       NNS     NNS     _       3       nmod    3:nmod  _
+8       here    _       RB      RB      _       7       advmod  3:advmod@nmod(INDEXICAL, in, UNC)|7:advmod      _
+
+# test:extra_appos_propagation-blackbox1
+1       E.T.    _       NNP     NNP     _       4       nsubj   4:nsubj _
+2       the     _       DT      DT      _       3       det     3:det   _
+3       Extraterrestrial        _       NN      NN      _       1       appos   1:appos|4:nsubj@appos() _
+4       phones  _       VBZ     VBZ     _       0       root    0:root  _
+5       home    _       NN      NN      _       4       dobj    4:dobj  _
+
+# test:extra_subj_obj_nmod_propagation_of_nmods-blackbox1
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj _
+2       like    _       VBP     VBP     _       0       root    0:root  _
+3       fruits  _       NNS     NNS     _       2       dobj    2:dobj  _
+4       like    _       IN      IN      _       5       case    5:case  _
+5       bananas _       NNS     NNS     _       3       nmod    2:dobj@nmod(like)|3:nmod        _
+
+# test:extra_subj_obj_nmod_propagation_of_nmods-blackbox2
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj _
+2       eat     _       VBP     VBP     _       0       root    0:root  _
+3       fruits  _       NNS     NNS     _       2       dobj    2:dobj  _
+4       such    _       JJ      JJ      _       6       case    6:case  _
+5       as      _       IN      IN      _       4       mwe     4:mwe   _
+6       apples  _       NNS     NNS     _       3       nmod    2:dobj@nmod(such_as)|3:nmod     _
+
+# test:extra_passive_alteration-blackbox1
+1       He      _       PRP     PRP     _       3       nsubjpass       3:dobj@passive()|3:nsubjpass    _
+2       was     _       VBD     VBD     _       3       auxpass 3:auxpass       _
+3       chosen  _       VBN     VBN     _       0       root    0:root  _
+4       by      _       IN      IN      _       6       case    6:case  _
+5       the     _       DT      DT      _       6       det     6:det   _
+6       people  _       NNS     NNS     _       3       nmod:agent      3:nmod:agent|3:nsubj@passive()       _
+
 # ------------------------------------------------ combined ---------------------------------------------
 #
 # # test:eud_heads_of_conjuncts-combined1

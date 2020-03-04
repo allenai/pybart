@@ -610,6 +610,110 @@
 11      U.S.    	_       NNP     NNP     _       12      compound    _       _
 12      hospital	_       NN      NN      _       8       nmod    	_       _
 
+# test:extra_of_prep_alteration-blackbox1
+# purpose: test basic case
+1       Army    _       NNP     NNP     _       0       root    _       _
+2       of      _       IN      IN      _       3       case    _       _
+3       zombies _       NNS     NNS     _       1       nmod    _       _
+
+# test:extra_compound_propagation-blackbox1
+# purpose: test basic case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       used    _       VBD     VBD     _       0       root    _       _
+3       canola  _       NN      NN      _       4       compound        _       _
+4       oil     _       NN      NN      _       2       dobj    _       _
+
+# test:extra_amod_propagation-blackbox1
+# purpose: test basic case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       see     _       VBP     VBP     _       0       root    _       _
+3       dead    _       JJ      JJ      _       4       amod    _       _
+4       people  _       NNS     NNS     _       2       dobj    _       _
+
+# test:extra_conj_propagation_of_poss-blackbox1
+# purpose: test basic case
+1       My      _       PRP$    PRP$    _       2       nmod:poss       _       _
+2       father  _       NN      NN      _       5       nsubj   _       _
+3       and     _       CC      CC      _       2       cc      _       _
+4       mother  _       NN      NN      _       2       conj    _       _
+5       went    _       VBD     VBD     _       0       root    _       _
+6       home    _       NN      NN      _       5       dobj    _       _
+
+# test:extra_conj_propagation_of_poss-blackbox2
+# purpose: test case where the second noun has his own nmod:poss
+1       My      _       PRP$    PRP$    _       2       nmod:poss       _       _
+2       father  _       NN      NN      _       6       nsubj   _       _
+3       and     _       CC      CC      _       2       cc      _       _
+4       my      _       PRP$    PRP$    _       5       nmod:poss       _       _
+5       mother  _       NN      NN      _       2       conj    _       _
+6       went    _       VBD     VBD     _       0       root    _       _
+7       home    _       NN      NN      _       6       dobj    _       _
+
+# test:extra_conj_propagation_of_poss-blackbox3
+# purpose: test case that the propagation is wrong
+1       My      _       PRP$    PRP$    _       2       nmod:poss       _       _
+2       father  _       NN      NN      _       6       nsubj   _       _
+3       and     _       CC      CC      _       2       cc      _       _
+4       the     _       DT      DT      _       5       det     _       _
+5       president        _       NN      NN      _       2       conj    _       _
+6       met     _       VBD     VBD     _       0       root    _       _
+7       yesterday       _       NN      NN      _       6       nmod:tmod       _   _
+
+# test:extra_conj_propagation_of_poss-blackbox4
+# purpose: test case where the possesion is only on the second noun
+1       The     _       DT      DT      _       2       det     _       _
+2       president       _       NN      NN      _       6       nsubj   _       _
+3       and     _       CC      CC      _       2       cc      _       _
+4       my      _       PRP$    PRP$    _       5       nmod:poss       _       _
+5       father  _       NN      NN      _       2       conj    _       _
+6       met     _       VBD     VBD     _       0       root    _       _
+7       yesterday       _       NN      NN      _       6       nmod:tmod       _   _
+
+# test:extra_advmod_propagation-blackbox1
+# purpose: test basic case
+1       He      _       PRP     PRP     _       3       nsubj   _       _
+2       was     _       VBD     VBD     _       3       aux     _       _
+3       running _       VBG     VBG     _       0       root    _       _
+4       around  _       RP      RP      _       3       compound:prt    _       _
+5       in      _       IN      IN      _       7       case    _       _
+6       the     _       DT      DT      _       7       det     _       _
+7       woods   _       NNS     NNS     _       3       nmod    _       _
+8       here    _       RB      RB      _       7       advmod  _       _
+
+# test:extra_appos_propagation-blackbox1
+# purpose: test basic case
+1       E.T.    _       NNP     NNP     _       4       nsubj   _       _
+2       the     _       DT      DT      _       3       det     _       _
+3       Extraterrestrial        _       NN      NN      _       1       appos   _   _
+4       phones  _       VBZ     VBZ     _       0       root    _       _
+5       home    _       NN      NN      _       4       dobj    _       _
+
+# test:extra_subj_obj_nmod_propagation_of_nmods-blackbox1
+# purpose: test basic case when using like
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       like    _       VBP     VBP     _       0       root    _       _
+3       fruits  _       NNS     NNS     _       2       dobj    _       _
+4       like    _       IN      IN      _       5       case    _       _
+5       bananas _       NNS     NNS     _       3       nmod    _       _
+
+# test:extra_subj_obj_nmod_propagation_of_nmods-blackbox2
+# purpose: test basic case when using such as
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       eat     _       VBP     VBP     _       0       root    _       _
+3       fruits  _       NNS     NNS     _       2       dobj    _       _
+4       such    _       JJ      JJ      _       6       case    _       _
+5       as      _       IN      IN      _       4       mwe     _       _
+6       apples  _       NNS     NNS     _       3       nmod    _       _
+
+# test:extra_passive_alteration-blackbox1
+# purpose: test basic case
+1       He      _       PRP     PRP     _       3       nsubjpass       _       _
+2       was     _       VBD     VBD     _       3       auxpass _       _
+3       chosen  _       VBN     VBN     _       0       root    _       _
+4       by      _       IN      IN      _       6       case    _       _
+5       the     _       DT      DT      _       6       det     _       _
+6       people  _       NNS     NNS     _       3       nmod:agent    _       _
+
 # ------------------------------------------------ combined ---------------------------------------------
 #
 # # test:eud_heads_of_conjuncts-combined1

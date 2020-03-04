@@ -79,7 +79,9 @@ for cur_func_name in ['test_eud_correct_subj_pass', 'test_eudpp_process_simple_2
                       'test_eud_subj_of_conjoined_verbs', 'test_eud_heads_of_conjuncts', 'test_eud_xcomp_propagation',
                       'test_extra_aspectual_reconstruction', 'test_extra_xcomp_propagation_no_to', 'test_extra_advcl_propagation',
                       'test_extra_advcl_ambiguous_propagation', 'test_extra_dep_propagation', 'test_extra_acl_propagation',
-                      'test_extra_conj_propagation_of_nmods']:
+                      'test_extra_conj_propagation_of_nmods', 'test_extra_of_prep_alteration', 'test_extra_compound_propagation',
+                      'test_extra_amod_propagation', 'test_extra_conj_propagation_of_poss', 'test_extra_advmod_propagation',
+                      'test_extra_appos_propagation', 'test_extra_subj_obj_nmod_propagation_of_nmods', 'test_extra_passive_alteration']:
 # for cur_func_name in api.get_conversion_names():
 #     if cur_func_name in ['extra_inner_weak_modifier_verb_reconstruction']:
 #         continue
