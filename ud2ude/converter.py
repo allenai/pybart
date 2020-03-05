@@ -1488,6 +1488,13 @@ def convert_sentence(sentence, iids):
     # The extra are our enhancements in which been added where we thought it best.
     
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
+
+    eudpp_process_simple_2wp(sentence)  # processMultiwordPreps: processSimple2WP
+    eudpp_process_complex_2wp(sentence)  # processMultiwordPreps: processComplex2WP
+    eudpp_process_3wp(sentence)  # processMultiwordPreps: process3WP
+    eudpp_demote_quantificational_modifiers(sentence)  # demoteQuantificationalModifiers
+
+    extra_nmod_advmod_reconstruction(sentence)
     
     extra_copula_reconstruction(sentence)
     extra_evidential_reconstruction(sentence)
@@ -1496,13 +1503,7 @@ def convert_sentence(sentence, iids):
     extra_fix_nmod_npmod(sentence)
     extra_hyphen_reconstruction(sentence)
 
-    eudpp_process_simple_2wp(sentence)  # processMultiwordPreps: processSimple2WP
-    eudpp_process_complex_2wp(sentence)  # processMultiwordPreps: processComplex2WP
-    eudpp_process_3wp(sentence)  # processMultiwordPreps: process3WP
-    eudpp_demote_quantificational_modifiers(sentence)  # demoteQuantificationalModifiers
     eudpp_expand_pp_or_prep_conjunctions(sentence)  # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-
-    extra_nmod_advmod_reconstruction(sentence)
 
     eud_passive_agent(sentence)  # addCaseMarkerInformation
     eud_prep_patterns(sentence)  # addCaseMarkerInformation
