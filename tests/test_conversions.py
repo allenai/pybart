@@ -1,15 +1,19 @@
 import pathlib
+import math
 #from pytest import fail
 
 from ud2ude.conllu_wrapper import parse_conllu, serialize_conllu
 from ud2ude import converter
 from ud2ude import api
+from ud2ude.graph_token import add_basic_edges
+from ud2ude.converter import convert, ConvsCanceler
 
 
 class TestConversions:
     test_names = set()
     out = dict()
     gold = dict()
+    gold_combined = dict()
     
     @classmethod
     def setup_class(cls):
@@ -36,7 +40,7 @@ class TestConversions:
         
         test_name = ""
         specification = ""
-        for output, cur_gold in zip(["/expected_handcrafted_tests_output.conllu"], [cls.gold]):
+        for output, cur_gold in zip(["/expected_handcrafted_tests_output.conllu", "/expected_handcrafted_tests_output_combined.conllu"], [cls.gold, cls.gold_combined]):
             for gold_line in open(dir_ + output, 'r').readlines():
                 if gold_line.startswith('#'):
                     if gold_line.split(":")[0] == "# test":
@@ -56,6 +60,9 @@ class TestConversions:
     
     # @classmethod
     # def teardown_class(cls):
+    #     # global blablabla
+    #     # f = open("blablabla.conllu", 'a')
+    #     # f.write("".join([blablabla[name_] for name_ in cls.test_names2]))
     #     missing_names = api.get_conversion_names().difference(cls.test_names)
     #     if missing_names:
     #         fail(f"following functions are not covered: {','.join(missing_names)}")
@@ -64,7 +71,9 @@ class TestConversions:
     def common_logic(cls, cur_name):
         name = cur_name.split("test_")[1]
         tested_func = getattr(converter, name)
-        for spec, sent in cls.out[name].items():
+        for spec, sent_ in cls.out[name].items():
+            sent = {k: v.copy() for k, v in sent_.items()}
+            add_basic_edges(sent)
             try:
                 tested_func(sent)
             except TypeError:
@@ -73,6 +82,17 @@ class TestConversions:
             serialized_conllu = serialize_conllu([sent], [None], False)
             for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
                 assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
+    
+    @classmethod
+    def common_logic_combined(cls, cur_name):
+        name = cur_name.split("test_combined_")[1]
+        for spec, sent_ in cls.out[name].items():
+            sent = {k: v.copy() for k, v in sent_.items()}
+            add_basic_edges(sent)
+            converted, _ = convert([sent], True, True, True, math.inf, False, False, False, False, False, ConvsCanceler())
+            serialized_conllu = serialize_conllu(converted, [None], False)
+            for gold_line, out_line in zip(cls.gold_combined[name][spec], serialized_conllu.split("\n")):
+                assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
 
 
 for cur_func_name in api.get_conversion_names():
@@ -80,3 +100,5 @@ for cur_func_name in api.get_conversion_names():
         continue
     test_func_name = "test_" + cur_func_name
     setattr(TestConversions, test_func_name, staticmethod(lambda func_name=test_func_name: TestConversions.common_logic(func_name)))
+    combined_func_name = "test_combined_" + cur_func_name
+    setattr(TestConversions, combined_func_name, staticmethod(lambda func_name=combined_func_name: TestConversions.common_logic_combined(func_name)))

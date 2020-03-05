@@ -1,0 +1,857 @@
+# test:eud_correct_subj_pass-blackbox1
+1	He	he	PRON	PRP	_	3	nsubj	3:dobj@passive()|3:nsubjpass	_
+2	was	be	AUX	VBD	_	3	auxpass	3:auxpass	_
+3	admired	admire	VERB	VBN	_	0	root	0:root	_
+4	by	by	ADP	IN	_	5	case	5:case	_
+5	them	they	PRON	PRP	_	3	nmod	3:nmod:agent|3:nsubj@passive()	_
+
+# test:eud_correct_subj_pass-blackbox2
+1	He	he	PRON	PRP	_	3	nsubj	3:dobj@passive()|3:nsubjpass	_
+2	was	be	AUX	VBD	_	3	auxpass	3:auxpass	_
+3	admired	admire	VERB	VBN	_	0	root	0:root	_
+4	by	by	ADP	IN	_	5	case	5:case	_
+5	them	they	PRON	PRP	_	3	nmod	3:nmod:agent|3:nsubj@passive()	_
+6	and	and	CONJ	CC	_	3	cc	3:cc	_
+7	I	I	PRON	PRP	_	9	nsubj	9:dobj@passive()|9:nsubjpass	_
+8	was	be	AUX	VBD	_	9	auxpass	9:auxpass	_
+9	admired	admire	VERB	VBN	_	3	conj	3:conj:and	_
+10	by	by	ADP	IN	_	11	case	11:case	_
+11	him	he	PRON	PRP	_	9	nmod	9:nmod:agent|9:nsubj@passive()	_
+
+# test:eud_correct_subj_pass-blackbox3
+1	What	what	PRON	WP	_	3	dobj	3:dobj	_
+2	I	I	PRON	PRP	_	3	nsubj	3:nsubj	_
+3	did	do	AUX	VBD	_	5	csubj	5:csubjpass|5:dobj@passive()	_
+4	was	be	AUX	VBD	_	5	auxpass	5:auxpass	_
+5	admired	admire	VERB	VBN	_	0	root	0:root	_
+6	by	by	ADP	IN	_	7	case	7:case	_
+7	them	they	PRON	PRP	_	5	nmod	5:nmod:agent|5:nsubj@passive()	_
+
+# test:eudpp_process_simple_2wp-blackbox1
+1	The	_	DT	DT	_	2	det	2:det	_
+2	street	_	NN	NN	_	6	nsubj	3.1:nsubj	_
+3	is	_	VBZ	VBZ	_	6	cop	3.1:ev	_
+3.1	STATE	_	_	_	_	_	_	0:root	_
+4	across	_	IN	IN	_	6	advmod	6:case	_
+5	from	_	IN	IN	_	6	case	4:mwe	_
+6	you	_	PRP	PRP	_	0	root	3.1:nmod:across_from	_
+
+# test:eudpp_process_simple_2wp-blackbox2
+1	The	_	DT	DT	_	2	det	2:det	_
+2	street	_	NN	NN	_	6	nsubj	3.1:nsubj	_
+3	is	_	VBZ	VBZ	_	6	cop	3.1:ev	_
+3.1	STATE	_	_	_	_	_	_	0:root	_
+3.2	STATE	_	_	_	_	_	_	3.1:conj:and	CopyOf=3
+4	across	_	IN	IN	_	6	advmod	6:case	_
+5	from	_	IN	IN	_	6	case	4:mwe	_
+6	you	_	PRP	PRP	_	0	root	3.1:nmod:across_from	_
+7	and	_	CONJ	CC	_	6	cc	3.1:cc	_
+8	aside	_	IN	IN	_	10	advmod	10:case	_
+9	from	_	IN	IN	_	10	case	8:mwe	_
+10	me	_	PRP	PRP	_	6	conj	3.2:nmod:aside_from	_
+
+# test:eudpp_process_simple_2wp-whitebox1
+1	The	_	DT	DT	_	2	det	2:det	_
+2	street	_	NN	NN	_	7	nsubj	3.1:nsubj	_
+3	is	_	VBZ	VBZ	_	7	cop	3.1:ev	_
+3.1	STATE	_	_	_	_	_	_	0:root	_
+4	across	_	IN	IN	_	7	advmod	3:advmod	_
+5	ahead	_	IN	IN	_	7	case	7:case	_
+6	from	_	IN	IN	_	7	case	7:case	_
+7	you	_	PRP	PRP	_	0	root	3.1:nmod:ahead|3.1:nmod:from	_
+
+# test:eudpp_process_complex_2wp-blackbox1
+1	He	_	PRP	PRP	_	3	nsubj	2.1:nsubj	_
+2	is	_	VBZ	VBZ	_	3	cop	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	close	_	JJ	JJ	_	0	root	5:case	_
+4	to	_	TO	TO	_	5	case	3:mwe	_
+5	me	_	PRP	PRP	_	3	nmod	2.1:nmod:close_to	_
+
+# test:eudpp_process_complex_2wp-blackbox2
+1	He	_	PRP	PRP	_	3	nsubj	2.1:nsubj	_
+2	is	_	VBZ	VBZ	_	3	cop	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	close	_	JJ	JJ	_	0	root	5:case	_
+4	to	_	TO	TO	_	5	case	3:mwe	_
+5	me	_	PRP	PRP	_	3	nmod	2.1:nmod:close_to	_
+6	while	_	IN	IN	_	9	mark	8.1:mark	_
+7	you	_	PRP	PRP	_	9	nsubj	8.1:nsubj	_
+8	are	_	VBP	VBP	_	9	cop	8.1:ev	_
+8.1	STATE	_	_	_	_	_	_	2.1:advcl:while	_
+9	close	_	JJ	JJ	_	3	advcl	11:case	_
+10	by	_	IN	IN	_	11	case	9:mwe	_
+11	me	_	PRP	PRP	_	9	nmod	8.1:nmod:close_by	_
+
+# test:eudpp_process_complex_2wp-blackbox3
+1	As	_	IN	IN	_	2	case	4:case	_
+2	close	_	NN	NN	_	7	nmod	4:case	_
+3	to	_	TO	TO	_	4	case	2:mwe	_
+4	me	_	PRP	PRP	_	2	nmod	7:nmod:close_to	_
+5	as	_	IN	IN	_	7	advmod	7:advmod	_
+6	can	_	MD	MD	_	7	aux	7:aux	_
+7	be	_	VB	VB	_	0	root	0:root	_
+
+# test:eudpp_process_3wp-blackbox1
+1	I	_	PRP	PRP	_	4	nsubj	2.1:nsubj	_
+2	am	_	VBP	VBP	_	4	cop	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	in	_	IN	IN	_	4	case	6:case	_
+4	front	_	NN	NN	_	0	root	3:mwe	_
+5	of	_	IN	IN	_	6	case	3:mwe	_
+6	you	_	PRP	PRP	_	4	nmod	2.1:nmod:in_front_of	_
+
+# test:eudpp_process_3wp-blackbox2
+1	I	_	PRP	PRP	_	4	nsubj	2.1:nsubj	_
+2	am	_	VBP	VBP	_	4	cop	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	in	_	IN	IN	_	4	case	6:case	_
+4	front	_	NN	NN	_	0	root	3:mwe	_
+5	of	_	IN	IN	_	6	case	3:mwe	_
+6	you	_	PRP	PRP	_	4	nmod	2.1:nmod:in_front_of	_
+7	while	_	IN	IN	_	11	mark	9.1:mark	_
+8	you	_	PRP	PRP	_	11	nsubj	9.1:nsubj	_
+9	are	_	VBP	VBP	_	11	cop	9.1:ev	_
+9.1	STATE	_	_	_	_	_	_	2.1:advcl:while	_
+10	with	_	IN	IN	_	11	case	13:case	_
+11	respect	_	NN	NN	_	4	advcl	10:mwe	_
+12	to	_	IN	IN	_	13	case	10:mwe	_
+13	me	_	PRP	PRP	_	11	nmod	9.1:nmod:with_respect_to	_
+
+# test:eudpp_process_3wp-blackbox3
+1	As	_	IN	IN	_	3	case	6:case	_
+2	in	_	IN	IN	_	3	case	5.1:mark	_
+3	front	_	NN	NN	_	9	nmod	2:mwe	_
+4	of	_	IN	IN	_	6	mark	2:mwe	_
+5	being	_	VBG	VBG	_	6	cop	5.1:ev	_
+5.1	STATE	_	_	_	_	_	_	9:acl:in_front_of	_
+6	first	_	JJ	JJ	_	3	acl	5.1:nmod:as	_
+7	as	_	IN	IN	_	9	advmod	9:advmod	_
+8	can	_	MD	MD	_	9	aux	9:aux	_
+9	be	_	VB	VB	_	0	root	0:root	_
+
+# test:eudpp_demote_quantificational_modifiers-blackbox1
+1	A	_	DT	DT	_	2	det	4:det:qmod	_
+2	couple	_	NN	NN	_	0	root	1:mwe	_
+3	of	_	IN	IN	_	4	case	1:mwe	_
+4	people	_	NNS	NNS	_	2	nmod	0:root	_
+
+# test:eudpp_demote_quantificational_modifiers-blackbox2
+1	An	_	DT	DT	_	3	det	3:det	_
+2	angry	_	JJ	JJ	_	3	amod	3:amod	_
+3	ton	_	NN	NN	_	0	root	0:root|2:nsubj@amod()	_
+4	of	_	IN	IN	_	5	case	5:case	_
+5	people	_	NNS	NNS	_	3	nmod	2:nsubj@compound(NULL, UNC)+amod()|3:compound@nmod(of)|3:nmod:of	_
+
+# test:eudpp_demote_quantificational_modifiers-blackbox3
+1	An	_	DT	DT	_	2	det	2:det	_
+2	horde	_	NN	NN	_	0	root	0:root	_
+3	of	_	IN	IN	_	4	case	4:case	_
+4	people	_	NNS	NNS	_	2	nmod	2:compound@nmod(of)|2:nmod:of	_
+
+# test:eudpp_demote_quantificational_modifiers-blackbox4
+1	A	_	DT	DT	_	2	det	2:det	_
+2	ton	_	NN	NN	_	0	root	0:root	_
+3	or	_	CC	CC	_	4	cc	4:cc	_
+4	so	_	RB	RB	_	2	dep	2:dep	_
+5	of	_	IN	IN	_	6	case	6:case	_
+6	people	_	NNS	NNS	_	2	nmod	2:compound@nmod(of)|2:nmod:of	_
+
+# test:eudpp_demote_quantificational_modifiers-blackbox5
+1	A	_	DT	DT	_	2	det	2:det	_
+2	ton	_	NN	NN	_	0	root	0:root	_
+3	of	_	IN	IN	_	4	case	4:case	_
+4	what	_	WP	WP	_	2	nmod	2:nmod:of	_
+
+# test:eudpp_demote_quantificational_modifiers-blackbox6
+1	Several	_	JJ	JJ	_	5	nsubj	3:det:qmod	_
+2	of	_	IN	IN	_	3	case	1:mwe	_
+3	us	_	PRP	PRP	_	1	nmod	5:nsubj	_
+4	were	_	VBD	VBD	_	5	aux	5:aux	_
+5	playing	_	VBG	VBG	_	0	root	0:root	_
+6	while	_	IN	IN	_	12	mark	12:mark	_
+7	some	_	DT	DT	_	12	nsubj	10:det:qmod	_
+8	of	_	IN	IN	_	10	case	7:mwe	_
+9	the	_	DT	DT	_	10	det	7:mwe	_
+10	others	_	NNS	NNS	_	7	nmod	12:nsubj	_
+11	are	_	VBP	VBP	_	12	aux	12:aux	_
+12	reading	_	VBG	VBG	_	5	advcl	5:advcl:while	_
+
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox1
+1	Bill	Bill	PROPN	NNP	_	2	nsubj	2:nsubj|2.1:nsubj	_
+2	flies	fly	VERB	VBZ	_	0	root	0:root	_
+2.1	flies	fly	VERB	VBZ	_	_	_	2:conj:and	CopyOf=2
+3	to	to	ADP	IN	_	4	case	4:case	_
+4	France	France	PROPN	NNP	_	2	nmod	2:nmod:to	_
+5	and	and	CONJ	CC	_	4	cc	2:cc	_
+6	from	from	ADP	IN	_	7	case	7:case	_
+7	Serbia	Serbia	PROPN	NNP	_	4	conj	2.1:nmod:from	_
+
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox2
+1	Bill	_	NNP	NNP	_	2	nsubj	2:nsubj|2.1:nsubj|2.2:nsubj|2.3:nsubj|2.4:nsubj	_
+2	flies	_	VBZ	VBZ	_	0	root	0:root	_
+2.1	flies	_	VBZ	VBZ	_	_	_	2:conj:and	CopyOf=2
+2.2	flies	_	VBZ	VBZ	_	_	_	2:conj:and	CopyOf=2
+2.3	flies	_	VBZ	VBZ	_	_	_	2:conj:and	CopyOf=2
+2.4	flies	_	VBZ	VBZ	_	_	_	2:conj:negcc	CopyOf=2
+3	to	_	TO	TO	_	4	case	4:case	_
+4	France	_	NNP	NNP	_	2	nmod	2:nmod:to	_
+5	to	_	TO	TO	_	6	case	6:case	_
+6	Italy	_	NNP	NNP	_	4	conj	2.1:nmod:to	_
+7	and	_	CC	CC	_	4	cc	2:cc	_
+8	to	_	TO	TO	_	9	case	9:case	_
+9	Spain	_	NNP	NNP	_	4	conj	2.2:nmod:to	_
+10	as	_	CC	CC	_	4	cc	2:cc	_
+11	well	_	RB	RB	_	10	mwe	10:mwe	_
+12	as	_	IN	IN	_	10	mwe	10:mwe	_
+13	from	_	IN	IN	_	14	case	14:case	_
+14	Serbia	_	NNP	NNP	_	4	conj	2.3:nmod:from	_
+15	if	_	IN	IN	_	15	dep	15:dep	_
+16	not	_	RB	RB	_	4	cc	2:cc	_
+17	from	_	IN	IN	_	18	case	18:case	_
+18	Israel	_	NNP	NNP	_	4	conj	2.4:nmod:from	_
+
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox3
+1	Bill	_	NNP	NNP	_	2	nsubj	2:nsubj|2.1:nsubj	_
+2	flies	_	VBZ	VBZ	_	0	root	0:root	_
+2.1	flies	_	VBZ	VBZ	_	_	_	2:conj:and	CopyOf=2
+3	to	_	TO	TO	_	4	case	4:case	_
+4	France	_	NNP	NNP	_	2	nmod	2:nmod:to	_
+5	and	_	CC	CC	_	4	cc	2:cc	_
+6	from	_	IN	IN	_	7	case	7:case	_
+7	Serbia	_	NNP	NNP	_	4	conj	2.1:nmod:from	_
+8	while	_	IN	IN	_	10	mark	10:mark	_
+9	Cathy	_	NNP	NNP	_	10	nsubj	10:nsubj|10.1:nsubj	_
+10	drives	_	VBZ	VBZ	_	2	advcl	2:advcl:while	_
+10.1	drives	_	VBZ	VBZ	_	_	_	2:advcl:while|10:conj:but	CopyOf=10
+11	to	_	TO	TO	_	12	case	12:case	_
+12	Spain	_	NNP	NNP	_	10	nmod	10:nmod:to	_
+13	but	_	CC	CC	_	12	cc	10:cc	_
+14	from	_	IN	IN	_	15	case	15:case	_
+15	Italy	_	NNP	NNP	_	12	conj	10.1:nmod:from	_
+
+# test:eudpp_expand_pp_or_prep_conjunctions-blackbox4
+1	Bill	_	NNP	NNP	_	2	nsubj	2:nsubj|2.1:nsubj	_
+2	flies	_	VBZ	VBZ	_	0	root	0:root	_
+2.1	flies	_	VBZ	VBZ	_	_	_	2:conj:and	CopyOf=2
+3	to	_	TO	TO	_	6	case	6:case	_
+4	and	_	CC	CC	_	3	cc	3:cc	_
+5	from	_	IN	IN	_	3	conj	3:conj:and	_
+6	France	_	NNP	NNP	_	2	nmod	2:nmod:to|2.1:nmod:from	_
+
+# test:eud_passive_agent-blackbox1
+1	He	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+3	chosen	_	VBN	VBN	_	0	root	0:root	_
+4	by	_	IN	IN	_	5	case	5:case	_
+5	me	_	PRP	PRP	_	3	nmod	3:nmod:agent|3:nsubj@passive()	_
+
+# test:eud_passive_agent-blackbox2
+1	He	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+3	chosen	_	VBN	VBN	_	0	root	0:root	_
+4	by	_	IN	IN	_	5	case	5:case	_
+5	me	_	PRP	PRP	_	3	nmod	3:nmod:agent|3:nsubj@passive()	_
+6	and	_	CC	CC	_	3	cc	3:cc	_
+7	I	_	PRP	PRP	_	9	nsubjpass	9:dobj@passive()|9:nsubjpass	_
+8	was	_	VBD	VBD	_	9	auxpass	9:auxpass	_
+9	chosen	_	VBN	VBN	_	3	conj	3:conj:and	_
+10	by	_	IN	IN	_	11	case	11:case	_
+11	you	_	PRP	PRP	_	9	nmod	9:nmod:agent|9:nsubj@passive()	_
+
+# test:eud_passive_agent-blackbox3
+1	They	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	chose	_	VBD	VBD	_	0	root	0:root	_
+3	by	_	IN	IN	_	4	case	4:case	_
+4	themselves	_	PRP	PRP	_	2	nmod	2:nmod:by	_
+
+# test:eud_passive_agent-blackbox4
+1	He	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+3	chosen	_	VBN	VBN	_	0	root	0:root	_
+4	with	_	IN	IN	_	5	case	5:case	_
+5	me	_	PRP	PRP	_	3	nmod	3:nmod:with	_
+
+# test:eudpp_add_ref_and_collapse-blackbox1
+1	The	_	DT	DT	_	2	det	2:det	_
+2	boy	_	NN	NN	_	11	nsubj	4:nsubj|11:nsubj	_
+3	who	_	WP	WP	_	4	nsubj	2:ref	_
+4	lived	_	VBD	VBD	_	2	acl:relcl	2:acl:relcl	_
+5	and	_	CC	CC	_	2	cc	2:cc	_
+6	the	_	DT	DT	_	7	det	7:det	_
+7	girl	_	NN	NN	_	2	conj	2:conj:and|9:nsubj|11:nsubj	_
+8	who	_	WP	WP	_	9	nsubj	7:ref	_
+9	loves	_	VBZ	VBZ	_	7	acl:relcl	7:acl:relcl	_
+10	him	_	PRP	PRP	_	9	dobj	9:dobj	_
+11	told	_	VBD	VBD	_	0	root	0:root	_
+12	the	_	DT	DT	_	13	det	13:det	_
+13	tale	_	NN	NN	_	11	dobj	11:dobj	_
+
+# test:eudpp_add_ref_and_collapse-whitebox1
+1	The	the	DET	DT	_	2	det	2:det	_
+2	boy	boy	NOUN	NN	_	0	root	0:root|4:nsubj|7:nsubj	_
+3	who	who	CASE	CASE	_	4	nsubj	2:ref	_
+4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
+5	whom	whom	CASE	CASE	_	7	nsubj	2:ref	_
+6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
+7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
+
+# test:eudpp_add_ref_and_collapse-whitebox2
+1	The	the	DET	DT	_	2	det	2:det	_
+2	boy	boy	NOUN	NN	_	0	root	0:root|7:nsubj	_
+3	who	who	CASE	CASE	_	7	nsubj	2:ref	_
+4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
+5	whom	whom	CASE	CASE	_	6	nsubj	6:nsubj	_
+6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
+7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
+
+# test:eudpp_add_ref_and_collapse-whitebox3
+1	The	the	DET	DT	_	2	det	2:det	_
+2	boy	boy	NOUN	NN	_	0	root	0:root|4:nsubj|7:dobj@acl(RELCL, REDUCED)	_
+3	who	who	CASE	CASE	_	4	nsubj	2:ref	_
+4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
+5	whom	whom	CASE	CASE	_	4	nsubj	2:ref	_
+6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
+7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
+
+# test:eudpp_add_ref_and_collapse-whitebox4
+1	The	the	DET	DT	_	2	det	2:det	_
+2	boy	boy	NOUN	NN	_	0	root	0:root|7:nsubj	_
+3	who	who	CASE	CASE	_	7	nsubj	2:ref	_
+4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
+5	whom	whom	CASE	CASE	_	7	nsubj	7:nsubj	_
+6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
+7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
+
+# test:eudpp_add_ref_and_collapse-whitebox5
+1	The	the	DET	DT	_	2	det	2:det	_
+2	boy	boy	NOUN	NN	_	0	root	0:root|4:nsubj|7:dobj@acl(RELCL, REDUCED)	_
+3	who	who	CASE	CASE	_	1	nsubj	1:nsubj	_
+4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
+5	whom	whom	CASE	CASE	_	4	nsubj	2:ref	_
+6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
+7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
+
+# test:eudpp_add_ref_and_collapse-whitebox6
+1	The	the	DET	DT	_	2	det	2:det	_
+2	boy	boy	NOUN	NN	_	0	root	0:root|7:nsubj	_
+3	who	who	CASE	CASE	_	1	nsubj	1:nsubj	_
+4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
+5	whom	whom	CASE	CASE	_	7	nsubj	2:ref	_
+6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
+7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
+
+# test:eud_subj_of_conjoined_verbs-blackbox1
+1	The	_	DT	DT	_	2	det	2:det	_
+2	store	_	NN	NN	_	4	nsubjpass	4:dobj@passive()|4:nsubjpass|7:nsubj	_
+3	was	_	VBD	VBD	_	4	auxpass	4:auxpass	_
+4	bought	_	VBN	VBN	_	0	root	0:root	_
+5	and	_	CC	CC	_	4	cc	4:cc	_
+6	would	_	MD	MD	_	7	aux	7:aux	_
+7	sell	_	VB	VB	_	4	conj	4:conj:and	_
+8	cameras	_	NNS	NNS	_	7	dobj	7:dobj	_
+
+# test:eud_subj_of_conjoined_verbs-blackbox2
+1	The	_	DT	DT	_	2	det	2:det	_
+2	store	_	NN	NN	_	3	nsubj	3:nsubj|6:dobj@passive()|6:nsubjpass	_
+3	succeeded	_	VBD	VBD	_	0	root	0:root	_
+4	but	_	CC	CC	_	3	cc	3:cc	_
+5	was	_	VBD	VBD	_	6	auxpass	6:auxpass	_
+6	sold	_	VBN	VBN	_	3	conj	3:conj:but	_
+
+# test:eud_heads_of_conjuncts-blackbox1
+1	Sue	_	NNP	NNP	_	5	nsubj	5:nsubj	_
+2	and	_	CC	CC	_	1	cc	1:cc	_
+3	Paul	_	NNP	NNP	_	1	conj	1:conj:and|5:nsubj	_
+4	are	_	VBP	VBP	_	5	aux	5:aux	_
+5	running	_	VBG	VBG	_	0	root	0:root	_
+
+# test:eud_heads_of_conjuncts-blackbox2
+1	The	_	DT	DT	_	5	det	5:det	_
+2	long	_	JJ	JJ	_	5	amod	5:amod	_
+3	and	_	CC	CC	_	2	cc	2:cc	_
+4	wide	_	JJ	JJ	_	2	conj	2:conj:and|5:amod	_
+5	river	_	NN	NN	_	0	root	0:root|2:nsubj@amod()|4:nsubj@amod()	_
+
+# test:eud_xcomp_propagation-blackbox1
+1	He	_	PRP	PRP	_	2	nsubj	2:nsubj|4:nsubj:xcomp(INF)	_
+2	wants	_	VBZ	VBZ	_	0	root	0:root	_
+3	to	_	TO	TO	_	4	mark	4:mark	_
+4	touch	_	VB	VB	_	2	xcomp	2:xcomp	_
+5	his	_	PRP$	PRP$	_	6	nmod:poss	6:nmod:poss	_
+6	nose	_	NN	NN	_	4	dobj	4:dobj	_
+
+# test:eud_xcomp_propagation-blackbox2
+1	Asking	_	VBG	VBG	_	9	dep	9:dep	_
+2	the	_	DT	DT	_	3	det	3:det	_
+3	SEC	_	NNP	NNP	_	1	dobj	1:dobj|5:nsubj:xcomp(INF)	_
+4	to	_	TO	TO	_	5	mark	5:mark	_
+5	read	_	VB	VB	_	1	xcomp	1:xcomp	_
+6	my	_	PRP$	PRP$	_	7	nmod:poss	7:nmod:poss	_
+7	letter	_	NN	NN	_	5	dobj	5:dobj	_
+8	was	_	VBD	VBD	_	9	cop	8.1:ev	_
+8.1	STATE	_	_	_	_	_	_	0:root	_
+9	smart	_	JJ	JJ	_	0	root	8.1:xcomp	_
+
+# test:eud_xcomp_propagation-blackbox3
+1	The	_	DT	DT	_	2	det	2:det	_
+2	law	_	NN	NN	_	3	nsubj	3:nsubj	_
+3	tells	_	VBZ	VBZ	_	0	root	0:root	_
+4	them	_	PRP	PRP	_	3	dobj	3:dobj|7:nsubj:xcomp(INF)	_
+5	when	_	WRB	WRB	_	7	advmod	7:advmod	_
+6	to	_	TO	TO	_	7	mark	7:mark	_
+7	do	_	VB	VB	_	3	xcomp	3:xcomp	_
+8	so	_	RB	RB	_	7	advmod	7:advmod	_
+
+# test:eud_xcomp_propagation-blackbox4
+1	He	_	PRP	PRP	_	2	nsubj	2:nsubj|4:nsubj:xcomp(INF)	_
+2	wants	_	VBZ	VBZ	_	0	root	0:root	_
+3	to	_	TO	TO	_	4	mark	4:mark	_
+4	go	_	VB	VB	_	2	xcomp	2:xcomp	_
+5	home	_	NN	NN	_	4	dobj	4:dobj	_
+6	but	_	CC	CC	_	2	cc	2:cc	_
+7	she	_	PRP	PRP	_	8	nsubj	8:nsubj|10:nsubj:xcomp(INF)	_
+8	wants	_	VBZ	VBZ	_	2	conj	2:conj:but	_
+9	to	_	TO	TO	_	10	mark	10:mark	_
+10	go	_	VB	VB	_	8	xcomp	8:xcomp	_
+11	for	_	IN	IN	_	13	case	13:case	_
+12	a	_	DT	DT	_	13	det	13:det	_
+13	trip	_	NN	NN	_	10	nmod	10:nmod:for	_
+
+# test:eud_xcomp_propagation-blackbox5
+1	He	_	PRP	PRP	_	2	nsubj	2:nsubj|4:nsubj:xcomp(INF)	_
+2	decided	_	VBD	VBD	_	0	root	0:root	_
+3	not	_	RB	RB	_	4	neg	4:neg	_
+4	to	_	TO	TO	_	2	xcomp	2:xcomp	_
+
+# test:eud_prep_patterns-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	like	_	VBP	VBP	_	0	root	0:root	_
+3	animals	_	NNS	NNS	_	2	dobj	2:dobj	_
+4	like	_	JJ	JJ	_	5	case	5:case	_
+5	dogs	_	NNS	NNS	_	3	nmod	2:dobj@nmod(like)|3:nmod:like	_
+
+# test:eud_prep_patterns-blackbox2
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	like	_	VBP	VBP	_	0	root	0:root	_
+3	animals	_	NNS	NNS	_	2	dobj	2:dobj	_
+4	such	_	JJ	JJ	_	6	case	6:case	_
+5	as	_	IN	IN	_	4	mwe	4:mwe	_
+6	dogs	_	NNS	NNS	_	3	nmod	2:dobj@nmod(such_as)|3:nmod:such_as	_
+
+# test:eud_prep_patterns-blackbox3
+1	He	_	PRP	PRP	_	2	nsubj	2:nsubj|6:nsubj@advcl(in)|6:nsubj@advcl(to)	_
+2	cried	_	VBD	VBD	_	0	root	0:root	_
+3	in	_	IN	IN	_	6	mark	6:mark	_
+4	order	_	NN	NN	_	3	mwe	3:mwe	_
+5	to	_	TO	TO	_	6	mark	6:mark	_
+6	make	_	VB	VB	_	2	advcl	2:advcl:in_order	_
+7	you	_	PRP	PRP	_	8	nsubj	8:nsubj	_
+8	feel	_	VB	VB	_	6	ccomp	6:ccomp	_
+9	bad	_	JJ	JJ	_	8	xcomp	8:xcomp	_
+
+# test:eud_conj_info-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	love	_	VBP	VBP	_	0	root	0:root	_
+3	you	_	PRP	PRP	_	2	dobj	2:dobj	_
+4	but	_	CC	CC	_	3	cc	3:cc	_
+5	also	_	RB	RB	_	6	advmod	6:advmod	_
+6	her	_	PRP	PRP	_	3	conj	2:dobj|3:conj:and	_
+8	but	_	CC	CC	_	3	cc	3:cc	_
+9	not	_	RB	RB	_	10	neg	10:neg	_
+10	myself	_	PRP	PRP	_	3	conj	2:dobj|3:conj:negcc	_
+
+# test:extra_aspectual_reconstruction-blackbox1
+1	FOX	_	NN	NN	_	2	nsubj	3:nsubj	_
+2	started	start	VBD	VBD	_	0	root	3:ev@xcomp(ASPECTUAL)	_
+3	launching	_	VBG	VBG	_	2	xcomp	0:root	_
+4	the	_	DT	DT	_	5	det	5:det	_
+5	series	_	NN	NN	_	3	dobj	3:dobj	_
+
+# test:extra_aspectual_reconstruction-blackbox2
+1	I	_	PRP	PRP	_	2	nsubj	6:nsubj	_
+2	started	start	VBD	VBD	_	0	root	4:ev@xcomp(ASPECTUAL)	_
+3	to	_	TO	TO	_	4	mark	4:mark	_
+4	finish	finish	VB	VB	_	2	xcomp	6:ev@xcomp(ASPECTUAL)	_
+5	to	_	TO	TO	_	6	mark	6:mark	_
+6	eat	_	VB	VB	_	4	xcomp	0:root	_
+
+# test:extra_xcomp_propagation_no_to-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj|3:nsubj@xcomp(GERUND)	_
+2	love	_	VBD	VBD	_	0	root	0:root	_
+3	talking	_	VB	VB	_	2	xcomp	2:xcomp	_
+4	to	_	TO	TO	_	5	case	5:case	_
+5	friends	_	VB	VB	_	3	nmod	3:nmod:to	_
+
+# test:extra_advcl_propagation-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	told	_	VBD	VBD	_	0	root	0:root	_
+3	you	_	PRP	PRP	_	2	dobj	2:dobj|5:nsubj@advcl(to)	_
+4	to	_	TO	TO	_	5	mark	5:mark	_
+5	drive	_	VB	VB	_	2	advcl	2:advcl:to	_
+6	the	_	DT	DT	_	7	det	7:det	_
+7	car	_	NN	NN	_	5	dobj	5:dobj	_
+
+# test:extra_advcl_propagation-blackbox2
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj|4:nsubj@advcl(while)	_
+2	ate	_	VBD	VBD	_	0	root	0:root	_
+3	while	_	IN	IN	_	4	mark	4:mark	_
+4	driving	_	VBG	VBG	_	2	advcl	2:advcl:while	_
+5	a	_	DT	DT	_	6	det	6:det	_
+6	car	_	NN	NN	_	4	dobj	4:dobj	_
+
+# test:extra_advcl_ambiguous_propagation-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj|5:nsubj@advcl(while)#0	_
+2	saw	_	VBD	VBD	_	0	root	0:root	_
+3	you	_	PRP	PRP	_	2	dobj	2:dobj|5:nsubj@advcl(while)#0	_
+4	while	_	IN	IN	_	5	mark	5:mark	_
+5	eating	_	VBG	VBG	_	2	advcl	2:advcl:while	_
+6	a	_	DT	DT	_	7	det	7:det	_
+7	cake	_	NN	NN	_	5	dobj	5:dobj	_
+
+# test:extra_acl_propagation-blackbox1
+1	Putin	_	NNP	NNP	_	3	nsubj	3:nsubj|6:nsubj@acl(NULL, to)	_
+2	has	_	VBZ	VBZ	_	3	aux	3:aux	_
+3	made	_	VBN	VBN	_	0	root	0:root	_
+4	efforts	_	NNS	NNS	_	3	dobj	3:dobj	_
+5	to	_	TO	TO	_	6	mark	6:mark	_
+6	nurture	_	VB	VB	_	4	acl	4:acl:to	_
+7	ties	_	NNS	NNS	_	6	dobj	6:dobj	_
+8	with	_	IN	IN	_	9	case	9:case	_
+9	Hu	_	NNP	NNP	_	6	nmod	6:nmod:with	_
+
+# test:extra_acl_propagation-blackbox2
+1	soldiers	_	NNS	NNS	_	3	nsubj	3:nsubj	_
+2	have	_	VBP	VBP	_	3	aux	3:aux	_
+3	discovered	_	VBN	VBN	_	0	root	0:root	_
+4	million	_	CD	CD	_	5	nummod	5:nummod	_
+5	dollars	_	NNS	NNS	_	3	dobj	3:dobj|6:nsubj@acl(NULL, REDUCED)	_
+6	hidden	_	VBN	VBN	_	5	acl	5:acl	_
+7	around	_	IN	IN	_	8	case	8:case	_
+8	baghdad	_	NN	NN	_	6	nmod	6:nmod:around	_
+
+# test:extra_dep_propagation-blackbox1
+1	They	_	PRP	PRP	_	2	nsubj	2:nsubj|6:nsubj@dep(NULL, UNC)#0	_
+2	released	_	VBD	VBD	_	0	root	0:root	_
+3	the	_	DT	DT	_	4	det	4:det	_
+4	soldier	_	NN	NN	_	2	dobj	2:dobj|6:nsubj@dep(NULL, UNC)#0	_
+5	apparently	_	RB	RB	_	6	advmod	6:advmod	_
+6	kidnapped	_	VBN	VBN	_	2	dep	2:dep	_
+7	nearby	_	RB	RB	_	6	advmod	6:advmod	_
+
+# test:extra_conj_propagation_of_nmods-blackbox1
+1	he	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass|5:dobj@passive()|5:nsubjpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+3	wounded	_	VBN	VBN	_	0	root	0:root	_
+4	and	_	CC	CC	_	3	cc	3:cc	_
+5	trapped	_	VBN	VBN	_	3	conj	3:conj:and	_
+6	in	_	IN	IN	_	7	case	7:case	_
+7	Korea	_	NNP	NNP	_	3	nmod	3:nmod:in|5:nmod:in@conj(and, UNC)	_
+
+# test:extra_conj_propagation_of_nmods-blackbox2
+1	he	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass|6:dobj@passive()|6:nsubjpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+3	wounded	_	VBN	VBN	_	0	root	0:root	_
+4	heavily	_	RB	RB	_	3	advmod	3:advmod	_
+5	and	_	CC	CC	_	3	cc	3:cc	_
+6	trapped	_	VBN	VBN	_	3	conj	3:conj:and	_
+7	in	_	IN	IN	_	8	case	8:case	_
+8	Korea	_	NNP	NNP	_	6	nmod	3:nmod:in@conj(and, UNC)|6:nmod:in	_
+
+# test:extra_conj_propagation_of_nmods-blackbox3
+1	he	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass|8:dobj@passive()|8:nsubjpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+3	wounded	_	VBN	VBN	_	0	root	0:root	_
+4	in	_	IN	IN	_	5	case	5:case	_
+5	Lebanon	_	NNP	NNP	_	3	nmod	3:nmod:in	_
+6	but	_	CC	CC	_	3	cc	3:cc	_
+7	has	_	VBZ	VBZ	_	8	aux	8:aux	_
+8	died	_	VBN	VBN	_	3	conj	3:conj:but	_
+9	in	_	IN	IN	_	12	case	12:case	_
+10	the	_	DT	DT	_	12	det	12:det	_
+11	U.S.	_	NNP	NNP	_	12	compound	12:compound	_
+12	hospital	_	NN	NN	_	8	nmod	8:nmod:in	_
+
+# test:extra_of_prep_alteration-blackbox1
+1	Army	_	NNP	NNP	_	0	root	0:root	_
+2	of	_	IN	IN	_	3	case	3:case	_
+3	zombies	_	NNS	NNS	_	1	nmod	1:compound@nmod(of)|1:nmod:of	_
+
+# test:extra_compound_propagation-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	used	_	VBD	VBD	_	0	root	0:root	_
+3	canola	_	NN	NN	_	4	compound	2:dobj@compound(NULL, UNC)|4:compound	_
+4	oil	_	NN	NN	_	2	dobj	2:dobj	_
+
+# test:extra_amod_propagation-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	see	_	VBP	VBP	_	0	root	0:root	_
+3	dead	_	JJ	JJ	_	4	amod	4:amod	_
+4	people	_	NNS	NNS	_	2	dobj	2:dobj|3:nsubj@amod()	_
+
+# test:extra_conj_propagation_of_poss-blackbox1
+1	My	_	PRP$	PRP$	_	2	nmod:poss	2:nmod:poss|4:nmod:poss@conj(and, UNC)	_
+2	father	_	NN	NN	_	5	nsubj	5:nsubj	_
+3	and	_	CC	CC	_	2	cc	2:cc	_
+4	mother	_	NN	NN	_	2	conj	2:conj:and|5:nsubj	_
+5	went	_	VBD	VBD	_	0	root	0:root	_
+6	home	_	NN	NN	_	5	dobj	5:dobj	_
+
+# test:extra_conj_propagation_of_poss-blackbox2
+1	My	_	PRP$	PRP$	_	2	nmod:poss	2:nmod:poss	_
+2	father	_	NN	NN	_	6	nsubj	6:nsubj	_
+3	and	_	CC	CC	_	2	cc	2:cc	_
+4	my	_	PRP$	PRP$	_	5	nmod:poss	5:nmod:poss	_
+5	mother	_	NN	NN	_	2	conj	2:conj:and|6:nsubj	_
+6	went	_	VBD	VBD	_	0	root	0:root	_
+7	home	_	NN	NN	_	6	dobj	6:dobj	_
+
+# test:extra_conj_propagation_of_poss-blackbox3
+1	My	_	PRP$	PRP$	_	2	nmod:poss	2:nmod:poss	_
+2	father	_	NN	NN	_	6	nsubj	6:nsubj	_
+3	and	_	CC	CC	_	2	cc	2:cc	_
+4	the	_	DT	DT	_	5	det	5:det	_
+5	president	_	NN	NN	_	2	conj	2:conj:and|6:nsubj	_
+6	met	_	VBD	VBD	_	0	root	0:root	_
+7	yesterday	_	NN	NN	_	6	nmod:tmod	6:nmod:tmod	_
+
+# test:extra_conj_propagation_of_poss-blackbox4
+1	The	_	DT	DT	_	2	det	2:det	_
+2	president	_	NN	NN	_	6	nsubj	6:nsubj	_
+3	and	_	CC	CC	_	2	cc	2:cc	_
+4	my	_	PRP$	PRP$	_	5	nmod:poss	5:nmod:poss	_
+5	father	_	NN	NN	_	2	conj	2:conj:and|6:nsubj	_
+6	met	_	VBD	VBD	_	0	root	0:root	_
+7	yesterday	_	NN	NN	_	6	nmod:tmod	6:nmod:tmod	_
+
+# test:extra_conj_propagation_of_poss-blackbox5
+1	My	_	PRP$	PRP$	_	2	nmod:poss	2:nmod:poss	_
+2	father	_	NN	NN	_	5	nsubj	5:nsubj	_
+3	and	_	CC	CC	_	2	cc	2:cc	_
+4	you	_	PRP	PRP	_	2	conj	2:conj:and|5:nsubj	_
+5	went	_	VBD	VBD	_	0	root	0:root	_
+6	home	_	NN	NN	_	5	dobj	5:dobj	_
+
+# test:extra_conj_propagation_of_poss-blackbox6
+1	My	_	PRP$	PRP$	_	2	nmod:poss	2:nmod:poss	_
+2	father	_	NN	NN	_	5	nsubj	5:nsubj	_
+3	and	_	CC	CC	_	2	cc	2:cc	_
+4	Bush	_	NNP	NNP	_	2	conj	2:conj:and|5:nsubj	_
+5	went	_	VBD	VBD	_	0	root	0:root	_
+6	home	_	NN	NN	_	5	dobj	5:dobj	_
+
+# test:extra_advmod_propagation-blackbox1
+1	He	_	PRP	PRP	_	3	nsubj	3:nsubj	_
+2	was	_	VBD	VBD	_	3	aux	3:aux	_
+3	running	_	VBG	VBG	_	0	root	0:root	_
+4	around	_	RP	RP	_	3	compound:prt	3:compound:prt	_
+5	in	_	IN	IN	_	7	case	7:case	_
+6	the	_	DT	DT	_	7	det	7:det	_
+7	woods	_	NNS	NNS	_	3	nmod	3:nmod:in	_
+8	here	_	RB	RB	_	7	advmod	3:advmod@nmod(INDEXICAL, in, UNC)|7:advmod	_
+
+# test:extra_appos_propagation-blackbox1
+1	E.T.	_	NNP	NNP	_	4	nsubj	4:nsubj	_
+2	the	_	DT	DT	_	3	det	3:det	_
+3	Extraterrestrial	_	NN	NN	_	1	appos	1:appos|4:nsubj@appos()	_
+4	phones	_	VBZ	VBZ	_	0	root	0:root	_
+5	home	_	NN	NN	_	4	dobj	4:dobj	_
+
+# test:extra_subj_obj_nmod_propagation_of_nmods-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	like	_	VBP	VBP	_	0	root	0:root	_
+3	fruits	_	NNS	NNS	_	2	dobj	2:dobj	_
+4	like	_	IN	IN	_	5	case	5:case	_
+5	bananas	_	NNS	NNS	_	3	nmod	2:dobj@nmod(like)|3:nmod:like	_
+
+# test:extra_subj_obj_nmod_propagation_of_nmods-blackbox2
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	eat	_	VBP	VBP	_	0	root	0:root	_
+3	fruits	_	NNS	NNS	_	2	dobj	2:dobj	_
+4	such	_	JJ	JJ	_	6	case	6:case	_
+5	as	_	IN	IN	_	4	mwe	4:mwe	_
+6	apples	_	NNS	NNS	_	3	nmod	2:dobj@nmod(such_as)|3:nmod:such_as	_
+
+# test:extra_passive_alteration-blackbox1
+1	He	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+3	chosen	_	VBN	VBN	_	0	root	0:root	_
+4	by	_	IN	IN	_	6	case	6:case	_
+5	the	_	DT	DT	_	6	det	6:det	_
+6	people	_	NNS	NNS	_	3	nmod:agent	3:nmod:agent|3:nsubj@passive()	_
+
+# test:extra_nmod_advmod_reconstruction-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	ran	_	VBD	VBD	_	0	root	0:root	_
+3	ahead	_	RB	RB	_	2	advmod	5:case@advmod_prep()	_
+4	of	_	IN	IN	_	5	case	3:mwe@advmod_prep()	_
+5	you	_	PRP	PRP	_	3	nmod	2:nmod:ahead_of@advmod_prep()	_
+
+# test:extra_nmod_advmod_reconstruction-blackbox2
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	went	_	VBD	VBD	_	0	root	0:root	_
+3	back	_	RB	RB	_	2	advmod	2:advmod	_
+4	to	_	TO	TO	_	5	case	5:case	_
+5	prison	_	NN	NN	_	3	nmod	2:nmod:to@advmod_prep()|3:nmod:to	_
+
+# test:extra_nmod_advmod_reconstruction-blackbox3
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	ate	_	VBD	VBD	_	0	root	0:root	_
+3	as	_	RB	RB	_	4	advmod	4:advmod	_
+4	much	_	RB	RB	_	2	advmod	2:advmod	_
+5	as	_	IN	IN	_	6	case	6:case	_
+6	you	_	PRP	PRP	_	4	nmod	4:nmod:as	_
+
+# test:extra_add_ref_and_collapse-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	liked	_	VBD	VBD	_	0	root	0:root	_
+3	the	_	DT	DT	_	4	det	4:det	_
+4	house	_	NN	NN	_	2	dobj	2:dobj|6:dobj@acl(RELCL, REDUCED)	_
+5	they	_	PRP	PRP	_	6	nsubj	6:nsubj	_
+6	made	_	VBD	VBD	_	4	acl:relcl	4:acl:relcl	_
+
+# test:extra_add_ref_and_collapse-blackbox2
+1	We	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	enjoyed	_	VBD	VBD	_	0	root	0:root	_
+3	the	_	DT	DT	_	4	det	4:det	_
+4	place	_	NN	NN	_	2	dobj	2:dobj|6:nmod:in@acl(RELCL, REDUCED)	_
+5	we	_	PRP	PRP	_	6	nsubj	6:nsubj	_
+6	visited	_	VBD	VBD	_	4	acl:relcl	4:acl:relcl	_
+7	in	_	RB	RB	_	6	advmod	6:advmod	_
+
+# test:extra_add_ref_and_collapse-blackbox3
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	understand	_	VBP	VBP	_	0	root	0:root	_
+3	the	_	DT	DT	_	4	det	4:det	_
+4	reason	_	NN	NN	_	2	dobj	2:dobj|7:nmod:because_of@acl(RELCL, why)	_
+5	why	_	WRB	WRB	_	7	advmod	7:advmod	_
+6	they	_	PRP	PRP	_	7	nsubj	7:nsubj	_
+7	did	_	VBD	VBD	_	4	acl:relcl	4:acl:relcl	_
+8	it	_	PRP	PRP	_	7	dobj	7:dobj	_
+
+# test:extra_hyphen_reconstruction-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	work	_	VBP	VBP	_	0	root	0:root	_
+3	in	_	IN	IN	_	8	case	8:case	_
+4	a	_	DT	DT	_	8	det	8:det	_
+5	Miami	_	NNP	NNP	_	7	compound	7:compound|7:nmod@compound(HYPHEN)	_
+6	-	_	HYPH	HYPH	_	7	punct	7:punct	_
+7	based	_	VBN	VBN	_	8	amod	8:amod	_
+8	company	_	NN	NN	_	2	nmod	2:nmod:in|7:nsubj@compound(HYPHEN)	_
+
+# test:extra_fix_nmod_npmod-blackbox1
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	work	_	VBP	VBP	_	0	root	0:root	_
+3	in	_	IN	IN	_	8	case	8:case	_
+4	a	_	DT	DT	_	8	det	8:det	_
+5	Miami	_	NNP	NNP	_	7	nmod:npmod	7:compound|7:nmod@compound(HYPHEN)	_
+6	-	_	HYPH	HYPH	_	7	punct	7:punct	_
+7	based	_	VBN	VBN	_	8	amod	8:amod	_
+8	company	_	NN	NN	_	2	nmod	2:nmod:in|7:nsubj@compound(HYPHEN)	_
+
+# test:extra_reported_evidentiality-blackbox1
+1	The	_	DT	DT	_	2	det	2:det	_
+2	media	_	NNS	NNS	_	3	nsubj	3:nsubj	_
+3	reported	report	VBD	VBD	_	0	root	0:root|8:ev@ccomp(REPORTED)	_
+4	that	_	IN	IN	_	8	mark	8:mark	_
+5	the	_	DT	DT	_	6	det	6:det	_
+6	virus	_	NN	NN	_	8	nsubj	8:nsubj|9:nsubj@xcomp(GERUND)	_
+7	has	_	VBZ	VBZ	_	8	aux	8:aux	_
+8	stopped	_	VBN	VBN	_	3	ccomp	3:ccomp	_
+9	spreading	_	VBG	VBG	_	8	xcomp	8:xcomp	_
+
+# test:extra_copula_reconstruction-blackbox1
+1	She	_	PRP	PRP	_	3	nsubj	2.1:nsubj|3:nsubj@amod()+cop()	_
+2	is	_	VBZ	VBZ	_	3	cop	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	smart	_	JJ	JJ	_	0	root	1:amod@cop()|2.1:xcomp	_
+
+# test:extra_copula_reconstruction-blackbox2
+1	She	_	PRP	PRP	_	4	nsubj	2.1:nsubj	_
+2	is	_	VBZ	VBZ	_	4	cop	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	the	_	DT	DT	_	4	det	4:det	_
+4	queen	_	NN	NN	_	0	root	2.1:xcomp	_
+
+# test:extra_copula_reconstruction-blackbox3
+1	She	_	PRP	PRP	_	4	nsubj	2.1:nsubj	_
+2	is	_	VBZ	VBZ	_	4	cop	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	from	_	IN	IN	_	4	case	4:case	_
+4	Europe	_	NNP	NNP	_	0	root	2.1:nmod:from	_
+
+# test:extra_copula_reconstruction-blackbox4
+1	She	_	PRP	PRP	_	2	nsubj	4.1:nsubj	_
+2	is	be	VBZ	VBZ	_	0	root	4:ev@xcomp(EVIDENTIAL)	_
+3	to	_	TO	TO	_	5	mark	4:mark	_
+4	be	_	VB	VB	_	5	cop	4.1:ev	_
+4.1	STATE	_	_	_	_	_	_	0:root	_
+5	smart	_	JJ	JJ	_	2	xcomp	4.1:xcomp	_
+
+# test:extra_copula_reconstruction-blackbox5
+1	She	_	PRP	PRP	_	2	nsubj	4.1:nsubj	_
+2	is	be	VBZ	VBZ	_	0	root	4:ev@xcomp(EVIDENTIAL)	_
+3	to	_	TO	TO	_	5	mark	4:mark	_
+4	be	_	VB	VB	_	5	cop	4.1:ev	_
+4.1	STATE	_	_	_	_	_	_	0:root	_
+5	queen	_	NN	NN	_	2	xcomp	4.1:xcomp	_
+
+# test:extra_copula_reconstruction-blackbox6
+1	She	_	PRP	PRP	_	2	nsubj	4.1:nsubj	_
+2	is	be	VBZ	VBZ	_	0	root	4:ev@xcomp(EVIDENTIAL)	_
+3	to	_	TO	TO	_	6	mark	4:mark	_
+4	be	_	VB	VB	_	6	cop	4.1:ev	_
+4.1	STATE	_	_	_	_	_	_	0:root	_
+5	from	_	IN	IN	_	6	case	6:case	_
+6	Europe	_	NNP	NNP	_	2	xcomp	4.1:nmod:from	_
+
+# test:extra_copula_reconstruction-blackbox7
+1	She	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	wants	_	VBZ	VBZ	_	0	root	0:root	_
+3	to	_	TO	TO	_	5	mark	4:mark	_
+4	be	_	VB	VB	_	5	cop	4.1:ev	_
+4.1	STATE	_	_	_	_	_	_	2:xcomp	_
+5	queen	_	NN	NN	_	2	xcomp	4.1:xcomp	_
+
+# test:extra_evidential_reconstruction-blackbox1
+1	He	_	PRP	PRP	_	2	nsubj	2.1:nsubj|3:nsubj@amod()+cop()	_
+2	seems	seem	VBZ	VBZ	_	0	root	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	smart	_	JJ	JJ	_	2	xcomp	1:amod@cop()|2.1:xcomp	_
+
+# test:extra_evidential_reconstruction-blackbox2
+1	He	_	PRP	PRP	_	2	nsubj	2.1:nsubj	_
+2	seems	seem	VBZ	VBZ	_	0	root	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	the	_	DT	DT	_	4	det	4:det	_
+4	king	_	NN	NN	_	2	xcomp	2.1:xcomp	_
+
+# test:extra_evidential_reconstruction-blackbox3
+1	He	_	PRP	PRP	_	2	nsubj	2.1:nsubj	_
+2	seems	seem	VBZ	VBZ	_	0	root	2.1:ev	_
+2.1	STATE	_	_	_	_	_	_	0:root	_
+3	from	_	IN	IN	_	4	case	4:case	_
+4	Europe	_	NNP	NNP	_	2	nmod	2.1:nmod:from	_
+
+# test:extra_evidential_reconstruction-blackbox4
+1	He	_	PRP	PRP	_	2	nsubj	4.1:nsubj	_
+2	seems	seem	VBZ	VBZ	_	0	root	4:ev@xcomp(EVIDENTIAL)	_
+3	to	_	TO	TO	_	5	mark	4:mark	_
+4	be	_	VB	VB	_	5	cop	4.1:ev	_
+4.1	STATE	_	_	_	_	_	_	0:root	_
+5	smart	_	JJ	JJ	_	2	xcomp	4.1:xcomp	_
+
+# test:extra_evidential_reconstruction-blackbox5
+1	He	_	PRP	PRP	_	2	nsubj	4:nsubj	_
+2	seems	seem	VBZ	VBZ	_	0	root	4:ev@xcomp(EVIDENTIAL)	_
+3	to	_	TO	TO	_	4	mark	4:mark	_
+4	appear	appear	VB	VB	_	2	xcomp	0:root	_
+5	early	_	RB	RB	_	4	advmod	4:advmod	_
+
+# test:extra_evidential_reconstruction-blackbox6
+1	He	_	PRP	PRP	_	2	nsubj	4.1:nsubj	_
+2	seems	seem	VBZ	VBZ	_	0	root	4:ev@xcomp(EVIDENTIAL)	_
+3	to	_	TO	TO	_	4	mark	4:mark	_
+4	appear	appear	VB	VB	_	2	xcomp	4.1:ev	_
+4.1	STATE	_	_	_	_	_	_	0:root	_
+5	funny	_	JJ	JJ	_	4	xcomp	4.1:xcomp	_
