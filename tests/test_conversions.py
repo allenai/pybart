@@ -1,8 +1,9 @@
+import pathlib
+#from pytest import fail
+
 from ud2ude.conllu_wrapper import parse_conllu, serialize_conllu
 from ud2ude import converter
 from ud2ude import api
-import pathlib
-from pytest import fail
 
 
 class TestConversions:
@@ -35,22 +36,23 @@ class TestConversions:
         
         test_name = ""
         specification = ""
-        for gold_line in open(dir_ + "/expected_handcrafted_tests_output.conllu", 'r').readlines():
-            if gold_line.startswith('#'):
-                if gold_line.split(":")[0] == "# test":
-                    test_name = gold_line.split(":")[1].split("-")[0]
-                    specification = gold_line.split(":")[1].split("-")[1].strip()
-                continue
-            elif gold_line.startswith('\n'):
-                continue
-            else:
-                if test_name in cls.gold:
-                    if specification in cls.gold[test_name]:
-                        cls.gold[test_name][specification].append(gold_line.split())
-                    else:
-                        cls.gold[test_name][specification] = [gold_line.split()]
+        for output, cur_gold in zip(["/expected_handcrafted_tests_output.conllu"], [cls.gold]):
+            for gold_line in open(dir_ + output, 'r').readlines():
+                if gold_line.startswith('#'):
+                    if gold_line.split(":")[0] == "# test":
+                        test_name = gold_line.split(":")[1].split("-")[0]
+                        specification = gold_line.split(":")[1].split("-")[1].strip()
+                    continue
+                elif gold_line.startswith('\n'):
+                    continue
                 else:
-                    cls.gold[test_name] = {specification: [gold_line.split()]}
+                    if test_name in cur_gold:
+                        if specification in cur_gold[test_name]:
+                            cur_gold[test_name][specification].append(gold_line.split())
+                        else:
+                            cur_gold[test_name][specification] = [gold_line.split()]
+                    else:
+                        cur_gold[test_name] = {specification: [gold_line.split()]}
     
     # @classmethod
     # def teardown_class(cls):
@@ -73,17 +75,8 @@ class TestConversions:
                 assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
 
 
-for cur_func_name in ['test_eud_correct_subj_pass', 'test_eudpp_process_simple_2wp', 'test_eudpp_process_complex_2wp',
-                      'test_eudpp_process_3wp', 'test_eudpp_demote_quantificational_modifiers', 'test_eudpp_expand_pp_or_prep_conjunctions',
-                      'test_eud_prep_patterns', 'test_eud_conj_info', 'test_eud_passive_agent', 'test_eudpp_add_ref_and_collapse',
-                      'test_eud_subj_of_conjoined_verbs', 'test_eud_heads_of_conjuncts', 'test_eud_xcomp_propagation',
-                      'test_extra_aspectual_reconstruction', 'test_extra_xcomp_propagation_no_to', 'test_extra_advcl_propagation',
-                      'test_extra_advcl_ambiguous_propagation', 'test_extra_dep_propagation', 'test_extra_acl_propagation',
-                      'test_extra_conj_propagation_of_nmods', 'test_extra_of_prep_alteration', 'test_extra_compound_propagation',
-                      'test_extra_amod_propagation', 'test_extra_conj_propagation_of_poss', 'test_extra_advmod_propagation',
-                      'test_extra_appos_propagation', 'test_extra_subj_obj_nmod_propagation_of_nmods', 'test_extra_passive_alteration']:
-# for cur_func_name in api.get_conversion_names():
-#     if cur_func_name in ['extra_inner_weak_modifier_verb_reconstruction']:
-#         continue
-#     cur_func_name = "test_" + cur_func_name
-    setattr(TestConversions, cur_func_name, staticmethod(lambda func_name=cur_func_name: TestConversions.common_logic(func_name)))
+for cur_func_name in api.get_conversion_names():
+    if cur_func_name in ['extra_inner_weak_modifier_verb_reconstruction']:
+        continue
+    test_func_name = "test_" + cur_func_name
+    setattr(TestConversions, test_func_name, staticmethod(lambda func_name=test_func_name: TestConversions.common_logic(func_name)))

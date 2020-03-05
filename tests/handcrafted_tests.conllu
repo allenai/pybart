@@ -732,6 +732,179 @@
 5       the     _       DT      DT      _       6       det     _       _
 6       people  _       NNS     NNS     _       3       nmod:agent    _       _
 
+# test:extra_nmod_advmod_reconstruction-blackbox1
+# purpose: test basic case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       ran     _       VBD     VBD     _       0       root    _       _
+3       ahead   _       RB      RB      _       2       advmod  _       _
+4       of      _       IN      IN      _       5       case    _       _
+5       you     _       PRP     PRP     _       3       nmod    _       _
+
+# test:extra_nmod_advmod_reconstruction-blackbox2
+# purpose: test complex case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       went    _       VBD     VBD     _       0       root    _       _
+3       back    _       RB      RB      _       2       advmod  _       _
+4       to      _       TO      TO      _       5       case    _       _
+5       prison  _       NN      NN      _       3       nmod    _       _
+
+# test:extra_nmod_advmod_reconstruction-blackbox3
+# purpose: test 'as-much-as' case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       ate     _       VBD     VBD     _       0       root    _       _
+3       as      _       RB      RB      _       4       advmod  _       _
+4       much    _       RB      RB      _       2       advmod  _       _
+5       as      _       IN      IN      _       6       case    _       _
+6       you     _       PRP     PRP     _       4       nmod    _       _
+
+# test:extra_add_ref_and_collapse-blackbox1
+# purpose: test obj case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       liked   _       VBD     VBD     _       0       root    _       _
+3       the     _       DT      DT      _       4       det     _       _
+4       house   _       NN      NN      _       2       dobj    _       _
+5       they    _       PRP     PRP     _       6       nsubj   _       _
+6       made    _       VBD     VBD     _       4       acl:relcl       _       _
+
+# test:extra_add_ref_and_collapse-blackbox2
+# purpose: test nmod case
+1       We      _       PRP     PRP     _       2       nsubj   _       _
+2       enjoyed _       VBD     VBD     _       0       root    _       _
+3       the     _       DT      DT      _       4       det     _       _
+4       place   _       NN      NN      _       2       dobj    _       _
+5       we      _       PRP     PRP     _       6       nsubj   _       _
+6       visited _       VBD     VBD     _       4       acl:relcl       _       _
+7       in      _       RB      RB      _       6       advmod    _     _
+
+# test:extra_add_ref_and_collapse-blackbox3
+# purpose: test non-reduced case that eud missed
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       understand      _       VBP     VBP     _       0       root    _       _
+3       the     _       DT      DT      _       4       det     _       _
+4       reason  _       NN      NN      _       2       dobj    _       _
+5       why     _       WRB     WRB     _       7       advmod  _       _
+6       they    _       PRP     PRP     _       7       nsubj   _       _
+7       did     _       VBD     VBD     _       4       acl:relcl       _       _
+8       it      _       PRP     PRP     _       7       dobj    _       _
+
+# test:extra_hyphen_reconstruction-blackbox1
+# purpose: test basic case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       work    _       VBP     VBP     _       0       root    _       _
+3       in      _       IN      IN      _       8       case    _       _
+4       a       _       DT      DT      _       8       det     _       _
+5       Miami   _       NNP     NNP     _       7       compound    _       _
+6       -       _       HYPH     HYPH   _       7       punct   _       _
+7       based   _       VBN     VBN     _       8       amod    _       _
+8       company _       NN      NN      _       2       nmod    _       _
+
+# test:extra_fix_nmod_npmod-blackbox1
+# purpose: test basic case
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       work    _       VBP     VBP     _       0       root    _       _
+3       in      _       IN      IN      _       8       case    _       _
+4       a       _       DT      DT      _       8       det     _       _
+5       Miami   _       NNP     NNP     _       7       nmod:npmod    _       _
+6       -       _       HYPH     HYPH   _       7       punct   _       _
+7       based   _       VBN     VBN     _       8       amod    _       _
+8       company _       NN      NN      _       2       nmod    _       _
+
+# test:extra_reported_evidentiality-blackbox1
+# purpose: test basic case
+1       The     _       DT      DT      _       2       det     _       _
+2       media   _       NNS     NNS     _       3       nsubj   _       _
+3       reported        report       VBD     VBD     _       0       root    _       _
+4       that    _       IN      IN      _       8       mark    _       _
+5       the     _       DT      DT      _       6       det     _       _
+6       virus   _       NN      NN      _       8       nsubj   _       _
+7       has     _       VBZ     VBZ     _       8       aux     _       _
+8       stopped _       VBN     VBN     _       3       ccomp   _       _
+9       spreading       _       VBG     VBG     _       8       xcomp   _       _
+
+# test:extra_copula_reconstruction-blackbox1
+1       She     _       PRP     PRP     _       3       nsubj   _       _
+2       is      _       VBZ     VBZ     _       3       cop     _       _
+3       smart   _       JJ      JJ      _       0       root    _       _
+
+# test:extra_copula_reconstruction-blackbox2
+1       She     _       PRP     PRP     _       4       nsubj   _       _
+2       is      _       VBZ     VBZ     _       4       cop     _       _
+3       the     _       DT      DT      _       4       det     _       _
+4       queen   _       NN      NN      _       0       root    _       _
+
+# test:extra_copula_reconstruction-blackbox3
+1       She     _       PRP     PRP     _       4       nsubj   _       _
+2       is      _       VBZ     VBZ     _       4       cop     _       _
+3       from    _       IN      IN      _       4       case    _       _
+4       Europe  _       NNP     NNP     _       0       root    _       _
+
+# test:extra_copula_reconstruction-blackbox4
+1       She     _       PRP     PRP     _       2       nsubj   _       _
+2       is      _       VBZ     VBZ     _       0       root    _       _
+3       to      _       TO      TO      _       5       mark    _       _
+4       be      _       VB      VB      _       5       cop     _       _
+5       smart   _       JJ      JJ      _       2       xcomp   _       _
+
+# test:extra_copula_reconstruction-blackbox5
+1       She     _       PRP     PRP     _       2       nsubj   _       _
+2       is      _       VBZ     VBZ     _       0       root    _       _
+3       to      _       TO      TO      _       5       mark    _       _
+4       be      _       VB      VB      _       5       cop     _       _
+5       queen   _       NN      NN      _       2       xcomp   _       _
+
+# test:extra_copula_reconstruction-blackbox6
+1       She     _       PRP     PRP     _       2       nsubj   _       _
+2       is      _       VBZ     VBZ     _       0       root    _       _
+3       to      _       TO      TO      _       6       mark    _       _
+4       be      _       VB      VB      _       6       cop     _       _
+5       from    _       IN      IN      _       6       case    _       _
+6       Europe  _       NNP     NNP     _       2       xcomp   _       _
+
+# test:extra_copula_reconstruction-blackbox7
+1       She     _       PRP     PRP     _       2       nsubj   _       _
+2       wants   _       VBZ     VBZ     _       0       root    _       _
+3       to      _       TO      TO      _       5       mark    _       _
+4       be      _       VB      VB      _       5       cop     _       _
+5       queen   _       NN      NN      _       2       xcomp   _       _
+
+# test:extra_evidential_reconstruction-blackbox1
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       seems   seem       VBZ     VBZ     _       0       root    _       _
+3       smart   _       JJ      JJ      _       2       xcomp   _       _
+
+# test:extra_evidential_reconstruction-blackbox2
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       seems   seem       VBZ     VBZ     _       0       root    _       _
+3       the     _       DT      DT      _       4       det     _       _
+4       king    _       NN      NN      _       2       xcomp   _       _
+
+# test:extra_evidential_reconstruction-blackbox3
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       seems   seem       VBZ     VBZ     _       0       root    _       _
+3       from    _       IN      IN      _       4       case    _       _
+4       Europe  _       NNP     NNP     _       2       nmod    _       _
+
+# test:extra_evidential_reconstruction-blackbox4
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       seems   seem       VBZ     VBZ     _       0       root    _       _
+3       to      _       TO      TO      _       5       mark    _       _
+4       be      _       VB      VB      _       5       cop     _       _
+5       smart   _       JJ      JJ      _       2       xcomp   _       _
+
+# test:extra_evidential_reconstruction-blackbox5
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       seems   seem    VBZ     VBZ     _       0       root    _       _
+3       to      _       TO      TO      _       4       mark    _       _
+4       appear  appear  VB      VB      _       2       xcomp   _       _
+5       early   _       RB      RB      _       4       advmod  _       _
+
+# test:extra_evidential_reconstruction-blackbox6
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       seems   seem    VBZ     VBZ     _       0       root    _       _
+3       to      _       TO      TO      _       4       mark    _       _
+4       appear  appear  VB      VB      _       2       xcomp   _       _
+5       funny   _       JJ      JJ      _       4       xcomp   _       _
+
 # ------------------------------------------------ combined ---------------------------------------------
 #
 # # test:eud_heads_of_conjuncts-combined1
