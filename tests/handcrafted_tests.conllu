@@ -483,9 +483,9 @@
 4       but     _       CC      CC      _       3       cc      _       _
 5       also    _       RB      RB      _       6       advmod  _       _
 6       her     _       PRP     PRP     _       3       conj    _       _
-8       but     _       CC      CC      _       2       cc      _       _
+8       but     _       CC      CC      _       3       cc      _       _
 9       not     _       RB      RB      _       10      neg     _       _
-10      myself  _       VBZ     VBZ     _       2       conj    _       _
+10      myself  _       PRP     PRP     _       3       conj    _       _
 
 # test:extra_aspectual_reconstruction-blackbox1
 # purpose: test basic case of aspectual verb followed by an clausal complement verb
@@ -840,21 +840,21 @@
 
 # test:extra_copula_reconstruction-blackbox4
 1       She     _       PRP     PRP     _       2       nsubj   _       _
-2       is      _       VBZ     VBZ     _       0       root    _       _
+2       is      be      VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       5       mark    _       _
 4       be      _       VB      VB      _       5       cop     _       _
 5       smart   _       JJ      JJ      _       2       xcomp   _       _
 
 # test:extra_copula_reconstruction-blackbox5
 1       She     _       PRP     PRP     _       2       nsubj   _       _
-2       is      _       VBZ     VBZ     _       0       root    _       _
+2       is      be      VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       5       mark    _       _
 4       be      _       VB      VB      _       5       cop     _       _
 5       queen   _       NN      NN      _       2       xcomp   _       _
 
 # test:extra_copula_reconstruction-blackbox6
 1       She     _       PRP     PRP     _       2       nsubj   _       _
-2       is      _       VBZ     VBZ     _       0       root    _       _
+2       is      be      VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       6       mark    _       _
 4       be      _       VB      VB      _       6       cop     _       _
 5       from    _       IN      IN      _       6       case    _       _
@@ -904,44 +904,3 @@
 3       to      _       TO      TO      _       4       mark    _       _
 4       appear  appear  VB      VB      _       2       xcomp   _       _
 5       funny   _       JJ      JJ      _       4       xcomp   _       _
-
-# ------------------------------------------------ combined ---------------------------------------------
-#
-# # test:eud_heads_of_conjuncts-combined1
-# # purpose: test relcl issue
-# 1       The     _       DT      DT      _       2       det     	_   _
-# 2       boy     _       NN      NN      _       8       nsubj   	_	_
-# 3       who     _       WP      WP      _       4       nsubj   	_ 	_
-# 4       lived   _       VBD     VBD     _       2       acl:relcl	_   _
-# 5       and     _       CC      CC      _       2       cc      	_   _
-# 6       the     _       DT      DT      _       7       det     	_   _
-# 7       girl    _       NN      NN      _       2       conj    	_	_
-# 8       told    _       VBD     VBD     _       0       root    	_   _
-# 9       the     _       DT      DT      _       10      det     	_	_
-# 10      tale    _       NN      NN      _       8       dobj    	_	_
-#
-# # test:eud_heads_of_conjuncts-combined2
-# # purpose: test relcl issue2
-# 1       The     _       DT      DT      _       2       det     	_       _
-# 2       boy     _       NN      NN      _       8       nsubj   	_       _
-# 3       and     _       CC      CC      _       2       cc      	_       _
-# 4       the     _       DT      DT      _       5       det     	_       _
-# 5       girl    _       NN      NN      _       2       conj    	_       _
-# 6       who     _       WP      WP      _       7       nsubj   	_       _
-# 7       lived   _       VBD     VBD     _       5       acl:relcl	_       _
-# 8       told    _       VBD     VBD     _       0       root    	_       _
-# 9       the     _       DT      DT      _       10      det     	_       _
-# 10      tale    _       NN      NN      _       8       dobj    	_       _
-#
-# # test:eud_heads_of_conjuncts-combined3
-# # purpose: test relcl issue3
-# 1       The     _       DT      DT      _       2       det     	_       _
-# 2       boy     _       NN      NN      _       8       nsubj   	_       _
-# 3       and     _       CC      CC      _       2       cc      	_       _
-# 4       the     _       DT      DT      _       5       det     	_       _
-# 5       girl    _       NN      NN      _       2       conj    	_       _
-# 6       who     _       WP      WP      _       7       nsubj   	_       _
-# 7       lived   _       VBD     VBD     _       2       acl:relcl   _       _
-# 8       told    _       VBD     VBD     _       0       root    	_       _
-# 9       the     _       DT      DT      _       10      det     	_       _
-# 10      tale    _       NN      NN      _       8       dobj    	_       _

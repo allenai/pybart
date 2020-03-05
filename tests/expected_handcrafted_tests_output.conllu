@@ -445,9 +445,9 @@
 4       but     _       CC      CC      _       3       cc      3:cc            _
 5       also    _       RB      RB      _       6       advmod  6:advmod        _
 6       her     _       PRP     PRP     _       3       conj    3:conj:and      _
-8       but     _       CC      CC      _       2       cc      2:cc            _
+8       but     _       CC      CC      _       3       cc      3:cc            _
 9       not     _       RB      RB      _       10      neg     10:neg          _
-10      myself  _       VBZ     VBZ     _       2       conj    2:conj:negcc    _
+10      myself  _       PRP     PRP     _       3       conj    3:conj:negcc    _
 
 # test:extra_aspectual_reconstruction-blackbox1
 1       FOX     	_           NN      NN      _       2       nsubj   3:nsubj                 _
@@ -771,7 +771,7 @@
 
 # test:extra_copula_reconstruction-blackbox4
 1       She     _       PRP     PRP     _       2       nsubj   2:nsubj _
-2       is      _       VBZ     VBZ     _       0       root    0:root  _
+2       is      be      VBZ     VBZ     _       0       root    0:root  _
 3       to      _       TO      TO      _       5       mark    4:mark  _
 4       be      _       VB      VB      _       5       cop     4.1:ev  _
 4.1     STATE   _       _       _       _       _       _       2:xcomp _
@@ -779,7 +779,7 @@
 
 # test:extra_copula_reconstruction-blackbox5
 1       She     _       PRP     PRP     _       2       nsubj   2:nsubj _
-2       is      _       VBZ     VBZ     _       0       root    0:root  _
+2       is      be      VBZ     VBZ     _       0       root    0:root  _
 3       to      _       TO      TO      _       5       mark    4:mark  _
 4       be      _       VB      VB      _       5       cop     4.1:ev  _
 4.1     STATE   _       _       _       _       _       _       2:xcomp _
@@ -787,7 +787,7 @@
 
 # test:extra_copula_reconstruction-blackbox6
 1       She     _       PRP     PRP     _       2       nsubj   2:nsubj _
-2       is      _       VBZ     VBZ     _       0       root    0:root  _
+2       is      be      VBZ     VBZ     _       0       root    0:root  _
 3       to      _       TO      TO      _       6       mark    4:mark  _
 4       be      _       VB      VB      _       6       cop     4.1:ev  _
 4.1     STATE   _       _       _       _       _       _       2:xcomp _
@@ -845,41 +845,3 @@
 4       appear  appear  VB      VB      _       2       xcomp   4.1:ev  _
 4.1     STATE   _       _       _       _       _       _       0:root  _
 5       funny   _       JJ      JJ      _       4       xcomp   4.1:xcomp       _
-
-# ------------------------------------------------ combined ---------------------------------------------
-#
-# # test:eud_heads_of_conjuncts-combined1
-# 1       The     _       DT      DT      _       2       det     	2:det       		_
-# 2       boy     _       NN      NN      _       8       nsubj   	4:nsubj|8:nsubj		_
-# 3       who     _       WP      WP      _       4       nsubj   	2:ref 			    _
-# 4       lived   _       VBD     VBD     _       2       acl:relcl	2:acl:relcl     	_
-# 5       and     _       CC      CC      _       2       cc      	2:cc       			_
-# 6       the     _       DT      DT      _       7       det     	7:det       		_
-# 7       girl    _       NN      NN      _       2       conj    	2:conj:and|8:nsubj	_
-# 8       told    _       VBD     VBD     _       0       root    	0:root       		_
-# 9       the     _       DT      DT      _       10      det     	10:det				_
-# 10      tale    _       NN      NN      _       8       dobj    	8:dobj       		_
-#
-# # test:eud_heads_of_conjuncts-combined2
-# 1       The     _       DT      DT      _       2       det     	2:det   					_
-# 2       boy     _       NN      NN      _       8       nsubj   	8:nsubj 					_
-# 3       and     _       CC      CC      _       2       cc      	2:cc    					_
-# 4       the     _       DT      DT      _       5       det     	5:det   					_
-# 5       girl    _       NN      NN      _       2       conj    	2:conj:and|7:nsubj          _
-# 6       who     _       WP      WP      _       7       nsubj     	5:ref   					_
-# 7       lived   _       VBD     VBD     _       5       acl:relcl   5:acl:relcl     			_
-# 8       told    _       VBD     VBD     _       0       root    	0:root  					_
-# 9       the     _       DT      DT      _       10      det     	10:det  					_
-# 10      tale    _       NN      NN      _       8       dobj    	8:dobj  					_
-#
-# # test:eud_heads_of_conjuncts-combined3
-# 1       The     _       DT      DT      _       2       det     	2:det   			_
-# 2       boy     _       NN      NN      _       8       nsubj   	7:nsubj|8:nsubj 	_
-# 3       and     _       CC      CC      _       2       cc      	2:cc   				_
-# 4       the     _       DT      DT      _       5       det     	5:det   			_
-# 5       girl    _       NN      NN      _       2       conj		2:conj:and|8:nsubj  _
-# 6       who     _       WP      WP      _       7       nsubj     	2:ref   			_
-# 7       lived   _       VBD     VBD     _       2       acl:relcl	2:acl:relcl     	_
-# 8       told    _       VBD     VBD     _       0       root    	0:root  			_
-# 9       the     _       DT      DT      _       10      det     	10:det 				_
-# 10      tale    _       NN      NN      _       8       dobj    	8:dobj  			_
