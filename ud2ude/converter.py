@@ -678,31 +678,35 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
     # NOTE: we do this as long as we find what to change, and each time change only one match, instead of fixing all matches found each time.
     #   As every change we do might change what can be found next, and old relations that are matched might be out dated.
     #   But this is bad practice. we dont use the matching properly, and we use while true which might run forever!
+    found = set()
     while True:
         i = 0
         ret = match(sentence.values(), [[cop_rest]])
         if not ret:
             return
+        cur_found = [
+            "".join([k + str(v[0].get_conllu_field("id")) + str(v[1].get_conllu_field("id") if v[1] else v[1]) + str(v[2]) for k, v in ns.items()])
+            for ns in ret]
+        if not any([ns in found for ns in cur_found]):
+            return
         
         # As we might catch unwanted constructions (which the matcher couldnt handle), we added this while to find the first true match.
-        while True:
-            name_space = ret[i]
+        for i, name_space in enumerate(ret):
+            found.add(cur_found[i])
             old_root, _, _ = name_space['old_root']
-            # the evidential should be the predecessor of the STATE as the cop is (event though he is also the old root of the construct).
+            # the evidential should be the predecessor of the STATE as the cop is (even though he is also the old root of the construct).
             predecessor, _, _ = name_space['cop'] if 'cop' in name_space else name_space['old_root']
             
             # The old_root's father cant be 'STATE' or connect via ev. as it means we were already handled.
             #   The old_root's children cant be 'xcomp'(+'JJ') or 'ccomp' as they are handled separately.
-            if not ("STATE" in [head.get_conllu_field("form") for head, rel in old_root.get_new_relations()] or
-                    'ev' in [rel.split("@")[0] for head, rel in old_root.get_new_relations()] or
-                    'xcomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels() if child.get_conllu_field('xpos').startswith('VB')
-                                or child.get_conllu_field('form') == 'STATE'] or
-                    'ccomp' in [rel.split(":")[0] for child, rel in old_root.get_children_with_rels()]):
-                break
-            i += 1
-            if i == len(ret):
-                return
-        
+            if any((head.get_conllu_field("form") == "STATE") or (rel.split("@")[0] == 'ev') for head, rel in old_root.get_new_relations()):
+                old_root = None
+                predecessor = None
+                continue
+        # this means we didnt find any good old_root
+        if not old_root:
+            return
+            
         new_id = predecessor.get_conllu_field('id') + 0.1
         new_root = predecessor.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
         
@@ -764,17 +768,22 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
         sentence[new_id] = new_root
 
 
-def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
+def per_type_weak_modified_verb_reconstruction(sentence, rest, type_, ccomp_case):
     # Copied NOTE from extra_inner_weak_modifier_verb_reconstruction: we do this as long as we find what to change,
     #   and each time change only one match,instead of fixing all matches found each time.
     #   As every change we do might change what can be found next, and old relations that are matched might be out dated.
     #   But this is bad practice. we dont use the matching properly, and we use while true which might run forever!
+    found = set()
     while True:
         ret = match(sentence.values(), [[rest]])
         if not ret:
             return
+        cur_found = ["".join([k + str(v[0].get_conllu_field("id")) + str(v[1].get_conllu_field("id") if v[1] else v[1]) + str(v[2]) for k, v in ns.items()]) for ns in ret]
+        if not any([ns in found for ns in cur_found]):
+            return
         
         name_space = ret[0]
+        found.add(cur_found[0])
         old_root, _, _ = name_space['old_root']
         new_root, _, _ = name_space['new_root']
         
@@ -784,18 +793,16 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
             new_root.add_edge(rel, head)
         
         # transfer
-        removed_ccomp = False
         for child, rel in old_root.get_children_with_rels():
             if child == new_root:
                 new_root.remove_edge(rel, old_root)
-                if rel == 'ccomp':  # TODO1: validate ccomp should have a different behavior
-                    # remember we removed ccomp
-                    removed_ccomp = True
                 # find lowest 'ev' of the new root, and make us his 'ev' son
                 inter_root = new_root
                 ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 while ev_sons:
                     inter_root = ev_sons[0]  # TODO2: change to 'ev' son with lowest index?
+                    if inter_root == new_root:
+                        break
                     ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 old_root.add_edge(add_extra_info('ev', rel, dep_type=type_), inter_root)
             elif rel == "mark":
@@ -804,7 +811,7 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_):
                     child.replace_edge(rel, rel, old_root, new_root) # TODO3: is this needed maybe all markers shouldnt be moved?
             elif re.match("(.subj.*)", rel):
                 # transfer the subj only if it is not the special case of ccomp
-                if ('ccomp' not in [rel for child, rel in old_root.get_children_with_rels()]) and not removed_ccomp:
+                if not ccomp_case:
                     child.replace_edge(rel, rel, old_root, new_root)
             elif re.match("(?!advmod|aux.*|cc|conj).*", rel):
                 child.replace_edge(rel, rel, old_root, new_root)  # TODO4: consult regarding all cases in the world.
@@ -838,14 +845,21 @@ def extra_evidential_reconstruction(sentence):
     #   and transfer to the main verb rootness
     # NOTE:
     #   1. xpos rest. avoids adjectives as we already treated them.
-    #   2. The gov rest. includes 'ccomp' cause we treat evidential+'ccomp' differently see per_type_weak_modified_verb_reconstruction.
     ev_xcomp_rest = Restriction(name="father", nested=[[
         Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
-            Restriction(name="new_root", gov="(xcomp|ccomp)", xpos="(?!(JJ.*|NN.*))"),
+            Restriction(name="new_root", gov="xcomp", xpos="(?!(JJ.*|NN.*))"),
         ]])
     ]])
 
-    per_type_weak_modified_verb_reconstruction(sentence, ev_xcomp_rest, "EVIDENTIAL")
+    per_type_weak_modified_verb_reconstruction(sentence, ev_xcomp_rest, "EVIDENTIAL", False)
+    
+    ev_ccomp_rest = Restriction(name="father", nested=[[
+        Restriction(name="old_root", xpos="(VB.?)", lemma=evidential_list, nested=[[
+            Restriction(name="new_root", gov="(ccomp)"),
+        ]])
+    ]])
+    
+    per_type_weak_modified_verb_reconstruction(sentence, ev_ccomp_rest, "EVIDENTIAL", True)
 
 
 def extra_aspectual_reconstruction(sentence):
@@ -855,15 +869,13 @@ def extra_aspectual_reconstruction(sentence):
         ]])
     ]])
     
-    per_type_weak_modified_verb_reconstruction(sentence, aspect_xcomp_rest, "ASPECTUAL")
+    per_type_weak_modified_verb_reconstruction(sentence, aspect_xcomp_rest, "ASPECTUAL", False)
 
 
 def extra_reported_evidentiality(sentence):
     reported_rest = Restriction(name="father", nested=[[
-        Restriction(name="ev", lemma=reported_list, nested=[[  # TODO: is -followed_by="that"- needed?
-            Restriction(name="new_root", gov="ccomp")  #, nested=[[
-            #     Restriction(name="that", gov="mark")
-            # ]]),
+        Restriction(name="ev", lemma=reported_list, nested=[[
+            Restriction(name="new_root", gov="ccomp")
         ]])
     ]])
     
