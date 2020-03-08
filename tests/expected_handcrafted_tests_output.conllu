@@ -362,6 +362,17 @@
 4       wide    _       JJ      JJ      _       2       conj    2:conj|5:amod   	_
 5       river   _       NN      NN      _       0       root    0:root       		_
 
+# test:eud_heads_of_conjuncts-blackbox3
+1       He      _       PRP     PRP     _       2       nsubj   2:nsubj _
+2       saw     _       VBD     VBD     _       0       root    0:root  _
+3       them    _       PRP     PRP     _       2       dobj    2:dobj  _
+5       in      _       IN      IN      _       7       case    7:case|9:case|11:case   _
+6       the     _       DT      DT      _       7       det     7:det   _
+7       air     _       NN      NN      _       2       nmod    2:nmod  _
+9       ground  _       NN      NN      _       7       conj    2:nmod|7:conj   _
+10      and     _       CC      CC      _       7       cc      7:cc    _
+11      water   _       NN      NN      _       7       conj    2:nmod|7:conj   _
+
 # test:eud_xcomp_propagation-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   	2:nsubj|4:nsubj:xcomp(INF)	_
 2       wants   _       VBZ     VBZ     _       0       root    	0:root  				_

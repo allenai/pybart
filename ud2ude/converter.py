@@ -244,6 +244,13 @@ def eud_heads_of_conjuncts(sentence):
         if (gov_head, gov_rel) not in gov.get_extra_info_edges() and gov_head != dep:
             dep.add_edge(gov_rel, gov_head)
         
+        # NOTE: this is not part of the original SC.
+        # if the shared head is an nmod, then propagate the case also between the conjuncts.
+        if gov_rel.startswith("nmod"):
+            for c, r in gov.get_children_with_rels():
+                if r.startswith("case"):
+                    c.add_edge(r, dep)
+        
         # TODO:
         #   for the trees of ambiguous "The boy and the girl who lived told the tale."
         #   we want in the future to add an optional subj relation
