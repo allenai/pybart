@@ -680,14 +680,13 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
     #   But this is bad practice. we dont use the matching properly, and we use while true which might run forever!
     found = set()
     while True:
-        i = 0
         ret = match(sentence.values(), [[cop_rest]])
         if not ret:
             return
         cur_found = [
             "".join([k + str(v[0].get_conllu_field("id")) + str(v[1].get_conllu_field("id") if v[1] else v[1]) + str(v[2]) for k, v in ns.items()])
             for ns in ret]
-        if not any([ns in found for ns in cur_found]):
+        if not any([ns not in found for ns in cur_found]):
             return
         
         # As we might catch unwanted constructions (which the matcher couldnt handle), we added this while to find the first true match.
@@ -703,6 +702,8 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
                 old_root = None
                 predecessor = None
                 continue
+            else:
+                break
         # this means we didnt find any good old_root
         if not old_root:
             return
@@ -779,7 +780,7 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_, ccomp_case
         if not ret:
             return
         cur_found = ["".join([k + str(v[0].get_conllu_field("id")) + str(v[1].get_conllu_field("id") if v[1] else v[1]) + str(v[2]) for k, v in ns.items()]) for ns in ret]
-        if not any([ns in found for ns in cur_found]):
+        if not any([ns not in found for ns in cur_found]):
             return
         
         name_space = ret[0]
