@@ -855,3 +855,20 @@
 4	appear	appear	VB	VB	_	2	xcomp	4.1:ev	_
 4.1	STATE	_	_	_	_	_	_	0:root	_
 5	funny	_	JJ	JJ	_	4	xcomp	4.1:xcomp	_
+
+# test:no_node_adding-blackbox1
+1       He      _       PRP     PRP     _       2       nsubj   2:nsubj       _
+2       seems   _       VBZ     VBZ     _       0       root    0:root        _
+3       smart   _       JJ      JJ      _       2       xcomp   2:xcomp       _
+
+# test:no_node_adding-blackbox2
+1       He      _       PRP     PRP     _       3       nsubj   2:nsubj|3:nsubj@amod()+cop()    _
+2       is      _       VBZ     VBZ     _       3       cop     0:root                          _
+3       smart   _       JJ      JJ      _       0       root    1:amod@cop()|2:xcomp            _
+
+# test:no_node_adding-blackbox3
+1       He          _       PRP     PRP     _       2       nsubj   4:nsubj                 _
+2       is          be      VBZ     VBZ     _       0       root    4:ev@xcomp(EVIDENTIAL)  _
+3       to          _       TO      TO      _       5       mark    4:mark                  _
+4       be          _       VB      VB      _       5       cop     0:root                  _
+5       president   _       NN      NN      _       2       xcomp   4:xcomp                 _

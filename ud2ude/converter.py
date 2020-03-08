@@ -32,6 +32,7 @@ reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|repla
 EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
 g_remove_aryeh_extra_info = False
+g_remove_node_adding_conversions = False
 
 
 class ConvsCanceler:
@@ -707,10 +708,14 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
         # this means we didnt find any good old_root
         if not old_root:
             return
-            
-        new_id = predecessor.get_conllu_field('id') + 0.1
-        new_root = predecessor.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
         
+        if not g_remove_node_adding_conversions:
+            new_id = predecessor.get_conllu_field('id') + 0.1
+            new_root = predecessor.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
+            sentence[new_id] = new_root
+        else:
+            new_root = predecessor
+
         # transfer old-root's outgoing relation to new-root
         for head, rel in old_root.get_new_relations():
             old_root.remove_edge(rel, head)
@@ -745,8 +750,11 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
             elif re.match("(case)", rel):
                 new_out_rel = "nmod"
             elif "cop" == rel:
-                # 'cop' becomes 'ev' (for event/evidential) to the new root
-                child.replace_edge(rel, "ev", old_root, new_root)
+                if g_remove_node_adding_conversions:
+                    child.remove_edge(rel, old_root)
+                else:
+                    # 'cop' becomes 'ev' (for event/evidential) to the new root
+                    child.replace_edge(rel, "ev", old_root, new_root)
             elif ("conj" == rel) and re.match("(VB.?)", child.get_conllu_field("xpos")) and not evidential:
                 # transfer 'conj' only if it is a verb conjunction, as we want it to be attached to the new (verb/state) root
                 child.replace_edge(rel, rel, old_root, new_root)
@@ -765,8 +773,6 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
         # connect the old_root as son of the new_root as 'ev' if it was an evidential root,
         # or with the proper complement if it was an adjectival root under the copula construct
         old_root.add_edge('ev' if evidential else new_out_rel, new_root)
-        
-        sentence[new_id] = new_root
 
 
 def per_type_weak_modified_verb_reconstruction(sentence, rest, type_, ccomp_case):
@@ -840,7 +846,8 @@ def extra_evidential_reconstruction(sentence):
         ]])
     ]])
     
-    extra_inner_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
+    if not g_remove_node_adding_conversions:
+        extra_inner_weak_modifier_verb_reconstruction(sentence, ev_rest, True)
     
     # part2: find all evidential with following(xcomp that is) main verb,
     #   and transfer to the main verb rootness
@@ -1559,7 +1566,7 @@ def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced
     if remove_enhanced_extra_info:
         funcs_to_cancel.update_funcs(['eud_passive_agent', 'eud_conj_info'])
     if remove_node_adding_conversions:
-        funcs_to_cancel.update_funcs(['extra_inner_weak_modifier_verb_reconstruction', 'eudpp_expand_pp_or_prep_conjunctions'])
+        funcs_to_cancel.update_funcs(['eudpp_expand_pp_or_prep_conjunctions'])  # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
     if remove_unc:
         funcs_to_cancel.update_funcs(['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation'])
     if query_mode:
@@ -1575,9 +1582,10 @@ def get_rel_set(converted_sentences):
 
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
-    global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
+    global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info, g_remove_node_adding_conversions
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_aryeh_extra_info = remove_aryeh_extra_info
+    g_remove_node_adding_conversions = remove_node_adding_conversions
     iids = dict()
     
     override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)

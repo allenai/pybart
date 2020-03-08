@@ -2,6 +2,7 @@ import pathlib
 import math
 #from pytest import fail
 
+import ud2ude
 from ud2ude.conllu_wrapper import parse_conllu, serialize_conllu
 from ud2ude import converter
 from ud2ude import api
@@ -17,10 +18,6 @@ class TestConversions:
     
     @classmethod
     def setup_class(cls):
-        global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info
-        g_remove_enhanced_extra_info = False
-        g_remove_aryeh_extra_info = False
-        
         dir_ = str(pathlib.Path(__file__).parent.absolute())
         with open(dir_ + "/handcrafted_tests.conllu") as f:
             text = f.read()
@@ -58,15 +55,12 @@ class TestConversions:
                     else:
                         cur_gold[test_name] = {specification: [gold_line.split()]}
     
-    # @classmethod
-    # def teardown_class(cls):
-    #     # global blablabla
-    #     # f = open("blablabla.conllu", 'a')
-    #     # f.write("".join([blablabla[name_] for name_ in cls.test_names2]))
-    #     missing_names = api.get_conversion_names().difference(cls.test_names)
-    #     if missing_names:
-    #         fail(f"following functions are not covered: {','.join(missing_names)}")
-
+    @staticmethod
+    def setup_method():
+        ud2ude.converter.g_remove_enhanced_extra_info = False
+        ud2ude.converter.g_remove_aryeh_extra_info = False
+        ud2ude.converter.g_remove_node_adding_conversions = False
+    
     @classmethod
     def common_logic(cls, cur_name):
         name = cur_name.split("test_")[1]
@@ -84,15 +78,18 @@ class TestConversions:
                 assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
     
     @classmethod
-    def common_logic_combined(cls, cur_name):
+    def common_logic_combined(cls, cur_name, rnac=False):
         name = cur_name.split("test_combined_")[1]
         for spec, sent_ in cls.out[name].items():
             sent = {k: v.copy() for k, v in sent_.items()}
             add_basic_edges(sent)
-            converted, _ = convert([sent], True, True, True, math.inf, False, False, False, False, False, ConvsCanceler())
+            converted, _ = convert([sent], True, True, True, math.inf, False, False, rnac, False, False, ConvsCanceler())
             serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold_combined[name][spec], serialized_conllu.split("\n")):
                 assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
+
+    def test_no_node_adding(self):
+        self.common_logic_combined("test_combined_no_node_adding", rnac=True)
 
 
 for cur_func_name in api.get_conversion_names():
