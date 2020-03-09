@@ -107,11 +107,11 @@ def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=Fa
 # correctDependencies - processNames and removeExactDuplicates: have been skipped.
 # processNames for future treatment, removeExactDuplicates for redundancy.
 def eud_correct_subj_pass(sentence):
-    restriction = Restriction(nested=[[
-        Restriction(gov='auxpass'),
+    restriction = Restriction(name="root", nested=[[
+        Restriction(gov='auxpass', name="aux"),
         # the SC regex (which was "^(nsubj|csubj).*$") was changed here
         # to avoid the need to filter .subjpass relations in the graph-rewriting part
-        Restriction(gov="^(.subj|.subj:(?!passive).*)$", name="subj")
+        Restriction(gov="^(.subj|.subj(?!pass).*)$", name="subj")
     ]])
     
     ret = match(sentence.values(), [[restriction]])
@@ -121,6 +121,10 @@ def eud_correct_subj_pass(sentence):
     # rewrite graph: for every subject add a 'pass' and replace in graph node
     for name_space in ret:
         subj, subj_head, subj_rel = name_space['subj']
+        aux, _, _ = name_space['aux']
+        root, _, _ = name_space['root']
+        if aux.get_conllu_field("id") < root.get_conllu_field("id") < subj.get_conllu_field("id"):
+            continue
         substitute_rel = re.sub("(?<!x)subj", "subjpass", subj_rel)
         # in SC they add it to the 'deprel' even if the edge was found in the 'deps' :O
         subj.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
@@ -1485,7 +1489,9 @@ def extra_passive_alteration(sentence):
     restriction = Restriction(name="predicate", nested=[
         [
             Restriction(name="subjpass", gov=".subjpass"),
-            Restriction(name="agent", gov="nmod:agent")
+            Restriction(name="agent", gov="^(nmod(:agent)?)$", nested=[[
+                Restriction(form="^(?i:by)$")
+            ]])
         ],
         [Restriction(name="subjpass", gov=".subjpass")]
     ])
