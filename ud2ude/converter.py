@@ -76,7 +76,7 @@ class ConvsCanceler:
 
 
 def naked_label(label):
-    return label.split("@")[0].spilt(":")[0]
+    return label.split("@")[0].split(":")[0]
 
 
 def add_eud_info(orig, extra):
