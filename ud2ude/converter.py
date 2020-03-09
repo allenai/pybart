@@ -75,6 +75,10 @@ class ConvsCanceler:
         return set(ConvsCanceler()._func_names)
 
 
+def naked_label(label):
+    return label.split("@")[0].split(":")[0]
+
+
 def add_eud_info(orig, extra):
     return orig + ((":" + extra) if not g_remove_enhanced_extra_info else "")
 
@@ -241,14 +245,18 @@ def eud_heads_of_conjuncts(sentence):
         # only if the dependant of the conj is not the head of the head of the conj,
         # and they dont fall under the relcl problem, propagate the relation
         # NOTE: actually SC restrict this more aggressively.
-        if (gov_head, gov_rel) not in gov.get_extra_info_edges() and gov_head != dep:
+        if (gov_head, gov_rel) not in gov.get_extra_info_edges() \
+                and gov_head != dep \
+                and (gov_head, naked_label(gov_rel)) not in [(h, naked_label(r)) for (h, r) in dep.get_new_relations()]:
             dep.add_edge(gov_rel, gov_head)
         
         # NOTE: this is not part of the original SC.
-        # if the shared head is an nmod, then propagate the case also between the conjuncts.
-        if gov_rel.startswith("nmod") and all([not r.startswith("case") for (c, r) in dep.get_children_with_rels()]):
+        # if the shared head is an nmod/acl/advcl, then propagate the case/marker also between the conjuncts.
+        if \
+                (gov_rel.startswith("nmod") and all([not r.startswith("case") for (c, r) in dep.get_children_with_rels()])) or \
+                (re.match("acl|advcl", gov_rel) and all([not re.match("case|mark", r) for (c, r) in dep.get_children_with_rels()])):
             for c, r in gov.get_children_with_rels():
-                if r.startswith("case"):
+                if re.match("case|mark", r):
                     c.add_edge(r, dep)
         
         # TODO:
@@ -1533,8 +1541,8 @@ def convert_sentence(sentence, iids):
     eudpp_expand_pp_or_prep_conjunctions(sentence)  # add copy nodes: expandPPConjunctions, expandPrepConjunctions
 
     eud_passive_agent(sentence)  # addCaseMarkerInformation
-    eud_prep_patterns(sentence)  # addCaseMarkerInformation
     eud_heads_of_conjuncts(sentence)  # treatCC
+    eud_prep_patterns(sentence)  # addCaseMarkerInformation
     eud_conj_info(sentence)  # addConjInformation
 
     extra_add_ref_and_collapse(sentence)
