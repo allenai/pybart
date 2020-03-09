@@ -103,7 +103,7 @@ def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=Fa
 # correctDependencies - processNames and removeExactDuplicates: have been skipped.
 # processNames for future treatment, removeExactDuplicates for redundancy.
 def eud_correct_subj_pass(sentence):
-    restriction = Restriction(gov="root", nested=[[
+    restriction = Restriction(name="root", nested=[[
         Restriction(gov='auxpass', name="aux"),
         # the SC regex (which was "^(nsubj|csubj).*$") was changed here
         # to avoid the need to filter .subjpass relations in the graph-rewriting part
