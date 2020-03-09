@@ -118,7 +118,7 @@ def eud_correct_subj_pass(sentence):
     for name_space in ret:
         subj, subj_head, subj_rel = name_space['subj']
         aux, _, _ = name_space['aux']
-        root, _, _ = name_space['aux']
+        root, _, _ = name_space['root']
         if aux.get_conllu_field("id") < root.get_conllu_field("id") < subj.get_conllu_field("id"):
             continue
         substitute_rel = re.sub("(?<!x)subj", "subjpass", subj_rel)
