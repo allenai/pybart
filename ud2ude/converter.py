@@ -246,7 +246,7 @@ def eud_heads_of_conjuncts(sentence):
         
         # NOTE: this is not part of the original SC.
         # if the shared head is an nmod, then propagate the case also between the conjuncts.
-        if gov_rel.startswith("nmod"):
+        if gov_rel.startswith("nmod") and all([not r.startswith("case") for (c, r) in dep.get_children_with_rels()]):
             for c, r in gov.get_children_with_rels():
                 if r.startswith("case"):
                     c.add_edge(r, dep)
