@@ -1481,7 +1481,6 @@ def extra_passive_alteration(sentence):
     restriction = Restriction(name="predicate", nested=[
         [
             Restriction(name="subjpass", gov=".subjpass"),
-            Restriction(gov='auxpass'),
             Restriction(name="agent", gov="^(nmod(:agent)?)$", nested=[[
                 Restriction(form="^(?i:by)$")
             ]])
