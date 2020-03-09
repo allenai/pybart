@@ -1534,12 +1534,12 @@ def convert_sentence(sentence, iids):
 
     eud_passive_agent(sentence)  # addCaseMarkerInformation
     eud_prep_patterns(sentence)  # addCaseMarkerInformation
+    eud_heads_of_conjuncts(sentence)  # treatCC
     eud_conj_info(sentence)  # addConjInformation
 
     extra_add_ref_and_collapse(sentence)
     eudpp_add_ref_and_collapse(sentence)  # referent: addRef, collapseReferent
 
-    eud_heads_of_conjuncts(sentence)  # treatCC
     eud_subj_of_conjoined_verbs(sentence)  # treatCC
     eud_xcomp_propagation(sentence)  # addExtraNSubj
 
@@ -1557,8 +1557,6 @@ def convert_sentence(sentence, iids):
     extra_appos_propagation(sentence)
     extra_subj_obj_nmod_propagation_of_nmods(sentence)
     extra_passive_alteration(sentence)
-    
-    eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
     
     return sentence
 
