@@ -220,7 +220,7 @@
 5	and	_	CC	CC	_	4	cc	2:cc	_
 6	from	_	IN	IN	_	7	case	7:case	_
 7	Serbia	_	NNP	NNP	_	4	conj	2.1:nmod:from	_
-8	while	_	IN	IN	_	10	mark	10:mark	_
+8	while	_	IN	IN	_	10	mark	10:mark|10.1:mark	_
 9	Cathy	_	NNP	NNP	_	10	nsubj	10:nsubj|10.1:nsubj	_
 10	drives	_	VBZ	VBZ	_	2	advcl	2:advcl:while	_
 10.1	drives	_	VBZ	VBZ	_	_	_	2:advcl:while|10:conj:but	CopyOf=10
