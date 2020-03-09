@@ -251,10 +251,12 @@ def eud_heads_of_conjuncts(sentence):
             dep.add_edge(gov_rel, gov_head)
         
         # NOTE: this is not part of the original SC.
-        # if the shared head is an nmod, then propagate the case also between the conjuncts.
-        if gov_rel.startswith("nmod") and all([not r.startswith("case") for (c, r) in dep.get_children_with_rels()]):
+        # if the shared head is an nmod/acl/advcl, then propagate the case/marker also between the conjuncts.
+        if \
+                (gov_rel.startswith("nmod") and all([not r.startswith("case") for (c, r) in dep.get_children_with_rels()])) or \
+                (re.match("acl|advcl", gov_rel) and all([not re.match("case|mark", r) for (c, r) in dep.get_children_with_rels()])):
             for c, r in gov.get_children_with_rels():
-                if r.startswith("case"):
+                if re.match("case|mark", r):
                     c.add_edge(r, dep)
         
         # TODO:
