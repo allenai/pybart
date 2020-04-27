@@ -2,17 +2,17 @@
     <br>
     <img src="https://github.com/allenai/pybart/blob/master/logo.png" width="400"/>
     <p>
-   A Python converter from Universal-Dependencies (UD) to <b>BART</b>.
+   A Python converter from Universal-Dependencies trees to <b>BART</b> representation.
     </p>
     <hr/>
 </div>
 <br/>
 
-BART (**B**ar-Ilan & **A**I2 **R**epresentation **T**ransformation)) is our new and cool enhanced-syntatic-representation specialized to improve Relation Extraction, but suitable for any NLP down-stream task.
+BART (**B**ar-Ilan & **A**I2 **R**epresentation **T**ransformation) is our new and cool enhanced-syntatic-representation specialized to improve Relation Extraction, but suitable for any NLP down-stream task.
 
 See our [pyBART: Evidence-based Syntactic Transformations for IE](TBD) for detailed discrption of BART's creation/linguisical-verification/evaluation processes, and list of conversions.
 
-This project is part of BART's project series:
+This project is part of a wider project series, related to BART:
 1. [**Converter:**](#converter) The current project.
 2. [**Model:**](https://github.com/allenai/ud_spacy_model) UD based [spaCy](https://spacy.io/) model (pip install [the_large_model](https://storage.googleapis.com/en_ud_model/en_ud_model_lg-1.1.0.tar.gz)). This model is needed when using the converter as a spaCy pipeline component (as spaCy doesn't provide UD-format based models).
 3. [**Demo:**](http://nlp.biu.ac.il/~aryeht/eud/) Web-demo making use of the converter, to compare between UD and BART representations.
@@ -129,7 +129,7 @@ with open(conllu_formatted_file_out, "w") as f:
 
 ## Configuration
 
-Each of our api calls can get the following optional parameters, as their configuration:
+Each of our api calls can get the following optional parameters:
 | Name | Type | Default | Explanation |
 |------|------|-------------|----|
 | enhance_ud | boolean | True | Include Stanford's EnhancedUD conversions. |
@@ -153,6 +153,6 @@ TBD
 
 ## Team
 
-pyBART is an open-source project backed by [the Allen Institute for Artificial Intelligence (AI2)](https://allenai.org/), and by Bar-Ilan University as being part of my thesis under the supervision of Yoav Goldberg.
+pyBART is an open-source project backed by [the Allen Institute for Artificial Intelligence (AI2)](https://allenai.org/), and by Bar-Ilan University as being part of [my](https://github.com/aryehgigi) thesis under the supervision of Yoav Goldberg.
 AI2 is a non-profit institute with the mission to contribute to humanity through high-impact AI research and engineering.
-Our team consists of Yoav Goldberg, Reut Tsarfaty and myself. Currently we are the contributors to this project but we will be more than happy for anyone who wants to help, via Issues, PR's.
+Our team consists of Yoav Goldberg, Reut Tsarfaty and myself. Currently we are the contributors to this project but we will be more than happy for anyone who wants to help, via Issues and PR's.
