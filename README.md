@@ -1,18 +1,111 @@
-# UD2UDE
+# pybart
 
-This (badly-named) UD2UDE project (stands for Universal Dependencies to Universal Dependencies enhancements) is the main project of a 'u2dude' project series, all related to the main goal of my thesis.
-1. [**Converter:**](#Converter) (The current project,) Universal-Dependencies to enhancedUD converter, aimed to port core-nlp's Java converter to a python(3.6) converter, embedded with my researched add-ins ("extra or Aryeh's enhancements").
-2. [**Model:**](https://github.com/allenai/ud_spacy_model) spaCy trained model based on UD (and PENN converted to UD) dataset.
-3. [**Demo:**](https://github.com/aryehgigi/ud2ude_demo) {will be move to public when stable} JS and python code, making use of the converter. Simply check it out [here](http://nlp.biu.ac.il/~aryeht/eud/)
+This is a Universal-Dependencies (UD) to **BART** Python-converter.
 
-<a name="Converter"/>
+BART (**B**ar-Ilan & **A**I2 **R**epresentation **T**ransformation)) is our new cool enhanced-syntatic-representation specialized to improve Relation Extraction, but suitable for any NLP down-stream task.
+
+See our [pyBART: Evidence-based Syntactic Transformations for IE](TBD) for detailed discrption of BART's creation/linguisical-verification/evaluation processes, and list of conversions.
+
+This project is part of BART's project series:
+1. [**Converter:**](#Converter) The current project.
+2. [**Model:**](https://github.com/allenai/ud_spacy_model) UD based [spaCy](https://spacy.io/) model (pip install [the_large_model](https://storage.googleapis.com/en_ud_model/en_ud_model_lg-1.1.0.tar.gz)). This model is needed when using the converter as a spaCy pipeline component (as spaCy doesn't provide UD-format based models).
+3. [**Demo:**](http://nlp.biu.ac.il/~aryeht/eud/) Web-demo making use of the converter, to compare between UD and BART representations.
+
+## Table of contents
+
+- [Converter](#converter)
+- [Installation](#installation)
+- [Usage](#usage)
+  * [spaCy pipeline component](#spacy-pipeline-component)
+  * [CoNLL-U format](#conll-u-format)
+- [Configuration](#configuration)
+- [Citing](#citing)
+- [Team](#team)
+- [Conversion list](#conversion-list)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 ## Converter
-The converter converts UD (v1.4) to enhancedUD, enhancedUD++, and extra-enhancements (discovered as part of my thesis).
-It supports Conll-U and Odin formats (and some conversions between them).
 
-Generally, I tried to maintain the same behavior (mentioned [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf), and that was implemented by [core-NLP java converter](https://nlp.stanford.edu/software/stanford-dependencies.shtml)) as much as reasonable.
+The converter converts UD (v1.4) to BART whcih subsumes enhancedUD and enhancedUD+. Regarding the conversions adopted from Stanford's EnhancedUD, I tried to maintain the same behavior (mentioned [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf), and that was implemented by [core-NLP java converter](https://nlp.stanford.edu/software/stanford-dependencies.shtml)) as much as reasonable.
+The converter supports Conll-U format, spaCy docs, and spaCy pipeline component.
 
+## Installation
+
+pybart requires Python 3.7 or later. The preferred way to install pybart is via `pip`.  Just run `pip install pybart` in your Python environment and you're good to go!
+
+   ```bash
+   pip install pybart
+   ```
+
+## Usage
+
+Once you've installed pybart, you can use the package in one of the following ways.
+Notice that for both methods we placed '...' (three dots) in the api call, as we provide a list of optinal parameters to configure the conversion process. We will elaborate about it next.
+
+### spaCy pipeline component
+
+```
+# Load a UD-based english model
+nlp = spacy.load("en_ud_model")
+
+# Add BART converter to spaCy's pipeline
+from pybart.api import Converter
+converter = Converter( ... )
+nlp.add_pipe(converter, name="BART")
+
+# Test the new converter component
+doc = nlp("He saw me while driving")
+me_token = doc[2]
+for par_tok in me_token._.parent_list:
+    print(par_tok)
+
+# Output:
+{'head': 2, 'rel':'dobj', 'src':'UD'}
+{'head': 5, 'rel': 'nsubj',
+  'src':('advcl','while'), 'alt':'0'}
+```
+
+### CoNLL-U format
+
+```
+from pybart.api import convert_bart_conllu
+
+# read a CoNLL-U formatted file
+with open(conllu_formatted_file_in) as f:
+  sents = f.read()
+
+# convert
+converted = convert_bart_conllu(sents, ...)
+
+# use it, probably wanting to write the textual output to a new file
+with open(conllu_formatted_file_out, "w") as f:
+  f.write(converted)
+```
+
+## Configuration
+
+As mentioned before we are highly configureable. Each of our api calls can get the following optional parameters:
+| name | type | explanation |
+|------|------|-------------|
+TBD
+
+## Citing
+
+If you use pybart or BART in your research, please cite [pyBART: Evidence-based Syntactic Transformations for IE](TBD).
+
+```bibtex
+TBD
+```
+
+## Team
+
+pybart is an open-source project backed by [the Allen Institute for Artificial Intelligence (AI2)](https://allenai.org/), and by Bar-Ilan University as being part of my thesis under the supervision of Yoav Goldberg.
+AI2 is a non-profit institute with the mission to contribute to humanity through high-impact AI research and engineering.
+Our team consists of Yoav Goldberg, Reut Tsarfaty and myself. Currently we are the contributors to this project but we will be more than happy for anyone who wants to help, via Issues, PR's.
+
+## Conversion list
+TBD: really needs to be updated!
 The converter coveres the following conversions:
 
 |                                                                                 | [paper](https://nlp.stanford.edu/pubs/schuster2016enhanced.pdf)   (or [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf)) | [UD formal guidelines   (v2)](https://universaldependencies.org/u/overview/enhanced-syntax.html)          | coreNLP   code  | Converter       | notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
