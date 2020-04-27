@@ -31,7 +31,7 @@ aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume
 reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
 EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
-g_remove_aryeh_extra_info = False
+g_remove_bart_extra_info = False
 g_remove_node_adding_conversions = False
 
 
@@ -84,10 +84,10 @@ def add_eud_info(orig, extra):
 
 
 def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=False, prevs=None):
-    global g_remove_aryeh_extra_info
+    global g_remove_bart_extra_info
     
     source_str = ""
-    if not g_remove_aryeh_extra_info:
+    if not g_remove_bart_extra_info:
         iid_str = ""
         if iid is not None:
             iid_str = "#" + str(iid)
@@ -1600,10 +1600,10 @@ def get_rel_set(converted_sentences):
     return set([(head.get_conllu_field("form"), rel, tok.get_conllu_field("form")) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_aryeh_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
-    global g_remove_enhanced_extra_info, g_remove_aryeh_extra_info, g_remove_node_adding_conversions
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
+    global g_remove_enhanced_extra_info, g_remove_bart_extra_info, g_remove_node_adding_conversions
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
-    g_remove_aryeh_extra_info = remove_aryeh_extra_info
+    g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
     iids = dict()
     
