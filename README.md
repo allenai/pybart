@@ -1,6 +1,12 @@
-# pybart
-
-This is a Universal-Dependencies (UD) to **BART** Python-converter.
+<div align="center">
+    <br>
+    <img src="https://github.com/allenai/pybart/blob/master/logo.png" width="400"/>
+    <p>
+   A Universal-Dependencies (UD) to <b>BART</b> Python-converter.
+    </p>
+    <hr/>
+</div>
+<br/>
 
 BART (**B**ar-Ilan & **A**I2 **R**epresentation **T**ransformation)) is our new cool enhanced-syntatic-representation specialized to improve Relation Extraction, but suitable for any NLP down-stream task.
 
