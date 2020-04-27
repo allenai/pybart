@@ -2,12 +2,12 @@ import pathlib
 import math
 #from pytest import fail
 
-import ud2ude
-from ud2ude.conllu_wrapper import parse_conllu, serialize_conllu
-from ud2ude import converter
-from ud2ude import api
-from ud2ude.graph_token import add_basic_edges
-from ud2ude.converter import convert, ConvsCanceler
+import pybart
+from pybart.conllu_wrapper import parse_conllu, serialize_conllu
+from pybart import converter
+from pybart import api
+from pybart.graph_token import add_basic_edges
+from pybart.converter import convert, ConvsCanceler
 
 
 class TestConversions:
@@ -57,9 +57,9 @@ class TestConversions:
     
     @staticmethod
     def setup_method():
-        ud2ude.converter.g_remove_enhanced_extra_info = False
-        ud2ude.converter.g_remove_aryeh_extra_info = False
-        ud2ude.converter.g_remove_node_adding_conversions = False
+        pybart.converter.g_remove_enhanced_extra_info = False
+        pybart.converter.g_remove_aryeh_extra_info = False
+        pybart.converter.g_remove_node_adding_conversions = False
     
     @classmethod
     def common_logic(cls, cur_name):

@@ -1,3 +1,3 @@
-name = "ud2ude"
+name = "pybart"
 
 from . import api
