@@ -2,7 +2,7 @@
     <br>
     <img src="https://github.com/allenai/pybart/blob/master/logo.png" width="400"/>
     <p>
-   A Python converter from Universal-Dependencies trees to <b>BART</b> representation.
+   A Python converter from Universal-Dependencies trees to <b><a href="http://nlp.biu.ac.il/~aryeht/eud/">BART</a></b> representation.
     </p>
     <hr/>
 </div>
