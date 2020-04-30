@@ -13,7 +13,7 @@ BART (**B**ar-Ilan & **A**I2 **R**epresentation **T**ransformation) is our new a
 See our [pyBART: Evidence-based Syntactic Transformations for IE](TBD) for detailed description of BART's creation/linguisical-verification/evaluation processes, and list of conversions.
 
 This project is part of a wider project series, related to BART:
-1. [**Converter:**](#converter) The current project.
+1. [**Converter:**](#converter-description) The current project.
 2. [**Model:**](https://github.com/allenai/ud_spacy_model) UD based [spaCy](https://spacy.io/) model (pip install [the_large_model](https://storage.googleapis.com/en_ud_model/en_ud_model_lg-1.1.0.tar.gz)). This model is needed when using the converter as a spaCy pipeline component (as spaCy doesn't provide UD-format based models).
 3. [**Demo:**](http://nlp.biu.ac.il/~aryeht/eud/) Web-demo making use of the converter, to compare between UD and BART representations.
 
