@@ -10,7 +10,7 @@
 
 BART (**B**ar-Ilan & **A**I2 **R**epresentation **T**ransformation) is our new and cool enhanced-syntatic-representation specialized to improve Relation Extraction, but suitable for any NLP down-stream task.
 
-See our [pyBART: Evidence-based Syntactic Transformations for IE](TBD) for detailed discrption of BART's creation/linguisical-verification/evaluation processes, and list of conversions.
+See our [pyBART: Evidence-based Syntactic Transformations for IE](TBD) for detailed description of BART's creation/linguisical-verification/evaluation processes, and list of conversions.
 
 This project is part of a wider project series, related to BART:
 1. [**Converter:**](#converter) The current project.
@@ -19,7 +19,7 @@ This project is part of a wider project series, related to BART:
 
 ## Table of contents
 
-- [Converter](#converter)
+- [Converter description](#converter-description)
 - [Conversion list](#conversion-list)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -31,17 +31,17 @@ This project is part of a wider project series, related to BART:
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
-## Converter
+## Converter description
 
  * Converts UD (v1.4) to BART. 
- * Supports Conll-U format, spaCy docs, and spaCy pipeline component.
- * Highly configurable (see [Configuration](#configuration))
+ * Supports Conll-U format, spaCy docs, and spaCy pipeline component (see [Usage](#usage)).
+ * Highly configurable (see [Configuration](#configuration)).
 
 **Note:** The BART representation subsumes Stanford's EnhancedUD conversions, these conversions are described [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf), and were already implemented by [core-NLP Java converter](https://nlp.stanford.edu/software/stanford-dependencies.shtml). As such they were not avialable to python users and thus we have ported them to pyBART and tried to maintain their behavior as much as reasonable.
 
 ## Conversion list
 
-<details><summary>Click here if you wish to see the conversions covered (TBD: really needs to be updated!)</summary>
+<details><summary>Click here if you wish to see the list of covered conversions (TBD: really needs to be updated!)</summary>
 <p>
 
 |                                                                                 | [paper](https://nlp.stanford.edu/pubs/schuster2016enhanced.pdf)   (or [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf)) | [UD formal guidelines   (v2)](https://universaldependencies.org/u/overview/enhanced-syntax.html)          | coreNLP   code  | Converter       | notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -85,7 +85,7 @@ pyBART requires Python 3.7 or later. The preferred way to install pyBART is via 
 ## Usage
 
 Once you've installed pyBART, you can use the package in one of the following ways.
-Notice that for both methods we placed '...' (three dots) in the api call, as we provide a list of optinal parameters to configure the conversion process. We will elaborate about it next.
+Notice that for both methods we placed '...' (three dots) in the API calls, as we provide a list of optinal parameters to configure the conversion process. We will elaborate about it next.
 
 ### spaCy pipeline component
 
@@ -129,7 +129,7 @@ with open(conllu_formatted_file_out, "w") as f:
 
 ## Configuration
 
-Each of our api calls can get the following optional parameters:
+Each of our API calls can get the following optional parameters:
 | Name | Type | Default | Explanation |
 |------|------|-------------|----|
 | enhance_ud | boolean | True | Include Stanford's EnhancedUD conversions. |
