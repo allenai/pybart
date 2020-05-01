@@ -132,11 +132,9 @@ with open(conllu_formatted_file_out, "w") as f:
 
 Each of our API calls can get the following optional parameters:
 
-<style>
-.tablelines table, .tablelines td, .tablelines th {
-        border: 1px solid black;
-        }
-</style>
+[//]: # (<style>.tablelines table, .tablelines td, .tablelines th {border: 1px solid black;}</style>)
+
+
 
 | Name | Type | Default | Explanation |
 |------|------|-------------|----|
@@ -150,7 +148,8 @@ Each of our API calls can get the following optional parameters:
 | remove_unc | boolean | False | Do not include conversions that might contain `uncertainty` (see paper for detailed explanation). |
 | query_mode | boolean | False | Do not include conversions that add arcs rather than reorder arcs. |
 | funcs_to_cancel | ConvsCanceler class | Empty class instantiation | A list of conversions to prevent from occuring by their names. Use `get_conversion_names` for the full conversion name list |
-{: .tablelines}
+
+[//]: # ({: .tablelines})
 
 ## Citing
 
