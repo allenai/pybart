@@ -45,33 +45,208 @@ This project is part of a wider project series, related to BART:
 <details><summary>Click here if you wish to see the list of covered conversions (TBD: really needs to be updated!)</summary>
 <p>
 
-|                                                                                 | [paper](https://nlp.stanford.edu/pubs/schuster2016enhanced.pdf)   (or [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf)) | [UD formal guidelines   (v2)](https://universaldependencies.org/u/overview/enhanced-syntax.html)          | coreNLP   code  | Converter       | notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-|-------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|-----------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| nmod/acl/advcl   case info                                                          | eUD                                                                                                                                            | eUD   (under 'obl' for v2)                                                                                | eUD             | eUD             | 1.   Even though multi-word prepositions are processed only under eUD++, it is   still handled under eUD to add it in the case information.<br>2. Lowercased (and not lemmatized - important for MWP)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Passive   agent                                                                     | -                                                                                                                                              | -                                                                                                         | eUD             | eUD             | Only   if the nmod both has a "by" son and has an 'auxpass' sibling, then   instead of nmod:by we fix to nmod:agent                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| conj   case info                                                                    | eUD                                                                                                                                            | eUD                                                                                                       | eUD             | eUD             | 1.   Adds the type of conjunction to all conjunct relations<br>2. Some multi-word coordination markers are collapsed to conj:and or   conj:negcc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Process   Multi-word prepositions                                                   | eUD++                                                                                                                                          | eUD   (?)                                                                                                 | eUD++           | eUD++           | Predetermined   lists of 2w and 3w preps.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Demote   quantificational modifiers (A.K.A Partitives and light noun constructions) | eUD++                                                                                                                                          | (see   [here](https://universaldependencies.org/u/overview/enhanced-syntax.html#additional-enhancements)) | eUD++           | eUD++           | Predetermined   list of the quantifier or light noun.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Conjoined   prepositions and prepositional phrases                                  | eUD++                                                                                                                                          | -                                                                                                         | eUD++           | eUD++           |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Propagated   governors and dependents                                               | eUD   (A, B, C)                                                                                                                                | eUD   (A, B, C, D)                                                                                        | eUD   (A, B, C) | eUD   (A, B, C) | 1.   This includes: (A) conjoined noun phrases, (B) conjoined adjectival phrases,   (C) subjects of conjoined verbs, and (D) objects of conjoined verbs.<br>2. Notice (D) is relevant to be added theoretically but was omitted for   practical uncertainty (see 4.2 at the paper).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Subjects   of controlled verbs                                                      | eUD                                                                                                                                            | eUD                                                                                                       | eUD             | eUD             | 1.   Includes the special case of 'to' with no following verb ("he decided   not to").<br>2. Heuristic for choosing the propagated subject (according to coreNLP   docu): if the control verb has an object it is propagated as the subject of   the controlled verb, otherwise they use the subject of the control verb.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Subjects   of controlled verbs - when 'to' marker is missing                        | ?                                                                                                                                              | ?                                                                                                         | -               | extra           | 1.   Example: "I started reading the book"<br>2. For some reason not included in the coreNLP code, unsure why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Relative   pronouns                                                                 | eUD++                                                                                                                                          | eUD   (?)                                                                                                 | eUD++           | eUD++           |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Reduced   relative clause                                                           | -                                                                                                                                              | eUD   (?)                                                                                                 | -               | extra           |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Subjects   of adverbial clauses                                                     | -                                                                                                                                              | -                                                                                                         | -               | extra           | Heuristic   for choosing the propagated entity:<br>1. If the marker is "to", the object (if it is animated - but for   now we don’t enforce it) of the main clause is propagated as subject,   otherwise the subject of the main clause is propagated.<br>2. Else, if the marker is not one of "as/so/when/if" (this   includes no marker at all which is mostly equivalent to "while"   marker), both the subject and the object of the main clause are equivalent   options (unless no object found, then the subject is propagated).                                                                                                                                                                                                                                                                                     |
-| Noun-modifying   participles                                                        | (see   [here](https://www.aclweb.org/anthology/W17-6507))                                                                                      | -                                                                                                         | -               | extra           |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Correct   possible subject of Noun-modifying participles                            | -                                                                                                                                              | -                                                                                                         | -               | extra           | 1.   This is a correctness of the subject decision of the previous bullet.<br>2. If the noun being modified is an object/modifier of a verb with some   subject, then that subject might be the subject of the Noun-modifying   participle as well. (it is uncertain, and seems to be correct only for the   more abstract nouns, but that’s just a first impression).                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Propagated   modifiers (in conjunction constructions)                               | -                                                                                                                                              | -                                                                                                         | -               | extra           |       Heuristics and assumptions:<br>1. Modifiers that appear after both parts of the conjunction may (the ratio   should be researched) refer to both parts. Moreover, If the modifiers father   is not the immediate conjunction part, then all the conjunction parts between   the father and the modifier are (most probably) modified by the   modifier.<br>2. If the modifier father is the immediate conjunction part, we propagate   the modifier backward only if the new father, doesn't have any modifiers sons   (this is to restrict a bit the amount of false-positives).<br>3. We don’t propagate modifier forwardly (that is, if the conjunct part   appears after the modifier, we assume they don’t refer).<br>4. Should be tested for cost/effectiveness as it may bring many   false-positives.       |
-| Locative   and temporal adverbial modifier propagation (indexicals)                 | -                                                                                                                                              | -                                                                                                         | -               | extra           | 1.   Rational: If a locative or temporal adverbial modifier is stretched away from   the verb through a subject/object/modifier(nmod) it should be applied as well   to the verb itself.<br>2. Example: "He was running around, in these woods here".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Subject   propagation of 'dep'                                                      | -                                                                                                                                              | -                                                                                                         | -               | extra           | Rational:   'dep' is already problematic, as the parser didn't know what relation to   assign it.     In case the secondary clause doesn't have a subject, most probably it   should come from the main clause. It is probably an advcl/conj/parataxis/or   so that was missing some marker/cc/punctuation/etc.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Apposition   propagation                                                            | (see   [here](https://arxiv.org/pdf/1603.01648.pdf))                                                                                           | -                                                                                                         | -               | extra           |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| nmod propagation through subj/obj/nmod                                              | -                                                                                                                                              | -                                                                                                         | -               | extra           | For now we propagate only modifiers cased by 'like' or 'such_as' prepositions (As they imply reflexivity), and we copy their heads' relation (that is, obj for obj subj for subj and nmod for nmod with its corresponding case).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| possessive                                                                          | -                                                                                                                                              | -                                                                                                         | -               | extra           | Share possessive modifiers through conjunctions (e.g. My father and mother went home -> My father and (my) mother...                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Expanding multi word prepositions                                                   | -                                                                                                                                              | -                                                                                                         | -               | extra           | Add an nmod relation when advmod+nmod is observed while concatinating the advmod and preposition to be the new modifiers preposition (this expands the closed set of eUD's 'Process Multi-word preposition').                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Active-passive   alteration                                                         | (see   [here](https://www.aclweb.org/anthology/W17-6507))                                                                                      | -                                                                                                         | -               | extra           | Invert subject and object of passive construction (while keeping the old ones).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Copula   alteration                                                                 | -                                                                                                                                              | -                                                                                                         | -               | extra           | Add   a verb placeholder, reconstruct the tree as if the verb was there.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Hyphen   alteration                                                                 | -                                                                                                                                              | -                                                                                                         | -               | extra           | Add subject and modifier relations to the verb in the middle of an noun-verb adjectival modifing another noun (e.g. a Miami-based company).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-
+<table>
+    <tr>
+        <td></td>
+        <td>[paper](https://nlp.stanford.edu/pubs/schuster2016enhanced.pdf)   (or [here](http://www.lrec-conf.org/proceedings/lrec2016/pdf/779_Paper.pdf))</td>
+        <td>[UD formal guidelines   (v2)](https://universaldependencies.org/u/overview/enhanced-syntax.html)</td>
+        <td>coreNLP   code</td>
+        <td>Converter</td>
+        <td>notes</td>
+    </tr>
+    <tr>
+        <td>nmod/acl/advcl   case info</td>
+        <td>eUD</td>
+        <td>eUD   (under 'obl' for v2)</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>1.   Even though multi-word prepositions are processed only under eUD++, it is   still handled under eUD to add it in the case information.&lt;br&gt;2. Lowercased (and not lemmatized - important for MWP)</td>
+    </tr>
+    <tr>
+        <td>Passive   agent</td>
+        <td>-</td>
+        <td>-</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>Only   if the nmod both has a "by" son and has an 'auxpass' sibling, then   instead of nmod:by we fix to nmod:agent</td>
+    </tr>
+    <tr>
+        <td>conj   case info</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>1.   Adds the type of conjunction to all conjunct relations&lt;br&gt;2. Some multi-word coordination markers are collapsed to conj:and or   conj:negcc</td>
+    </tr>
+    <tr>
+        <td>Process   Multi-word prepositions</td>
+        <td>eUD++</td>
+        <td>eUD   (?)</td>
+        <td>eUD++</td>
+        <td>eUD++</td>
+        <td>Predetermined   lists of 2w and 3w preps.</td>
+    </tr>
+    <tr>
+        <td>Demote   quantificational modifiers (A.K.A Partitives and light noun constructions)</td>
+        <td>eUD++</td>
+        <td>(see   [here](https://universaldependencies.org/u/overview/enhanced-syntax.html#additional-enhancements))</td>
+        <td>eUD++</td>
+        <td>eUD++</td>
+        <td>Predetermined   list of the quantifier or light noun.</td>
+    </tr>
+    <tr>
+        <td>Conjoined   prepositions and prepositional phrases</td>
+        <td>eUD++</td>
+        <td>-</td>
+        <td>eUD++</td>
+        <td>eUD++</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>Propagated   governors and dependents</td>
+        <td>eUD   (A, B, C)</td>
+        <td>eUD   (A, B, C, D)</td>
+        <td>eUD   (A, B, C)</td>
+        <td>eUD   (A, B, C)</td>
+        <td>1.   This includes: (A) conjoined noun phrases, (B) conjoined adjectival phrases,   (C) subjects of conjoined verbs, and (D) objects of conjoined verbs.&lt;br&gt;2. Notice (D) is relevant to be added theoretically but was omitted for   practical uncertainty (see 4.2 at the paper).</td>
+    </tr>
+    <tr>
+        <td>Subjects   of controlled verbs</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>eUD</td>
+        <td>1.   Includes the special case of 'to' with no following verb ("he decided   not to").&lt;br&gt;2. Heuristic for choosing the propagated subject (according to coreNLP   docu): if the control verb has an object it is propagated as the subject of   the controlled verb, otherwise they use the subject of the control verb.</td>
+    </tr>
+    <tr>
+        <td>Subjects   of controlled verbs - when 'to' marker is missing</td>
+        <td>?</td>
+        <td>?</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>1.   Example: "I started reading the book"&lt;br&gt;2. For some reason not included in the coreNLP code, unsure why</td>
+    </tr>
+    <tr>
+        <td>Relative   pronouns</td>
+        <td>eUD++</td>
+        <td>eUD   (?)</td>
+        <td>eUD++</td>
+        <td>eUD++</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>Reduced   relative clause</td>
+        <td>-</td>
+        <td>eUD   (?)</td>
+        <td>-</td>
+        <td>extra</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>Subjects   of adverbial clauses</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Heuristic   for choosing the propagated entity:&lt;br&gt;1. If the marker is "to", the object (if it is animated - but for   now we don’t enforce it) of the main clause is propagated as subject,   otherwise the subject of the main clause is propagated.&lt;br&gt;2. Else, if the marker is not one of "as/so/when/if" (this   includes no marker at all which is mostly equivalent to "while"   marker), both the subject and the object of the main clause are equivalent   options (unless no object found, then the subject is propagated).</td>
+    </tr>
+    <tr>
+        <td>Noun-modifying   participles</td>
+        <td>(see   [here](https://www.aclweb.org/anthology/W17-6507))</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>Correct   possible subject of Noun-modifying participles</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>1.   This is a correctness of the subject decision of the previous bullet.&lt;br&gt;2. If the noun being modified is an object/modifier of a verb with some   subject, then that subject might be the subject of the Noun-modifying   participle as well. (it is uncertain, and seems to be correct only for the   more abstract nouns, but that’s just a first impression).</td>
+    </tr>
+    <tr>
+        <td>Propagated   modifiers (in conjunction constructions)</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Heuristics and assumptions:&lt;br&gt;1. Modifiers that appear after both parts of the conjunction may (the ratio   should be researched) refer to both parts. Moreover, If the modifiers father   is not the immediate conjunction part, then all the conjunction parts between   the father and the modifier are (most probably) modified by the   modifier.&lt;br&gt;2. If the modifier father is the immediate conjunction part, we propagate   the modifier backward only if the new father, doesn't have any modifiers sons   (this is to restrict a bit the amount of false-positives).&lt;br&gt;3. We don’t propagate modifier forwardly (that is, if the conjunct part   appears after the modifier, we assume they don’t refer).&lt;br&gt;4. Should be tested for cost/effectiveness as it may bring many   false-positives.</td>
+    </tr>
+    <tr>
+        <td>Locative   and temporal adverbial modifier propagation (indexicals)</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>1.   Rational: If a locative or temporal adverbial modifier is stretched away from   the verb through a subject/object/modifier(nmod) it should be applied as well   to the verb itself.&lt;br&gt;2. Example: "He was running around, in these woods here".</td>
+    </tr>
+    <tr>
+        <td>Subject   propagation of 'dep'</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Rational:   'dep' is already problematic, as the parser didn't know what relation to   assign it.     In case the secondary clause doesn't have a subject, most probably it   should come from the main clause. It is probably an advcl/conj/parataxis/or   so that was missing some marker/cc/punctuation/etc.</td>
+    </tr>
+    <tr>
+        <td>Apposition   propagation</td>
+        <td>(see   [here](https://arxiv.org/pdf/1603.01648.pdf))</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>nmod propagation through subj/obj/nmod</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>For now we propagate only modifiers cased by 'like' or 'such_as' prepositions (As they imply reflexivity), and we copy their heads' relation (that is, obj for obj subj for subj and nmod for nmod with its corresponding case).</td>
+    </tr>
+    <tr>
+        <td>possessive</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Share possessive modifiers through conjunctions (e.g. My father and mother went home -&gt; My father and (my) mother...</td>
+    </tr>
+    <tr>
+        <td>Expanding multi word prepositions</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Add an nmod relation when advmod+nmod is observed while concatinating the advmod and preposition to be the new modifiers preposition (this expands the closed set of eUD's 'Process Multi-word preposition').</td>
+    </tr>
+    <tr>
+        <td>Active-passive   alteration</td>
+        <td>(see   [here](https://www.aclweb.org/anthology/W17-6507))</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Invert subject and object of passive construction (while keeping the old ones).</td>
+    </tr>
+    <tr>
+        <td>Copula   alteration</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Add   a verb placeholder, reconstruct the tree as if the verb was there.</td>
+    </tr>
+    <tr>
+        <td>Hyphen   alteration</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>extra</td>
+        <td>Add subject and modifier relations to the verb in the middle of an noun-verb adjectival modifing another noun (e.g. a Miami-based company).</td>
+    </tr>
+</table>
 </p>
 </details>
 
