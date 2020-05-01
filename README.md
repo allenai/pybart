@@ -1,8 +1,9 @@
 <div align="center">
     <br>
-    <img src="https://github.com/allenai/pybart/blob/master/logo.png" width="400"/>
+    <img src="logo.png" width="400"/>
     <p>
-   A Python converter from Universal-Dependencies trees to <b><a href="http://nlp.biu.ac.il/~aryeht/eud/">BART</a></b> representation.
+   A Python converter from Universal-Dependencies trees to <b>BART</b> representation.<br>
+        Try our <a href="http://nlp.biu.ac.il/~aryeht/eud/">Demo</a>
     </p>
     <hr/>
 </div>
@@ -130,6 +131,13 @@ with open(conllu_formatted_file_out, "w") as f:
 ## Configuration
 
 Each of our API calls can get the following optional parameters:
+
+<style>
+.tablelines table, .tablelines td, .tablelines th {
+        border: 1px solid black;
+        }
+</style>
+
 | Name | Type | Default | Explanation |
 |------|------|-------------|----|
 | enhance_ud | boolean | True | Include Stanford's EnhancedUD conversions. |
@@ -141,7 +149,8 @@ Each of our API calls can get the following optional parameters:
 | remove_node_adding_conversions | boolean | False | Do not include conversions that might add nodes to the given graph. |
 | remove_unc | boolean | False | Do not include conversions that might contain `uncertainty` (see paper for detailed explanation). |
 | query_mode | boolean | False | Do not include conversions that add arcs rather than reorder arcs. |
-| funcs_to_cancel | ConvsCanceler class | Empty class instantiation | A list of conversions to prevent from occuring by their names. Use `get_conversion_names` for the full conversion name list | 
+| funcs_to_cancel | ConvsCanceler class | Empty class instantiation | A list of conversions to prevent from occuring by their names. Use `get_conversion_names` for the full conversion name list |
+{: .tablelines}
 
 ## Citing
 
