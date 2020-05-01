@@ -3,7 +3,7 @@
     <img src="logo.png" width="400"/>
     <p>
    A Python converter from Universal-Dependencies trees to <b>BART</b> representation.<br>
-        Try our <a href="http://nlp.biu.ac.il/~aryeht/eud/">Demo</a>
+        Try out our UD-BART comparison <a href="http://nlp.biu.ac.il/~aryeht/eud/">Demo</a>
     </p>
     <hr/>
 </div>
