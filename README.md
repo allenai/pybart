@@ -11,7 +11,7 @@
 
 BART (**B**ar-Ilan & **A**I2 **R**epresentation **T**ransformation) is our new and cool enhanced-syntatic-representation specialized to improve Relation Extraction, but suitable for any NLP down-stream task.
 
-See our [pyBART: Evidence-based Syntactic Transformations for IE](TBD) for detailed description of BART's creation/linguisical-verification/evaluation processes, and list of conversions.
+See our [pyBART: Evidence-based Syntactic Transformations for IE](http://arxiv.org/abs/2005.01306) for detailed description of BART's creation/linguisical-verification/evaluation processes, and list of conversions.
 
 This project is part of a wider project series, related to BART:
 1. [**Converter:**](#converter-description) The current project.
@@ -252,10 +252,10 @@ This project is part of a wider project series, related to BART:
 
 ## Installation
 
-pyBART requires Python 3.7 or later. The preferred way to install pyBART is via `pip`. Just run `pip install pybart` in your Python environment and you're good to go!
+pyBART requires Python 3.7 or later. The preferred way to install pyBART is via `pip`. Just run `pip install pybart-nlp` in your Python environment and you're good to go!
 
    ```bash
-   pip install pybart
+   pip install pybart-nlp
    ```
 
 ## Usage
@@ -270,7 +270,7 @@ Notice that for both methods we placed '...' (three dots) in the API calls, as w
 nlp = spacy.load("en_ud_model")
 
 # Add BART converter to spaCy's pipeline
-from pybart.api import Converter
+from pybart-nlp.api import Converter
 converter = Converter( ... )
 nlp.add_pipe(converter, name="BART")
 
@@ -289,7 +289,7 @@ for par_tok in me_token._.parent_list:
 ### CoNLL-U format
 
 ```
-from pybart.api import convert_bart_conllu
+from pybart-nlp.api import convert_bart_conllu
 
 # read a CoNLL-U formatted file
 with open(conllu_formatted_file_in) as f:
@@ -328,10 +328,14 @@ Each of our API calls can get the following optional parameters:
 
 ## Citing
 
-If you use pyBART or BART in your research, please cite [pyBART: Evidence-based Syntactic Transformations for IE](TBD).
+If you use pyBART or BART in your research, please cite [pyBART: Evidence-based Syntactic Transformations for IE](http://arxiv.org/abs/2005.01306).
 
 ```bibtex
-TBD
+@inproceedings{Tiktinsky2020pyBARTES,
+  title={pyBART: Evidence-based Syntactic Transformations for IE},
+  author={Aryeh Tiktinsky and Yoav Goldberg and Reut Tsarfaty},
+  year={2020}
+}
 ```
 
 ## Team
