@@ -42,9 +42,9 @@ This project is part of a wider project series, related to BART:
 
 ## Conversion list
 
-<details><summary>Click here if you wish to see the list of covered conversions (TBD: really needs to be updated!)</summary>
-<p>
-
+<details><summary>Click here if you wish to see the list of covered conversions</summary>
+<p>comming soon
+<!---
 <table>
     <tr>
         <td></td>
@@ -247,6 +247,7 @@ This project is part of a wider project series, related to BART:
         <td>Add subject and modifier relations to the verb in the middle of an noun-verb adjectival modifing another noun (e.g. a Miami-based company).</td>
     </tr>
 </table>
+-->
 </p>
 </details>
 
@@ -270,7 +271,7 @@ Notice that for both methods we placed '...' (three dots) in the API calls, as w
 nlp = spacy.load("en_ud_model")
 
 # Add BART converter to spaCy's pipeline
-from pybart-nlp.api import Converter
+from pybart.api import Converter
 converter = Converter( ... )
 nlp.add_pipe(converter, name="BART")
 
@@ -289,7 +290,7 @@ for par_tok in me_token._.parent_list:
 ### CoNLL-U format
 
 ```
-from pybart-nlp.api import convert_bart_conllu
+from pybart.api import convert_bart_conllu
 
 # read a CoNLL-U formatted file
 with open(conllu_formatted_file_in) as f:
