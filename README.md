@@ -262,7 +262,7 @@ pyBART requires Python 3.7 or later. The preferred way to install pyBART is via 
 ## Usage
 
 Once you've installed pyBART, you can use the package in one of the following ways.
-Notice that for both methods we placed '...' (three dots) in the API calls, as we provide a list of optinal parameters to configure the conversion process. We will elaborate about it next.
+Notice that for both methods we placed '...' (three dots) in the API calls, as we provide a list of optional parameters to configure the conversion process. We will elaborate about it next.
 
 ### spaCy pipeline component
 
