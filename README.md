@@ -69,7 +69,7 @@ Notice that for both methods the API calls can be called with a list of optional
 import spacy
 
 # Load a UD-based english model
-nlp = spacy.load("en_ud_model_lg")
+nlp = spacy.load("en_ud_model_lg") # here you can change it to md/sm as you preffer
 
 # Add BART converter to spaCy's pipeline
 from pybart.api import Converter
@@ -83,9 +83,8 @@ for par_tok in me_token._.parent_list:
     print(par_tok)
 
 # Output:
-# {'head': 2, 'rel':'dobj', 'src':'UD'}
-# {'head': 5, 'rel': 'nsubj', 
-#   'src':('advcl','while'), 'alt':'0'}
+# {'head': saw, 'rel': 'dobj', 'src': 'UD', 'alt': None, 'unc': False}
+# {'head': driving, 'rel': 'nsubj', 'src': ('advcl', 'while'), 'alt': 0, 'unc': False}
 ```
 
 ### CoNLL-U format
