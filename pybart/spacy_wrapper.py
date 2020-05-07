@@ -102,14 +102,15 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
         spacy_ids = {iid: (spacy_i + j) for spacy_i, iid in enumerate(converted.keys())}
         
         # set new info for all tokens per their head lists
-        for i, brat_tok in enumerate(converted.values()):
+        for i, bart_tok in enumerate(converted.values()):
             spacy_tok = new_doc[i + j]
-            for head, rel in brat_tok.get_new_relations():
+            for head, rel in bart_tok.get_new_relations():
                 # extract spacy correspondent head id
                 head_tok = new_doc[spacy_ids[head.get_conllu_field("id")] if head.get_conllu_field("id") != 0 else spacy_tok.i]
                 # parse stringish label
+                import pdb;pdb.set_trace()
                 is_state_head_node = ((head_tok.text == "STATE") and (head.get_conllu_field("id") != int(head.get_conllu_field("id")))) or \
-                                     (brat_tok.get_conllu_field("id") != int(brat_tok.get_conllu_field("id")))
+                                     (bart_tok.get_conllu_field("id") != int(bart_tok.get_conllu_field("id")))
                 new_rel, src, unc, alt = parse_bart_label(rel, is_state_head_node=is_state_head_node)
                 # add info to token
                 spacy_tok._.parent_list.append({'head': head_tok, 'rel': new_rel, 'src': src, 'alt': alt, 'unc': unc})
