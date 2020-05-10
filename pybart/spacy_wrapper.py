@@ -1,8 +1,12 @@
+import struct
 from spacy.tokens import Doc, Token as SpacyToken
 from spacy import attrs
 import numpy as np
 
 from .graph_token import Token, add_basic_edges
+
+NUM_OF_BITS = struct.calcsize("P") * 8
+
 
 # this is here because it needs to happen only once (per import)
 SpacyToken.set_extension("parent_list", default=[])
@@ -75,7 +79,17 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
         orig_attrs = orig.to_array(attrs_)
         
         # append copied attributes for new nodes
-        new_nodes_attrs = [orig_attrs[int(iid)] for iid, tok in converted.items() if int(iid) != iid]
+        new_nodes_attrs = []
+        for iid, tok in converted.items():
+            if int(iid) != iid:
+                new_node_attrs = list(orig_attrs[int(iid)])
+                
+                # here we fix the relative head he is pointing to,
+                # in case it is a negative number we need to cast it to its unsigned synonym
+                relative = int(iid) - (len(orig_attrs) + len(new_nodes_attrs) + 1)
+                new_node_attrs[attrs_.index('HEAD')] = relative + (2**NUM_OF_BITS if relative < 0 else 0)
+                
+                new_nodes_attrs.append(new_node_attrs)
         if new_nodes_attrs:
             new_attrs = np.append(orig_attrs, new_nodes_attrs, axis=0)
         else:
