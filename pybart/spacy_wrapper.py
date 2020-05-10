@@ -41,7 +41,7 @@ def parse_bart_label(rel, is_state_head_node):
     if len(rel_l) > 1:
         # alternatives info
         if len(rel_l[1].split("#")) > 1:
-            alt = int(rel_l[1].split("#")[1])
+            alt = int(rel_l[1].split("#")[1].split("+")[0])
         # extra info
         src = rel_l[1].split("(")[0]
         extras = rel_l[1].split("(")[1].split(")")[0].split(", ")
@@ -108,7 +108,6 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
                 # extract spacy correspondent head id
                 head_tok = new_doc[spacy_ids[head.get_conllu_field("id")] if head.get_conllu_field("id") != 0 else spacy_tok.i]
                 # parse stringish label
-                import pdb;pdb.set_trace()
                 is_state_head_node = ((head_tok.text == "STATE") and (head.get_conllu_field("id") != int(head.get_conllu_field("id")))) or \
                                      (bart_tok.get_conllu_field("id") != int(bart_tok.get_conllu_field("id")))
                 new_rel, src, unc, alt = parse_bart_label(rel, is_state_head_node=is_state_head_node)
