@@ -84,7 +84,7 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
         new_nodes_attrs = []
         for iid, tok in converted.items():
             if int(iid) != iid:
-                new_node_attrs = list(orig_attrs[int(iid)])
+                new_node_attrs = list(orig_attrs[int(iid) - 1])
                 
                 # here we fix the relative head he is pointing to,
                 # in case it is a negative number we need to cast it to its unsigned synonym
