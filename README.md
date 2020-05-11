@@ -65,7 +65,7 @@ Notice that for both methods the API calls can be called with a list of optional
 
 ### spaCy pipeline component
 
-```
+```python
 import spacy
 
 # Load a UD-based english model
@@ -89,7 +89,7 @@ for par_tok in me_token._.parent_list:
 
 ### CoNLL-U format
 
-```
+```python
 from pybart.api import convert_bart_conllu
 
 # read a CoNLL-U formatted file
