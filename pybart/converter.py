@@ -75,8 +75,14 @@ class ConvsCanceler:
         return set(ConvsCanceler()._func_names)
 
 
+def split_by_at(label):
+    # For the rare case which involvs a '@' preposition,
+    # we temporarily replace it with 'at', instead of simply doing rel.split("@")
+    return [x.replace(":at", ":@") for x in label.replace(":@", ":at").split("@")]
+
+
 def naked_label(label):
-    return label.split("@")[0].split(":")[0]
+    return split_by_at(label)[0].split(":")[0]
 
 
 def add_eud_info(orig, extra):
@@ -451,7 +457,7 @@ def extra_compound_propagation(sentence):
         father, _, _ = name_space['father']
         _, _, rel = name_space['middle_man']
         compound, _, _ = name_space['compound']
-        pure_rel = rel.split("@")[0]
+        pure_rel = split_by_at(rel)[0]
         if any([re.match("(.obj|.subj.*)", rel) for head, rel in compound.get_new_relations()]):
             continue
         compound.add_edge(add_extra_info(pure_rel, "compound", dep_type="NULL", uncertain=True, prevs=rel), father)
@@ -545,7 +551,7 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence):
         mediator_rel = name_space['mediator'][2]
     
         phrase = "like" if "like" in name_space else "such_as"
-        nmod.add_edge(add_extra_info(mediator_rel.split("@")[0], "nmod", phrase=phrase, prevs=mediator_rel), receiver)
+        nmod.add_edge(add_extra_info(split_by_at(mediator_rel)[0], "nmod", phrase=phrase, prevs=mediator_rel), receiver)
 
 
 def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=False):
@@ -576,7 +582,7 @@ def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=Fal
         
         if '.' not in str(receiver.get_conllu_field("id")) and \
                 (dont_check_precedence or nmod.get_conllu_field("id") > receiver.get_conllu_field("id")):
-            nmod.add_edge(add_extra_info(nmod_rel.split("@")[0], "conj", uncertain=True, phrase=cc_assignments[conj], prevs=nmod_rel), receiver)
+            nmod.add_edge(add_extra_info(split_by_at(nmod_rel)[0], "conj", uncertain=True, phrase=cc_assignments[conj], prevs=nmod_rel), receiver)
 
 
 def extra_conj_propagation_of_nmods(sentence):
@@ -623,7 +629,7 @@ def extra_advmod_propagation(sentence):
         case, _, _ = name_space['case']
         
         if gov not in advmod.get_parents():
-            advmod.add_edge(add_extra_info(advmod_rel.split("@")[0], "nmod", dep_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True, prevs=middle_man_rel), gov)
+            advmod.add_edge(add_extra_info(split_by_at(advmod_rel)[0], "nmod", dep_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True, prevs=middle_man_rel), gov)
 
 
 # "I went back to prison"
@@ -655,11 +661,11 @@ def extra_nmod_advmod_reconstruction(sentence):
         
         mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
         if mwe in nmod_advmod_complex:
-            nmod.add_edge(add_extra_info(add_eud_info(nmod_rel.split("@")[0], case.get_conllu_field("form").lower()), "advmod_prep"), gov)
+            nmod.add_edge(add_extra_info(add_eud_info(split_by_at(nmod_rel)[0], case.get_conllu_field("form").lower()), "advmod_prep"), gov)
         else:
-            advmod.replace_edge(advmod_rel, add_extra_info(case_rel.split("@")[0], "advmod_prep"), gov, nmod)
+            advmod.replace_edge(advmod_rel, add_extra_info(split_by_at(case_rel)[0], "advmod_prep"), gov, nmod)
             case.replace_edge(case_rel, add_extra_info("mwe", "advmod_prep"), nmod, advmod)
-            nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(nmod_rel.split("@")[0], mwe), "advmod_prep"), advmod, gov)
+            nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(split_by_at(nmod_rel)[0], mwe), "advmod_prep"), advmod, gov)
 
 
 def extra_appos_propagation(sentence):
@@ -676,11 +682,11 @@ def extra_appos_propagation(sentence):
         
         for (gov_head, gov_in_rel) in gov.get_new_relations():
             if (gov_head, gov_in_rel) not in appos.get_new_relations():
-                appos.add_edge(add_extra_info(gov_in_rel.split("@")[0], "appos", prevs=gov_in_rel), gov_head)
+                appos.add_edge(add_extra_info(split_by_at(gov_in_rel)[0], "appos", prevs=gov_in_rel), gov_head)
         
         for (gov_son, gov_out_rel) in gov.get_children_with_rels():
             if re.match("(acl|amod)", gov_out_rel) and (gov_son, gov_out_rel) not in appos.get_children_with_rels():
-                gov_son.add_edge(add_extra_info(gov_out_rel.split("@")[0], "appos", prevs=gov_out_rel), appos)
+                gov_son.add_edge(add_extra_info(split_by_at(gov_out_rel)[0], "appos", prevs=gov_out_rel), appos)
 
 
 # find the closest cc to the conj with precedence for left hand ccs
@@ -722,7 +728,7 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
             
             # The old_root's father cant be 'STATE' or connect via ev. as it means we were already handled.
             #   The old_root's children cant be 'xcomp'(+'JJ') or 'ccomp' as they are handled separately.
-            if any((head.get_conllu_field("form") == "STATE") or (rel.split("@")[0] == 'ev') for head, rel in old_root.get_new_relations()):
+            if any((head.get_conllu_field("form") == "STATE") or (split_by_at(rel)[0] == 'ev') for head, rel in old_root.get_new_relations()):
                 old_root = None
                 predecessor = None
                 continue
@@ -1382,7 +1388,7 @@ def expand_per_type(sentence, restriction, is_pp):
         for node in sentence.values():
             if (node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}") and ('modifier' in name_space):
                 mod_rel = name_space['modifier'][2].split(":")[0]
-                if any([((rel.split(":")[0] == mod_rel) and (rel.split(":")[1].split("@")[0] == conj.get_conllu_field("form").lower())) for (ch, rel) in node.get_children_with_rels()]):
+                if any([((len(rel.split(":")) > 1) and (rel.split(":")[0] == mod_rel) and (split_by_at(rel)[0].split(":")[1] == conj.get_conllu_field("form").lower())) for (ch, rel) in node.get_children_with_rels()]):
                     already_copied = True
                     break
         if already_copied:

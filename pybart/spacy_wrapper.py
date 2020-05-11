@@ -34,7 +34,9 @@ def parse_spacy_sent(sent):
 
 
 def parse_bart_label(rel, is_state_head_node):
-    rel_l = rel.split("@")
+    # For the rare case which involvs a '@' preposition,
+    # we temporarily replace it with 'at', instead of simply doing rel.split("@")
+    rel_l = [x.replace(":at", ":@") for x in rel.replace(":@", ":at").split("@")]
     
     # defaults
     src = "UD" if not is_state_head_node else "BART"
