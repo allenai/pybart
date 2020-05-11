@@ -80,7 +80,11 @@ def naked_label(label):
 
 
 def add_eud_info(orig, extra):
-    return orig + ((":" + extra) if not g_remove_enhanced_extra_info else "")
+    at = orig.split("@")
+    base = at[0]
+    if ":" in orig:
+        base = at[0].split(":")[0]
+    return base + ((":" + extra) if not g_remove_enhanced_extra_info else "") + (("@" + at[1]) if len(at) > 1 else "")
 
 
 def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=False, prevs=None):
@@ -1378,7 +1382,7 @@ def expand_per_type(sentence, restriction, is_pp):
         for node in sentence.values():
             if (node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}") and ('modifier' in name_space):
                 mod_rel = name_space['modifier'][2].split(":")[0]
-                if any([((rel.split(":")[0] == mod_rel) and (rel.split(":")[1] == conj.get_conllu_field("form").lower())) for (ch, rel) in node.get_children_with_rels()]):
+                if any([((rel.split(":")[0] == mod_rel) and (rel.split(":")[1].split("@")[0] == conj.get_conllu_field("form").lower())) for (ch, rel) in node.get_children_with_rels()]):
                     already_copied = True
                     break
         if already_copied:
