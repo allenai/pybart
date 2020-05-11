@@ -44,19 +44,19 @@ This project is part of a wider project series, related to BART:
 pyBART requires Python 3.7 or later. The preferred way to install pyBART is via `pip`. Just run `pip install pybart-nlp` in your Python environment and you're good to go!
 If you want to use pyBART as a spaCy pipeline component, then you should install spaCy as well as aspaCY model based on UD-format (which we happen to provide (details are [here](https://github.com/allenai/ud_spacy_model))
 
-   ```bash
-   # if you want to use pyBART as a spaCy pipeline component, well,
-   #   you need spaCy installed and a spaCy model (based on UD-format):
-   pip install spacy
-   pip install https://storage.googleapis.com/en_ud_model/en_ud_model_lg-1.1.0.tar.gz
-   
-   # or if you want smaller models:
-   #   medium: https://storage.googleapis.com/en_ud_model/en_ud_model_md-1.1.0.tar.gz
-   #   small: https://storage.googleapis.com/en_ud_model/en_ud_model_sm-1.1.0.tar.gz
-   
-   # and this is us. please don't confuse with pybart/bart-py/bart
-   pip install pybart-nlp
-   ```
+```bash
+# if you want to use pyBART as a spaCy pipeline component, well,
+#   you need spaCy installed and a spaCy model (based on UD-format):
+pip install spacy
+pip install https://storage.googleapis.com/en_ud_model/en_ud_model_lg-1.1.0.tar.gz
+
+# or if you want smaller models:
+#   medium: https://storage.googleapis.com/en_ud_model/en_ud_model_md-1.1.0.tar.gz
+#   small: https://storage.googleapis.com/en_ud_model/en_ud_model_sm-1.1.0.tar.gz
+
+# and this is us. please don't confuse with pybart/bart-py/bart
+pip install pybart-nlp
+```
 
 ## Usage
 
