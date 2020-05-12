@@ -1384,7 +1384,7 @@ def expand_per_type(sentence, restriction, is_pp):
         
         # Check if we already copied this node in this same match (as it is hard to restrict that).
         # This is relevant only for the prep type.
-        if any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence.values()):
+        if (not is_pp) and any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence.values()):
             continue
         
         # create a copy node,
