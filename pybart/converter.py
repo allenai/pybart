@@ -1384,14 +1384,7 @@ def expand_per_type(sentence, restriction, is_pp):
         
         # Check if we already copied this node in this same match (as it is hard to restrict that).
         # This is relevant only for the prep type.
-        already_copied = False
-        for node in sentence.values():
-            if (node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}") and ('modifier' in name_space):
-                mod_rel = name_space['modifier'][2].split(":")[0]
-                if any([((len(rel.split(":")) > 1) and (rel.split(":")[0] == mod_rel) and (split_by_at(rel)[0].split(":")[1] == conj.get_conllu_field("form").lower())) for (ch, rel) in node.get_children_with_rels()]):
-                    already_copied = True
-                    break
-        if already_copied:
+        if any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence.values()):
             continue
         
         # create a copy node,
