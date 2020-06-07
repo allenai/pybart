@@ -42,7 +42,7 @@ This project is part of a wider project series, related to BART:
 ## Installation
 
 pyBART requires Python 3.7 or later. The preferred way to install pyBART is via `pip`. Just run `pip install pybart-nlp` in your Python environment and you're good to go!
-If you want to use pyBART as a spaCy pipeline component, then you should install spaCy as well as aspaCY model based on UD-format (which we happen to provide (details are [here](https://github.com/allenai/ud_spacy_model))
+If you want to use pyBART as a spaCy pipeline component, then you should install as well: (1) the spaCy package and (2) a spaCy-model based on UD-format (which we happen to provide (details are [here](https://github.com/allenai/ud_spacy_model))
 
 ```bash
 # if you want to use pyBART as a spaCy pipeline component, well,
