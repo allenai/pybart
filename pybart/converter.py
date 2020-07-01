@@ -536,7 +536,8 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence):
                 [Restriction(name="like", gov="case", form="like")],
                 [Restriction(name="such_as", gov="case", form="such", nested= [[
                     Restriction(gov="mwe", form="as")
-                ]])]
+                ]])],
+                [Restriction(name="including", gov="case", form="including")]
             ])
         ]])
     ]])
@@ -549,8 +550,8 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence):
         nmod, _, nmod_rel = name_space['nmod']
         receiver, _, _ = name_space['receiver']
         mediator_rel = name_space['mediator'][2]
-    
-        phrase = "like" if "like" in name_space else "such_as"
+        
+        phrase = [prep for prep in ["like", "such_as", "including"] if prep in name_space][0]
         nmod.add_edge(add_extra_info(split_by_at(mediator_rel)[0], "nmod", phrase=phrase, prevs=mediator_rel), receiver)
 
 
