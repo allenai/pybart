@@ -536,8 +536,8 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence):
                 [Restriction(name="like", gov="case", form="like")],
                 [Restriction(name="such_as", gov="case", form="such", nested= [[
                     Restriction(gov="mwe", form="as")
-                ]])]
-                [Restriction(name="including", gov="case", form="including")],
+                ]])],
+                [Restriction(name="including", gov="case", form="including")]
             ])
         ]])
     ]])
