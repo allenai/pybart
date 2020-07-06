@@ -141,7 +141,7 @@
 2	angry	_	JJ	JJ	_	3	amod	3:amod	_
 3	ton	_	NN	NN	_	0	root	0:root|2:nsubj@amod()	_
 4	of	_	IN	IN	_	5	case	5:case	_
-5	people	_	NNS	NNS	_	3	nmod	2:nsubj@compound(NULL, UNC)+amod()|3:compound@nmod(of)|3:nmod:of	_
+5	people	_	NNS	NNS	_	3	nmod	3:compound@nmod(of)|3:nmod:of	_
 
 # test:eudpp_demote_quantificational_modifiers-blackbox3
 1	An	_	DT	DT	_	2	det	2:det	_
