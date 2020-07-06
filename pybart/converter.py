@@ -1603,6 +1603,13 @@ def get_rel_set(converted_sentences):
     return set([(head.get_conllu_field("form"), rel, tok.get_conllu_field("form")) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
 
 
+def on_last_iter_convs(sentence):
+    # TODO: after refactoring, if the match and replace system is more concise
+    #   maybe it would be better to simply check that the subject didnt cpme from an amod.
+    extra_amod_propagation(sentence)
+    return sentence
+
+
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
     global g_remove_enhanced_extra_info, g_remove_bart_extra_info, g_remove_node_adding_conversions
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
@@ -1626,11 +1633,10 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
         i += 1
 
     # here we run some conversions that we believe should run only once and after all other conversions
-    _ = [on_last_iter_convs(sent) for sent in converted_sentences]
+    temp = []
+    for sent in converted_sentences:
+        temp.append(on_last_iter_convs(sent))
+    converted_sentences = temp
     
     funcs_to_cancel.restore_funcs()
     return converted_sentences, i
-
-
-def on_last_iter_convs(sentence):
-    extra_amod_propagation(sentence)
