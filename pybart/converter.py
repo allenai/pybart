@@ -1567,7 +1567,6 @@ def convert_sentence(sentence, iids):
     extra_advcl_propagation(sentence, iids)
     extra_advcl_ambiguous_propagation(sentence, iids)
     extra_acl_propagation(sentence)
-    extra_amod_propagation(sentence)
     extra_dep_propagation(sentence, iids)
     extra_conj_propagation_of_nmods(sentence)
     extra_conj_propagation_of_poss(sentence)
@@ -1625,6 +1624,13 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
         if get_rel_set(converted_sentences) == last_converted_sentences:
             break
         i += 1
+
+    # here we run some conversions that we believe should run only once and after all other conversions
+    _ = [on_last_iter_convs(sent) for sent in converted_sentences]
     
     funcs_to_cancel.restore_funcs()
     return converted_sentences, i
+
+
+def on_last_iter_convs(sentence):
+    extra_amod_propagation(sentence)
