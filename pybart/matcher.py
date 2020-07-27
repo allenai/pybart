@@ -1,8 +1,19 @@
 import re
-from collections import namedtuple
+from dataclasses import dataclass
 
-fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
-Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
+
+@dataclass
+class Restriction:
+    name: str = None
+    gov: str = None
+    no_sons_of: str = None
+    form: str = None
+    lemma: str = None
+    xpos: str = None
+    follows: str = None
+    followed_by: str = None
+    diff: str = None
+    nested: [['Restriction']] = None
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
