@@ -514,7 +514,7 @@ def extra_acl_propagation(sentence):
 
 
 def extra_dep_propagation(sentence, iids):
-    dep_rest = Restriction(name="father", no_sons_of = ".?obj", nested=[[
+    dep_rest = Restriction(name="father", no_sons_of=".?obj", nested=[[
         Restriction(name="dep", gov="dep", no_sons_of=".subj.*"),
         Restriction(name="new_subj", gov="(nsubj.*)")
     ]])
@@ -534,7 +534,7 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence):
         Restriction(name="mediator", gov="(dobj|.subj.*|nmod)", nested=[[
             Restriction(name="nmod", gov="nmod", nested=[
                 [Restriction(name="like", gov="case", form="like")],
-                [Restriction(name="such_as", gov="case", form="such", nested= [[
+                [Restriction(name="such_as", gov="case", form="such", nested=[[
                     Restriction(gov="mwe", form="as")
                 ]])],
                 [Restriction(name="including", gov="case", form="including")]
@@ -835,17 +835,17 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_, ccomp_case
                 new_root.remove_edge(rel, old_root)
                 # find lowest 'ev' of the new root, and make us his 'ev' son
                 inter_root = new_root
-                ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
+                ev_sons = [c for c, r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 while ev_sons:
                     inter_root = ev_sons[0]  # TODO2: change to 'ev' son with lowest index?
                     if inter_root == new_root:
                         break
-                    ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
+                    ev_sons = [c for c, r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
                 old_root.add_edge(add_extra_info('ev', rel, dep_type=type_), inter_root)
             elif rel == "mark":
                 # see notes in copula
                 if child.get_conllu_field('xpos') != 'TO':
-                    child.replace_edge(rel, rel, old_root, new_root) # TODO3: is this needed maybe all markers shouldnt be moved?
+                    child.replace_edge(rel, rel, old_root, new_root)  # TODO3: is this needed maybe all markers shouldnt be moved?
             elif re.match("(.subj.*)", rel):
                 # transfer the subj only if it is not the special case of ccomp
                 if not ccomp_case:
