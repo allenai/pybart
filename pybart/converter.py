@@ -12,12 +12,20 @@ from typing import List
 
 from .matcher import match, Restriction
 
-# constants
+
+# ********************************************* Constants&Globals *********************************************
+
+
+EXTRA_INFO_STUB = 1
+g_remove_enhanced_extra_info = False
+g_remove_bart_extra_info = False
+g_remove_node_adding_conversions = False
+
+# language specific lists
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
 two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
 two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
 three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
-clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
 quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
 quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
 quant_mod_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
@@ -29,10 +37,12 @@ advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|t
 evidential_list = "^(seem|appear|be|sound)$"
 aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
 reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
-EXTRA_INFO_STUB = 1
-g_remove_enhanced_extra_info = False
-g_remove_bart_extra_info = False
-g_remove_node_adding_conversions = False
+
+# UDv1 specifics:
+clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
+
+
+# ********************************************* Helper Functions *********************************************
 
 
 class ConvsCanceler:
@@ -108,6 +118,9 @@ def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=Fa
         source_str = "@" + dep + "(" + dep_args + ")" + iid_str + prevs_str
     
     return orig + source_str
+
+
+# ********************************************* Conversion Functions *********************************************
 
 
 # correctDependencies - correctSubjPass
