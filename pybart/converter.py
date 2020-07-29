@@ -630,41 +630,65 @@ def extra_advmod_propagation(sentence):
         if gov not in advmod.get_parents():
             advmod.add_edge(add_extra_info(split_by_at(advmod_rel)[0], "nmod", dep_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True, prevs=middle_man_rel), gov)
 
+from abc import ABC, abstractmethod
 
-# "I went back to prison"
-def extra_nmod_advmod_reconstruction(sentence):
-    # the reason for the form restriction: we dont want to catch "all in all"
-    nmod_advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(name="advmod", gov="advmod", form="(?!(^(?i:all)$))", nested=[[
-            Restriction(name="nmod", gov="nmod", nested=[[
-                Restriction(name="case", gov="case")
+# Purpose: move preposition to the relation label including cases of multi word preposition
+# Notes:
+#   1. we don't want to catch "all in all" but it seems it  won't be caught by the current restriction structure anyway.
+#   2. we don't want to catch "as much as" or any "as ADVMOD as-NMOD", hence the use of the aggressive no_sons_of
+#   3. We wanted to split the cses according to the black list of advmod+nmod as they are treated differently
+class NmodAdvmodReconstruction(ABC):
+    @staticmethod
+    def get_conv_type() -> ConvTypes:
+        return ConvTypes.BART
+
+    @staticmethod
+    @abstractmethod
+    def is_complex() -> bool:
+        raise NotImplementedError
+    
+    @staticmethod
+    def get_restriction() -> Restriction:
+        return Restriction(name="gov", nested=[[
+            Restriction(name="advmod", form_combo_in=(nmod_advmod_complex, ['case'], NmodAdvmodReconstruction.is_complex()),
+                        no_sons_of="advmod", gov="advmod", nested=[[
+                Restriction(name="nmod", gov=f"{udv('nmod', 'obl')}", nested=[[
+                    Restriction(name="case", gov="case")
+                ]])
             ]])
         ]])
-    ]])
-    ret = match(sentence.values(), [[nmod_advmod_rest]])
-    if not ret:
-        return
     
-    for name_space in ret:
-        advmod, _, advmod_rel = name_space['advmod']
-        nmod, _, nmod_rel = name_space['nmod']
-        case, _, case_rel = name_space['case']
-        gov, _, _ = name_space['gov']
-        
-        # we dont want to catch "as much as" or any "as ADVMOD as-NMOD"
-        if ("as", "advmod") in [(child.get_conllu_field("form").lower(), rel) for child, rel in advmod.get_children_with_rels()]:
-            continue
-        
-        if gov in nmod.get_parents():
-            continue
-        
-        mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
-        if mwe in nmod_advmod_complex:
-            nmod.add_edge(add_extra_info(add_eud_info(split_by_at(nmod_rel)[0], case.get_conllu_field("form").lower()), "advmod_prep"), gov)
-        else:
-            advmod.replace_edge(advmod_rel, add_extra_info(split_by_at(case_rel)[0], "advmod_prep"), gov, nmod)
-            case.replace_edge(case_rel, add_extra_info("mwe", "advmod_prep"), nmod, advmod)
-            nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(split_by_at(nmod_rel)[0], mwe), "advmod_prep"), advmod, gov)
+    @staticmethod
+    @abstractmethod
+    def specific_rewrite(advmod, nmod, case, gov)  -> None:
+        raise NotImplementedError
+
+    @staticmethod
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+        NmodAdvmodReconstruction.specific_rewrite(**hit_ns)
+
+
+class NmodAdvmodReconstructionBasic(NmodAdvmodReconstruction):
+    @staticmethod
+    def is_complex():
+        return False
+
+    @staticmethod
+    def specific_rewrite(advmod, nmod, case, gov) -> None:
+        mwe = advmod[0].get_conllu_field("form").lower() + "_" + case[0].get_conllu_field("form").lower()
+        advmod[0].replace_edge(advmod[2], add_extra_info(split_by_at(case[2])[0], "advmod_prep"), gov[0], nmod[0])
+        case[0].replace_edge(case[2], add_extra_info("mwe", "advmod_prep"), nmod[0], advmod[0])
+        nmod[0].replace_edge(nmod[2], add_extra_info(add_eud_info(split_by_at(nmod[2])[0], mwe), "advmod_prep"), advmod[0], gov[0])
+
+
+class NmodAdvmodReconstructionComplex(NmodAdvmodReconstruction):
+    @staticmethod
+    def is_complex():
+        return True
+    
+    @staticmethod
+    def specific_rewrite(advmod, nmod, case, gov) -> None:
+        nmod[0].add_edge(add_extra_info(add_eud_info(split_by_at(nmod[2])[0], case[0].get_conllu_field("form").lower()), "advmod_prep"), gov[0])
 
 
 def extra_appos_propagation(sentence):
@@ -1542,7 +1566,8 @@ def convert_sentence(sentence, iids):
     eudpp_process_3wp(sentence)  # processMultiwordPreps: process3WP
     eudpp_demote_quantificational_modifiers(sentence)  # demoteQuantificationalModifiers
 
-    extra_nmod_advmod_reconstruction(sentence)
+    match_and_rewrite(sentence, NmodAdvmodReconstructionBasic)
+    match_and_rewrite(sentence, NmodAdvmodReconstructionComplex)
     
     extra_copula_reconstruction(sentence)
     extra_evidential_reconstruction(sentence)
@@ -1553,9 +1578,9 @@ def convert_sentence(sentence, iids):
 
     eudpp_expand_pp_or_prep_conjunctions(sentence)  # add copy nodes: expandPPConjunctions, expandPrepConjunctions
 
-    eud_passive_agent(sentence)  # addCaseMarkerInformation
+    match_and_rewrite(sentence, PassiveAgent)
     eud_heads_of_conjuncts(sentence)  # treatCC
-    eud_prep_patterns(sentence)  # addCaseMarkerInformation
+    match_and_rewrite(sentence, PrepPatterns)
     eud_conj_info(sentence)  # addConjInformation
 
     extra_add_ref_and_collapse(sentence)

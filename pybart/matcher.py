@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-
+from typing import Tuple, List
 
 @dataclass
 class Restriction:
@@ -15,6 +15,7 @@ class Restriction:
     diff: str = None
     before: str = None
     after: str = None
+    form_combo_in: Tuple[List[str], List[str], bool] = None
     nested: [['Restriction']] = None
 
 
@@ -52,6 +53,13 @@ def named_nodes_restrictions(restriction, named_nodes):
         diff, _, _ = named_nodes[restriction.diff]
         if child == diff:
             return False
+    
+    if restriction.form_combo_in:
+        name_to_check = child.get_conllu_field("form")
+        for name in restriction.form_combo_in[1]:
+            name_to_check += "_" + named_nodes[name].get_conllu_field("form")
+        if name_to_check in restriction.form_combo_in[0]:
+            return restriction.form_combo_in[2]
     
     return True
 
