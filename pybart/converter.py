@@ -134,140 +134,109 @@ def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=Fa
     return orig + source_str
 
 
-# ********************************************* Conversion Functions *********************************************
-
 def udv(udv1_str: str, udv2_str: str) -> str:
     return udv1_str if g_ud_version == 1 else udv2_str
 
-# correctDependencies - correctSubjPass
-# This method corrects subjects of verbs for which we identified an auxpass,
-# but didn't identify the subject as passive.
-# (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj)
-# correctDependencies - processNames and removeExactDuplicates: have been skipped.
-# processNames for future treatment, removeExactDuplicates for redundancy.
-def eud_correct_subj_pass(sentence):
-    restriction = Restriction(name="root", nested=[[
-        Restriction(gov='auxpass', name="aux"),
-        # the SC regex (which was "^(nsubj|csubj).*$") was changed here
-        # to avoid the need to filter .subjpass relations in the graph-rewriting part
-        Restriction(gov="^(.subj|.subj(?!pass).*)$", name="subj")
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    # rewrite graph: for every subject add a 'pass' and replace in graph node
-    for name_space in ret:
-        subj, subj_head, subj_rel = name_space['subj']
-        aux, _, _ = name_space['aux']
-        root, _, _ = name_space['root']
-        if aux.get_conllu_field("id") < root.get_conllu_field("id") < subj.get_conllu_field("id"):
-            continue
-        substitute_rel = re.sub("(?<!x)subj", "subjpass", subj_rel)
-        # in SC they add it to the 'deprel' even if the edge was found in the 'deps' :O
-        subj.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
+
+# ********************************************* Conversion Functions *********************************************
 
 
-# add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
-def eud_passive_agent(sentence):
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(gov='auxpass'),
-        Restriction(name="mod", gov="^(nmod)$", nested=[[
-            Restriction(gov='case', form="^(?i:by)$")
+# Purpose: This method corrects subjects of verbs for which we identified an auxpass,
+#   but didn't identify the subject as passive.
+# SC notes:
+#   1. original name = correctSubjPass
+#   2. We changed the regex of "subj" restriction, to avoid the need
+#       to filter .subjpass relations in the graph-rewriting part
+class CorrectSubjPass:
+    @staticmethod
+    def get_conv_type() -> ConvTypes:
+        return ConvTypes.EUD
+
+    @staticmethod
+    def get_restriction() -> Restriction:
+        return Restriction(name="root", after="subj", nested=[[
+            Restriction(gov='auxpass', name="aux"),
+            Restriction(gov="^(.subj|.subj(?!pass).*)$", name="subj")
         ]])
-    ]])
 
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-
-    # rewrite graph: for every nmod add ':agent' to the graph node relation
-    for name_space in ret:
-        gov, _, _ = name_space['gov']
-        mod, _, mod_rel = name_space['mod']
-        mod.replace_edge(mod_rel, add_eud_info(mod_rel, "agent"), gov, gov)
+    @staticmethod
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+        hit_ns['subj'][NameSpace.NODE.value].replace_edge(
+            hit_ns['subj'][NameSpace.REL.value],
+            re.sub("(?<!x)subj", "subjpass", hit_ns['subj'][NameSpace.REL.value]),
+            hit_ns['subj'][NameSpace.HEAD.value],
+            hit_ns['subj'][NameSpace.HEAD.value])
 
 
-# we need to create a concat string for every marker neighbor chain
-# actually it should never happen that they are separate, but nonetheless we add relation if so,
-# this might result in multi-graph
-# e.g 'in front of' should be [in_front_of] if they are all sequential, but [in, front_of],
-# if only 'front' and 'of' are sequential (and 'in' is separated).
-def concat_sequential_tokens(c1, c2, c3):
-    # add the first word
-    sequences = [c1.get_conllu_field('form')]
-    prev = c1
-    if not c2:
-        # we return here because if c2 is None, c3 must be as well
-        return sequences
-    
-    for ci in ([c2, c3] if c3 else [c2]):
-        if prev.get_conllu_field('id') > ci.get_conllu_field('id'):
-            return
-        # concat every following marker, or start a new string if not
-        elif prev.get_conllu_field('id') == ci.get_conllu_field('id') - 1:
-            sequences[-1] += '_' + ci.get_conllu_field('form')
-        else:
-            sequences.append(ci.get_conllu_field('form'))
-        prev = ci
-    return sequences
+# Purpose: add 'agent' to modifiers if they are cased by agent_original_case, and have an auxpass sibling
+# SC notes:
+#   1. original name = addCaseMarkerInformation
+class PassiveAgent:
+    @staticmethod
+    def get_conv_type() -> ConvTypes:
+        return ConvTypes.EUD
 
-
-def prep_patterns_per_type(sentence, restriction):
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        mod, mod_head, mod_rel = name_space['mod']
-        c1, _, _ = name_space['c1']
-        c2, _, _ = name_space['c2'] if 'c2' in name_space else (None, None, None)
-        c3, _, _ = name_space['c3'] if 'c3' in name_space else (None, None, None)
-        
-        sequences = concat_sequential_tokens(c1, c2, c3)
-        if not sequences:
-            continue
-        
-        mod.remove_edge(mod_rel, mod_head)
-        for prep_sequence in sequences:
-            mod.add_edge(add_eud_info(mod_rel, prep_sequence.lower()), mod_head)
-
-
-def prep_patterns_inner(sentence, first_gov, second_gov):
-    restriction_3w = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov=first_gov, nested=[[
-            Restriction(name="c1", gov=second_gov, nested=[[
-                Restriction(name="c2", gov="mwe"),
-                Restriction(name="c3", gov="mwe", diff="c2")
+    @staticmethod
+    def get_restriction() -> Restriction:
+        return Restriction(name="gov", nested=[[
+            Restriction(gov='auxpass'),
+            Restriction(name="mod", gov=f"^({udv('nmod', 'obl')})$", nested=[[
+                Restriction(gov='case', form=f"^(?i:{agent_original_case})$")
             ]])
         ]])
-    ]])
-    restriction_2w = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov=first_gov, nested=[[
-            Restriction(name="c1", gov=second_gov, nested=[[
+
+    @staticmethod
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+        hit_ns['mod'][NameSpace.NODE.value].replace_edge(
+            hit_ns['mod'][NameSpace.REL.value],
+            add_eud_info(hit_ns['mod'][NameSpace.REL.value], "agent"),
+            hit_ns['gov'][NameSpace.NODE.value],
+            hit_ns['gov'][NameSpace.NODE.value])
+
+
+# Purpose: move preposition to the relation label including cases of multi word preposition
+# SC notes:
+#   1. original name = addCaseMarkerInformation
+#   2. In SC they are more harsh with multi words prepositions that are not following,
+#       but we simply ignore this rare (or impossible case?), for simplicity
+class PrepPatterns:
+    @staticmethod
+    def get_conv_type() -> ConvTypes:
+        return ConvTypes.EUD
+
+    @staticmethod
+    def get_restriction() -> Restriction:
+        return Restriction(name="gov", nested=[[
+        Restriction(name="mod", gov='^(advcl|acl|nmod|obl)$', nested=[
+        [
+            Restriction(name="c1", gov='^(mark|case)$', followed_by="c2", nested=[[
+                Restriction(name="c2", gov="mwe"),
+                Restriction(name="c3", gov="mwe", diff="c2", follows="c2")
+            ]])
+        ], [
+            Restriction(name="c1", gov='^(mark|case)$', followed_by="c2", nested=[[
                 Restriction(name="c2", gov="mwe")
             ]])
-        ]])
-    ]])
-    restriction_1w = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov=first_gov, nested=[[
+        ], [
             # here we want to find any one word that marks a modifier,
-            # except cases in which 'by' was used for 'agent' identification,
+            # except for cases in which agent_original_case was used for 'agent' identification,
             # but the 'exact' notation will prevent those from being caught
-            Restriction(name="c1", gov=second_gov)
+            Restriction(name="c1", gov='^(mark|case)$')
         ]])
     ]])
-    
-    # NOTE: in SC since they replace the modifier (nmod/advcl/acl) it won't come up again in future matches,
-    # as they use the exact (^$) symbols. and so we imitate this behavior.
-    for rest in [restriction_3w, restriction_2w, restriction_1w]:
-        prep_patterns_per_type(sentence, rest)
 
-
-def eud_prep_patterns(sentence):
-    prep_patterns_inner(sentence, '^nmod$', 'case')
-    prep_patterns_inner(sentence, '^(advcl|acl)$', '^(mark|case)$')
+    @staticmethod
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+        # Concatenating the multi-word preposition.
+        prep_sequence = "_".join([x.get_conllu_field('form') for x in filter(None, [
+            hit_ns.get('c1')[NameSpace.NODE.value],
+            hit_ns.get('c2')[NameSpace.NODE.value],
+            hit_ns.get('c3')[NameSpace.NODE.value]])]).lower()
+        hit_ns['mod'][NameSpace.NODE.value].replace_edge(
+            hit_ns['mod'][NameSpace.REL.value],
+            add_eud_info(hit_ns['mod'][NameSpace.REL.value], prep_sequence),
+            hit_ns['mod'][NameSpace.HEAD.value],
+            hit_ns['mod'][NameSpace.HEAD.value])
 
 
 def eud_heads_of_conjuncts(sentence):
@@ -1565,8 +1534,8 @@ def match_and_rewrite(sentence, class_name):
 def convert_sentence(sentence, iids):
     # The order of eud and eudpp is according to the order of the original CoreNLP (stanford-parser-full-2018-10-17\stanford-parser-3.9.2-sources\edu\stanford\nlp\trees\UniversalEnglishGrammaticalStructure.java).
     # The extra are our enhancements in which been added where we thought it best.
-    
-    eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
+
+    match_and_rewrite(sentence, CorrectSubjPass)
 
     eudpp_process_simple_2wp(sentence)  # processMultiwordPreps: processSimple2WP
     eudpp_process_complex_2wp(sentence)  # processMultiwordPreps: processComplex2WP
