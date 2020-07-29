@@ -229,10 +229,8 @@ class PrepPatterns:
     @staticmethod
     def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
         # Concatenating the multi-word preposition.
-        prep_sequence = "_".join([x.get_conllu_field('form') for x in filter(None, [
-            hit_ns.get('c1')[NameSpace.NODE.value],
-            hit_ns.get('c2')[NameSpace.NODE.value],
-            hit_ns.get('c3')[NameSpace.NODE.value]])]).lower()
+        prep_sequence = "_".join([x[NameSpace.NODE.value].get_conllu_field('form') for x in filter(None, [
+            hit_ns.get('c1'), hit_ns.get('c2'), hit_ns.get('c3')])]).lower()
         hit_ns['mod'][NameSpace.NODE.value].replace_edge(
             hit_ns['mod'][NameSpace.REL.value],
             add_eud_info(hit_ns['mod'][NameSpace.REL.value], prep_sequence),
