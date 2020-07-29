@@ -8,10 +8,11 @@ import sys
 import re
 from math import copysign
 import inspect
-from typing import List
+from typing import List, Dict, Tuple
+from enum import Enum
 
 from .matcher import match, Restriction
-
+from .graph_token import Token
 
 # ********************************************* Constants&Globals *********************************************
 
@@ -20,6 +21,7 @@ EXTRA_INFO_STUB = 1
 g_remove_enhanced_extra_info = False
 g_remove_bart_extra_info = False
 g_remove_node_adding_conversions = False
+g_ud_version = 1  # default UD version we work with is 1
 
 # language specific lists
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
@@ -37,10 +39,22 @@ advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|t
 evidential_list = "^(seem|appear|be|sound)$"
 aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
 reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
+agent_original_case = "by"
 
 # UDv1 specifics:
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
 
+
+class ConvTypes(Enum):
+    EUD = 1
+    EUDPP = 2
+    BART = 3
+
+
+class NameSpace(Enum):
+    NODE = 0
+    HEAD = 1
+    REL = 2
 
 # ********************************************* Helper Functions *********************************************
 
@@ -122,6 +136,8 @@ def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=Fa
 
 # ********************************************* Conversion Functions *********************************************
 
+def udv(udv1_str: str, udv2_str: str) -> str:
+    return udv1_str if g_ud_version == 1 else udv2_str
 
 # correctDependencies - correctSubjPass
 # This method corrects subjects of verbs for which we identified an auxpass,
@@ -1541,8 +1557,13 @@ def extra_passive_alteration(sentence):
         subj.add_edge(add_extra_info(subj_new_rel, "passive", prevs=subj_rel), predicate)
     
 
+def match_and_rewrite(sentence, class_name):
+    for hit in match(sentence.values(), [[class_name.get_restriction()]]) or []:
+        class_name.rewrite(hit)
+
+
 def convert_sentence(sentence, iids):
-    # The order of eud and eudpp is according to the order of the original CoreNLP.
+    # The order of eud and eudpp is according to the order of the original CoreNLP (stanford-parser-full-2018-10-17\stanford-parser-3.9.2-sources\edu\stanford\nlp\trees\UniversalEnglishGrammaticalStructure.java).
     # The extra are our enhancements in which been added where we thought it best.
     
     eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
@@ -1623,11 +1644,12 @@ def on_last_iter_convs(sentence):
     return sentence
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
-    global g_remove_enhanced_extra_info, g_remove_bart_extra_info, g_remove_node_adding_conversions
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version=1):
+    global g_remove_enhanced_extra_info, g_remove_bart_extra_info, g_remove_node_adding_conversions, g_ud_version
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
+    g_ud_version = ud_version
     iids = dict()
     
     override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
