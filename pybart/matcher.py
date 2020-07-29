@@ -13,6 +13,8 @@ class Restriction:
     follows: str = None
     followed_by: str = None
     diff: str = None
+    before: str = None
+    after: str = None
     nested: [['Restriction']] = None
 
 
@@ -24,7 +26,18 @@ def named_nodes_restrictions(restriction, named_nodes):
         child, _, _ = named_nodes[restriction.name]
     else:
         return True
-    
+
+    if restriction.after:
+        after, _, _ = named_nodes[restriction.after]
+        if child.get_conllu_field('id') <= after.get_conllu_field('id'):
+            return False
+
+    if restriction.before:
+        before, _, _ = named_nodes[restriction.before]
+        if child.get_conllu_field('id') >= before.get_conllu_field('id'):
+            return False
+
+
     if restriction.follows:
         follows, _, _ = named_nodes[restriction.follows]
         if child.get_conllu_field('id') - 1 != follows.get_conllu_field('id'):
@@ -129,7 +142,7 @@ def match_rl(children, restriction_list, head):
         for named_nodes in ret:
             # this is done here because we want to check cross restrictions
             # TODO - move the following information from here:
-            #   rules regarding the usage of non graph restrictions (follows, followed_by, diff):
+            #   rules regarding the usage of non graph restrictions (follows, followed_by, diff, after, before):
             #   1. must be after sibling rest's that they refer to
             #       or in the outer rest of a nested that they refer to
             #   2. must have names for themselves
