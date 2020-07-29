@@ -10,6 +10,7 @@ from math import copysign
 import inspect
 from typing import List, Dict, Tuple
 from enum import Enum
+from abc import ABC, abstractmethod
 
 from .matcher import match, Restriction
 from .graph_token import Token
@@ -630,7 +631,6 @@ def extra_advmod_propagation(sentence):
         if gov not in advmod.get_parents():
             advmod.add_edge(add_extra_info(split_by_at(advmod_rel)[0], "nmod", dep_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True, prevs=middle_man_rel), gov)
 
-from abc import ABC, abstractmethod
 
 # Purpose: move preposition to the relation label including cases of multi word preposition
 # Notes:
@@ -647,11 +647,10 @@ class NmodAdvmodReconstruction(ABC):
     def is_complex() -> bool:
         raise NotImplementedError
     
-    @staticmethod
-    def get_restriction() -> Restriction:
+    @classmethod
+    def get_restriction(cls) -> Restriction:
         return Restriction(name="gov", nested=[[
-            Restriction(name="advmod", form_combo_in=(nmod_advmod_complex, ['case'], NmodAdvmodReconstruction.is_complex()),
-                        no_sons_of="advmod", gov="advmod", nested=[[
+            Restriction(name="advmod", form_combo_in=(nmod_advmod_complex, ['case'], cls.is_complex()), no_sons_of="advmod", gov="advmod", nested=[[
                 Restriction(name="nmod", gov=f"{udv('nmod', 'obl')}", nested=[[
                     Restriction(name="case", gov="case")
                 ]])
@@ -660,12 +659,12 @@ class NmodAdvmodReconstruction(ABC):
     
     @staticmethod
     @abstractmethod
-    def specific_rewrite(advmod, nmod, case, gov)  -> None:
+    def specific_rewrite(advmod, nmod, case, gov) -> None:
         raise NotImplementedError
 
-    @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
-        NmodAdvmodReconstruction.specific_rewrite(**hit_ns)
+    @classmethod
+    def rewrite(cls, hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+        cls.specific_rewrite(**hit_ns)
 
 
 class NmodAdvmodReconstructionBasic(NmodAdvmodReconstruction):
