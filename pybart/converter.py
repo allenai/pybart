@@ -161,7 +161,7 @@ class CorrectSubjPass:
         ]])
 
     @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
         hit_ns['subj'][NameSpace.NODE.value].replace_edge(
             hit_ns['subj'][NameSpace.REL.value],
             re.sub("(?<!x)subj", "subjpass", hit_ns['subj'][NameSpace.REL.value]),
@@ -187,7 +187,7 @@ class PassiveAgent:
         ]])
 
     @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
         hit_ns['mod'][NameSpace.NODE.value].replace_edge(
             hit_ns['mod'][NameSpace.REL.value],
             add_eud_info(hit_ns['mod'][NameSpace.REL.value], "agent"),
@@ -208,23 +208,24 @@ class PrepPatterns:
     @staticmethod
     def get_restriction() -> Restriction:
         return Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov='^(advcl|acl|nmod|obl)$', nested=[
-        [
-            Restriction(name="c1", gov='^(mark|case)$', followed_by="c2", nested=[[
-                Restriction(name="c2", gov="mwe"),
-                Restriction(name="c3", gov="mwe", diff="c2", follows="c2")
-            ]])
-        ], [
-            Restriction(name="c1", gov='^(mark|case)$', followed_by="c2", nested=[[
-                Restriction(name="c2", gov="mwe")
-            ]])
-        ], [
-            # here we want to find any one word that marks a modifier,
-            # except for cases in which agent_original_case was used for 'agent' identification,
-            # but the 'exact' notation will prevent those from being caught
-            Restriction(name="c1", gov='^(mark|case)$')
+            Restriction(name="mod", gov='^(advcl|acl|nmod|obl)$', nested=[
+                [
+                    Restriction(name="c1", gov='^(mark|case)$', followed_by="c2", nested=[[
+                        Restriction(name="c2", gov="mwe"),
+                        Restriction(name="c3", gov="mwe", diff="c2", follows="c2")
+                    ]])
+                ], [
+                    Restriction(name="c1", gov='^(mark|case)$', followed_by="c2", nested=[[
+                        Restriction(name="c2", gov="mwe")
+                    ]])
+                ], [
+                    # here we want to find any one word that marks a modifier,
+                    # except for cases in which agent_original_case was used for 'agent' identification,
+                    # but the 'exact' notation will prevent those from being caught
+                    Restriction(name="c1", gov='^(mark|case)$')
+                ]
+            ])
         ]])
-    ]])
 
     @staticmethod
     def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
@@ -661,7 +662,7 @@ class NmodAdvmodReconstruction(ABC):
         raise NotImplementedError
 
     @classmethod
-    def rewrite(cls, hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
+    def rewrite(cls, hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
         cls.specific_rewrite(**hit_ns)
 
 
@@ -733,24 +734,26 @@ def attach_best_cc(conj, ccs, noun, verb):
 #       So we reverted it to regular behavior. When we do find such a case, we should record it and handle it more appropriately
 #   2. old_root's xpos restriction comes to make sure we catch only non verbal copulas to reconstruct
 #       (even though it should have been 'aux' instead of 'cop').
-class CopulaReconstruction():
+#   3. we want to catch all instances at once (hence the use of 'all') of any possible (hence the use of 'opt') old_root's child.
+class CopulaReconstruction:
     @staticmethod
     def get_restriction() -> Restriction:
         return Restriction(name="father", nested=[[
             Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
                 Restriction(name="cop", gov="cop"),
-                Restriction(opt=True, all= True, name='regular_children', xpos="?!(TO)",
+                Restriction(opt=True, all=True, name='regular_children', xpos="?!(TO)",  # avoid catching to-mark
                             gov="discourse|punct|advcl|xcomp|ccomp|expl|parataxis|mark)"),
                 Restriction(opt=True, all=True, name='subjs', gov="(.subj.*)"),
-                Restriction(opt=True, all=True, name='to_cop', xpos="(TO|VB|W?RB", gov="(mark|aux.*|advmod)"),
+                # here catch to-mark or aux (hence VB), or advmod (hence W?RB) to transfer to the copula
+                Restriction(opt=True, all=True, name='to_cop', gov="(mark|aux.*|advmod)", xpos="(TO|VB|W?RB)"),
                 Restriction(opt=True, all=True, name='cases', gov="case"),
-                Restriction(opt=True, all=True, name='conjs', gov="conj", xpos="(VB.?)"),
+                Restriction(opt=True, all=True, name='conjs', gov="conj", xpos="(VB.?)"),  # xpos rest -> transfer only conjoined verbs to the STATE
                 Restriction(opt=True, all=True, name='ccs', gov="cc")
             ]])
         ]])
     
     @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
         cop, _, cop_rel = hit_ns['cop']
         old_root = hit_ns['old_root'][0]
         
@@ -776,13 +779,13 @@ class CopulaReconstruction():
         for cur_to_cop, _, rel in hit_ns['to_cop']:
             cur_to_cop.replace_edge(rel, rel, old_root, cop)
         for conj, _, rel in hit_ns['conjs']:
-            # transfer 'conj' only if it is a verb conjunction, as we want it to be attached to the new (verb/state) root
             conj.replace_edge(rel, rel, old_root, new_root)
             # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
             attach_best_cc(conj, list(zip(*hit_ns['ccs']))[0], old_root, new_root)
         
-        # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
+        # only if old_root is an adjective
         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
+            # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
             for subj in hit_ns['subjs']:
                 old_root.add_edge(add_extra_info("amod", "cop"), subj)
         
@@ -937,7 +940,6 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_, ccomp_case
                     child.replace_edge(rel, rel, old_root, new_root)
             elif re.match("(?!advmod|aux.*|cc|conj).*", rel):
                 child.replace_edge(rel, rel, old_root, new_root)  # TODO4: consult regarding all cases in the world.
-
 
 
 def extra_evidential_reconstruction(sentence):
