@@ -2,8 +2,11 @@ import re
 from dataclasses import dataclass
 from typing import Tuple, List
 
+
 @dataclass
 class Restriction:
+    opt: bool = None
+    all: bool = None
     name: str = None
     gov: str = None
     no_sons_of: str = None
@@ -37,7 +40,6 @@ def named_nodes_restrictions(restriction, named_nodes):
         before, _, _ = named_nodes[restriction.before]
         if child.get_conllu_field('id') >= before.get_conllu_field('id'):
             return False
-
 
     if restriction.follows:
         follows, _, _ = named_nodes[restriction.follows]
@@ -93,6 +95,9 @@ def match_child(child, restriction, head):
     
     nested = []
     if restriction.nested:
+        # dont use all and nested together on the same restriction
+        if restriction.all:
+            return
         nested = match(child.get_children(), restriction.nested, child)
         if nested is None:
             return
@@ -134,9 +139,16 @@ def match_rl(children, restriction_list, head):
     for restriction in restriction_list:
         rest_ret = match_rest(children, restriction, head)
         
-        # if one restriction was violated, return empty list.
+        # fail if one restriction was violated,
+        #   unless it is an optional restriction
         if rest_ret is None:
+            if restriction.opt:
+                continue
             return None
+        
+        # return all node-matching for restriction as a list in the same name-sapce
+        if restriction.all:
+            rest_ret = [{list(rest_ret[0].keys())[0]: [ns[list(rest_ret[0].keys())[0]] for ns in rest_ret]}]
         
         # every new rest_ret should be merged to any previous rest_ret
         ret = rest_ret if not ret else \
