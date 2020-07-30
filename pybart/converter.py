@@ -161,12 +161,12 @@ class CorrectSubjPass:
         ]])
 
     @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
         hit_ns['subj'][NameSpace.NODE.value].replace_edge(
             hit_ns['subj'][NameSpace.REL.value],
             re.sub("(?<!x)subj", "subjpass", hit_ns['subj'][NameSpace.REL.value]),
-            hit_ns['subj'][NameSpace.HEAD.value],
-            hit_ns['subj'][NameSpace.HEAD.value])
+            hit_ns['root'][NameSpace.NODE.value],
+            hit_ns['root'][NameSpace.NODE.value])
 
 
 # Purpose: add 'agent' to modifiers if they are cased by agent_original_case, and have an auxpass sibling
@@ -187,7 +187,7 @@ class PassiveAgent:
         ]])
 
     @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
         hit_ns['mod'][NameSpace.NODE.value].replace_edge(
             hit_ns['mod'][NameSpace.REL.value],
             add_eud_info(hit_ns['mod'][NameSpace.REL.value], "agent"),
@@ -227,15 +227,15 @@ class PrepPatterns:
     ]])
 
     @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
         # Concatenating the multi-word preposition.
         prep_sequence = "_".join([x[NameSpace.NODE.value].get_conllu_field('form') for x in filter(None, [
             hit_ns.get('c1'), hit_ns.get('c2'), hit_ns.get('c3')])]).lower()
         hit_ns['mod'][NameSpace.NODE.value].replace_edge(
             hit_ns['mod'][NameSpace.REL.value],
             add_eud_info(hit_ns['mod'][NameSpace.REL.value], prep_sequence),
-            hit_ns['mod'][NameSpace.HEAD.value],
-            hit_ns['mod'][NameSpace.HEAD.value])
+            hit_ns['gov'][NameSpace.NODE.value],
+            hit_ns['gov'][NameSpace.NODE.value])
 
 
 def eud_heads_of_conjuncts(sentence):
@@ -661,7 +661,7 @@ class NmodAdvmodReconstruction(ABC):
         raise NotImplementedError
 
     @classmethod
-    def rewrite(cls, hit_ns: Dict[str, Tuple[Token, Token, str]]) -> None:
+    def rewrite(cls, hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
         cls.specific_rewrite(**hit_ns)
 
 
@@ -722,6 +722,72 @@ def attach_best_cc(conj, ccs, noun, verb):
             closest_dist = conj.dist(closest_cc)
     if closest_cc:
         closest_cc.replace_edge("cc", "cc", noun, verb)
+
+
+# Purpose: TODO
+# Notes:
+#   1. formerly we did this as long as we find what to change, and each time change only one match, instead of fixing all matches found each time.
+#       As every change we did might effect what can be found next, and old relations that were matched might be out dated.
+#       But since this was a bad practice: (a) we dont use the matching properly, and (b) we use while true which might run forever,
+#       and (c) we didn't kept a record of any case that could be harmed.
+#       So we reverted it to regular behavior. When we do find such a case, we should record it and handle it more appropriately
+#   2. old_root's xpos restriction comes to make sure we catch only non verbal copulas to reconstruct
+#       (even though it should have been 'aux' instead of 'cop').
+class CopulaReconstruction():
+    @staticmethod
+    def get_restriction() -> Restriction:
+        return Restriction(name="father", nested=[[
+            Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
+                Restriction(name="cop", gov="cop"),
+                Restriction(opt=True, all= True, name='regular_children', xpos="?!(TO)",
+                            gov="discourse|punct|advcl|xcomp|ccomp|expl|parataxis|mark)"),
+                Restriction(opt=True, all=True, name='subjs', gov="(.subj.*)"),
+                Restriction(opt=True, all=True, name='to_cop', xpos="(TO|VB|W?RB", gov="(mark|aux.*|advmod)"),
+                Restriction(opt=True, all=True, name='cases', gov="case"),
+                Restriction(opt=True, all=True, name='conjs', gov="conj", xpos="(VB.?)"),
+                Restriction(opt=True, all=True, name='ccs', gov="cc")
+            ]])
+        ]])
+    
+    @staticmethod
+    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token]=None) -> None:
+        cop, _, cop_rel = hit_ns['cop']
+        old_root = hit_ns['old_root'][0]
+        
+        # add STATE node or nominate the copula as new root if we shouldn't add new nodes
+        if not g_remove_node_adding_conversions:
+            new_id = cop.get_conllu_field('id') + 0.1
+            new_root = cop.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
+            sentence[new_id] = new_root
+            # 'cop' becomes 'ev' (for event/evidential) to the new root
+            cop.replace_edge(cop_rel, "ev", old_root, new_root)
+        else:
+            new_root = cop
+            new_root.remove_edge(cop_rel, old_root)
+
+        # transfer old-root's outgoing relation to new-root
+        for head, rel in old_root.get_new_relations():
+            old_root.remove_edge(rel, head)
+            new_root.add_edge(rel, head)
+
+        # transfer all old-root's children that are to be transferred
+        for child, _, rel in hit_ns['regular_children'] + hit_ns['subjs']:
+            child.replace_edge(rel, rel, old_root, new_root)
+        for cur_to_cop, _, rel in hit_ns['to_cop']:
+            cur_to_cop.replace_edge(rel, rel, old_root, cop)
+        for conj, _, rel in hit_ns['conjs']:
+            # transfer 'conj' only if it is a verb conjunction, as we want it to be attached to the new (verb/state) root
+            conj.replace_edge(rel, rel, old_root, new_root)
+            # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
+            attach_best_cc(conj, list(zip(*hit_ns['ccs']))[0], old_root, new_root)
+        
+        # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
+        if re.match("JJ.?", old_root.get_conllu_field("xpos")):
+            for subj in hit_ns['subjs']:
+                old_root.add_edge(add_extra_info("amod", "cop"), subj)
+        
+        # connect the old_root as son of the new_root with the proper complement
+        old_root.add_edge("xcomp" if 'cases' not in hit_ns else udv("nmod", "obl"), new_root)
 
 
 def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
@@ -872,17 +938,6 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_, ccomp_case
             elif re.match("(?!advmod|aux.*|cc|conj).*", rel):
                 child.replace_edge(rel, rel, old_root, new_root)  # TODO4: consult regarding all cases in the world.
 
-
-def extra_copula_reconstruction(sentence):
-    # NOTE: the xpos restriction comes to make sure we catch only non verbal copulas to reconstruct
-    #   (even though it should have been 'aux' instead of 'cop')
-    cop_rest = Restriction(name="father", nested=[[
-        Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
-            Restriction(name="cop", gov="cop"),
-        ]])
-    ]])
-
-    extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, False)
 
 
 def extra_evidential_reconstruction(sentence):
@@ -1549,7 +1604,7 @@ def extra_passive_alteration(sentence):
 
 def match_and_rewrite(sentence, class_name):
     for hit in match(sentence.values(), [[class_name.get_restriction()]]) or []:
-        class_name.rewrite(hit)
+        class_name.rewrite(hit, sentence)
 
 
 def convert_sentence(sentence, iids):
@@ -1566,7 +1621,7 @@ def convert_sentence(sentence, iids):
     match_and_rewrite(sentence, NmodAdvmodReconstructionBasic)
     match_and_rewrite(sentence, NmodAdvmodReconstructionComplex)
     
-    extra_copula_reconstruction(sentence)
+    match_and_rewrite(sentence, CopulaReconstruction)
     extra_evidential_reconstruction(sentence)
     extra_aspectual_reconstruction(sentence)
     extra_reported_evidentiality(sentence)
