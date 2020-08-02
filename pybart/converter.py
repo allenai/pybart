@@ -638,10 +638,6 @@ def extra_advmod_propagation(sentence):
 #   3. We wanted to split the cses according to the black list of advmod+nmod as they are treated differently
 class NmodAdvmodReconstruction(ABC):
     @staticmethod
-    def get_conv_type() -> ConvTypes:
-        return ConvTypes.BART
-
-    @staticmethod
     @abstractmethod
     def is_complex() -> bool:
         raise NotImplementedError
@@ -668,6 +664,10 @@ class NmodAdvmodReconstruction(ABC):
 
 class NmodAdvmodReconstructionBasic(NmodAdvmodReconstruction):
     @staticmethod
+    def get_conv_type() -> ConvTypes:
+        return ConvTypes.BART
+
+    @staticmethod
     def is_complex():
         return False
 
@@ -680,6 +680,10 @@ class NmodAdvmodReconstructionBasic(NmodAdvmodReconstruction):
 
 
 class NmodAdvmodReconstructionComplex(NmodAdvmodReconstruction):
+    @staticmethod
+    def get_conv_type() -> ConvTypes:
+        return ConvTypes.BART
+
     @staticmethod
     def is_complex():
         return True
