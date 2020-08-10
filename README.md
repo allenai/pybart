@@ -132,10 +132,13 @@ Each of our API calls can get the following optional parameters:
 If you use pyBART or BART in your research, please cite [pyBART: Evidence-based Syntactic Transformations for IE](http://arxiv.org/abs/2005.01306).
 
 ```bibtex
-@inproceedings{Tiktinsky2020pyBARTES,
-  title={pyBART: Evidence-based Syntactic Transformations for IE},
-  author={Aryeh Tiktinsky and Yoav Goldberg and Reut Tsarfaty},
-  year={2020}
+@misc{tiktinsky2020pybart,
+    title={pyBART: Evidence-based Syntactic Transformations for IE},
+    author={Aryeh Tiktinsky and Yoav Goldberg and Reut Tsarfaty},
+    year={2020},
+    eprint={2005.01306},
+    archivePrefix={arXiv},
+    primaryClass={cs.CL}
 }
 ```
 
