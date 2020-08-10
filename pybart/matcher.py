@@ -1,8 +1,81 @@
 import re
-from collections import namedtuple
+from dataclasses import dataclass
+from typing import Tuple, List, Union
+from enum import Enum
 
-fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
-Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
+
+class FieldNames(Enum):
+    WORD = 0
+    LEMMA = 1
+    TAG = 2
+    ENTITY = 3
+
+
+class FieldTypes(Enum):
+    EXACT = 0
+    REGEX = 1
+    LIST = 2
+
+
+@dataclass
+class FieldConstraint:
+    field: FieldNames
+    type: FieldTypes
+    value: Union[str, List[str]]  # either an exact/regex string or a match of one of the strings in a list
+
+
+@dataclass
+class InoutConstraint:
+    in_or_out: bool  # consider the incoming or ingoing edges
+    w_o: bool  # with/out: should at least one of in/out edges have the label (w=with), or should none of the in/out edge have the label (o=without)
+    label: str  # the label to match. TODO: should default be regex? maybe consider Label class (see edge notes)
+
+
+@dataclass
+class TokenConstraint:
+    id: int  # each token is indexed by a number
+    optional: bool  # is this an optional constraint or required
+    spec: List[FieldConstraint]
+    is_root: bool = None  # optional field, if set, then check if this is/n't (depending on the bool value) the root
+    inout_filter: List[InoutConstraint] = None  # filter this token according to his incoming/outgoing edges
+
+
+@dataclass
+class EdgeConstraint:
+    target: int
+    source: int
+    label: str  # or a class for Label, with basic/EUD/BART parts, which we will define later on
+    # whether at least one match is enough or should be satisfied against all edges between the two nodes.
+    #   This is for a case of negative lookup (regex-wise) in which we need to satisfy it against all edges (between the two nodes).
+    negative: bool = False
+
+
+@dataclass
+class LinearConstraint:
+    tok1: int
+    tok2: int
+    slop: int # -1 means only order matters, 0 means no words in between, etc.
+
+
+@dataclass
+class StructuralConstraint:
+    # the concatenation of words from the tokens specified by their IDs, should/n't (depending on the boolean) appear in the given list of strings
+    concat_in_list: Tuple[List[int], List[str], bool] = None
+    
+    linear: List[LinearConstraint] = None
+    
+    diff: List[Tuple[int, int]] = None  # list of pairs of token ids. each pair states that these two tokens should be different nodes from each other.
+    # for each token id return the entire cluster of tokens that satisfy that node constraint,
+    #   instead of splitting it into different match-sets.
+    all: List[int] = None
+    # opt_group: List[List[int]] = None  # problematic for now, maybe could be solved by splitting a restriction
+    
+
+@dataclass
+class FullConstraint:
+    tokens: List[TokenConstraint]
+    edges: List[EdgeConstraint]
+    structural: StructuralConstraint
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
