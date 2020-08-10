@@ -3,6 +3,11 @@ from dataclasses import dataclass
 from typing import Tuple, List, Union
 from enum import Enum
 
+from collections import namedtuple
+
+fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
+Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
+
 
 class FieldNames(Enum):
     WORD = 0
