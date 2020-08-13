@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import Tuple, List, Union, Set
+from typing import Dict, List, Union, Set
 from enum import Enum
 
 from collections import namedtuple
@@ -95,6 +95,7 @@ class TokenTripletConstraint:  # the words of the nodes must/n't match
 
 @dataclass
 class FullConstraint:
+    names: Dict[int, str] = field(default_factory=dict())
     tokens: List[TokenConstraint] = field(default_factory=list())
     edges: List[EdgeConstraint] = field(default_factory=list())
     exact_linear: List[ExactLinearConstraint] = field(default_factory=list())
