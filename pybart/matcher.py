@@ -103,6 +103,44 @@ class FullConstraint:
     concat_pairs: List[TokenPairConstraint] = field(default_factory=list())
     concat_triplets: List[TokenTripletConstraint] = field(default_factory=list())
 
+# usage examples:
+#
+# for three-word-preposition processing
+# restriction = FullConstraint(
+#     names={1: "w1", 2: "w2", 3: "w3", 4: "w2_proxy_w3"},
+#     tokens=[
+#         TokenConstraint(id=1, outgoing_edges=[LabelConstraint(no_edge=".*")]),
+#         TokenConstraint(id=2),
+#         TokenConstraint(id=3, outgoing_edges=[LabelConstraint(no_edge=".*")]),
+#         TokenConstraint(id=4)],
+#     edges=[
+#         EdgeConstraint(target=4, source=2, label=["(nmod|acl|advcl).*"]),
+#         EdgeConstraint(target=1, source=2, label=["case"]),
+#         EdgeConstraint(target=3, source=4, label=["case|mark"])
+#     ],
+#     exact_linear=[ExactLinearConstraint(1, 2, distance=0), ExactLinearConstraint(2, 3, distance=0)],
+#     concat_triplets=[TokenTripletConstraint(1, 2, 3, three_word_preps)]
+# )
+#
+#
+# for "acl propagation" (type1)
+# FullConstraint(
+#     names={1: "verb", 2: "subj", 3: "middle_man", 4: "acl", 5: "to"},
+#     tokens=[
+#         TokenConstraint(id=1, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.REGEX, "(VB.?)")]),
+#         TokenConstraint(id=2),
+#         TokenConstraint(id=3),
+#         TokenConstraint(id=4, outgoing_edges=[LabelConstraint(no_edge=".subj.*")]),
+#         TokenConstraint(id=5, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.EXACT, "TO")])],
+#     edges=[
+#         EdgeConstraint(target=2, source=1, label=[".subj.*"]),
+#         EdgeConstraint(target=3, source=1, label=[".*"]),
+#         EdgeConstraint(target=4, source=3, label=["acl(?!:relcl)"]),
+#         EdgeConstraint(target=5, source=4, label=["mark"])
+#     ],
+# )
+#
+
 
 # ----------------------------------------- matching functions ----------------------------------- #
 
