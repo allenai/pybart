@@ -10,13 +10,13 @@ from math import copysign
 import inspect
 from typing import List
 
-from .matcher import match, Restriction
+from .matcher import *
 
 # constants
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
 two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
 two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
-three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
+three_word_preps = {"by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"}
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
 quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
 quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
@@ -1064,6 +1064,22 @@ def eudpp_process_3wp(sentence):
         ]])
     ]])
     
+    restriction = FullConstraint(
+        names={1: "w1", 2: "w2", 3: "w3", 4: "w2_proxy_w3"},
+        tokens=[
+            TokenConstraint(id=1, outgoing_edges=[LabelConstraint(no_edge=".*")]),
+            TokenConstraint(id=2),
+            TokenConstraint(id=3, outgoing_edges=[LabelConstraint(no_edge=".*")]),
+            TokenConstraint(id=4)],
+        edges=[
+            EdgeConstraint(target=4, source=2, label=["(nmod|acl|advcl).*"]),
+            EdgeConstraint(target=1, source=2, label=["case"]),
+            EdgeConstraint(target=3, source=4, label=["case|mark"])
+        ],
+        exact_linear=[ExactLinearConstraint(1, 2, distance=0), ExactLinearConstraint(2, 3, distance=0)],
+        concat_triplets=[TokenTripletConstraint(1, 2, 3, three_word_preps)]
+    )
+    
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
@@ -1080,6 +1096,8 @@ def eudpp_process_3wp(sentence):
             continue
         
         # Determine the relation to use
+        # TODO - replace with reattach_parents, which is something like:
+        #   [(old_child.remove_edge(rel, head) and new_child.add_edge(rel if new_rel is None else new_rel, head)) for (head, rel) in old_head.get_new_relations()]
         if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
             gov2.replace_edge(gov2_rel, gov2_rel, w2, gov)
             case = "mark"
