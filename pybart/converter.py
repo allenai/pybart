@@ -490,6 +490,22 @@ def extra_acl_propagation(sentence):
             ]])
         ]])
     ]])
+
+    restriction = FullConstraint(
+        names={1: "verb", 2: "subj", 3: "middle_man", 4: "acl", 5: "to"},
+        tokens=[
+            TokenConstraint(id=1, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.REGEX, "(VB.?)")]),
+            TokenConstraint(id=2),
+            TokenConstraint(id=3),
+            TokenConstraint(id=4, outgoing_edges=[LabelConstraint(no_edge=".subj.*")]),
+            TokenConstraint(id=5, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.EXACT, "TO")])],
+        edges=[
+            EdgeConstraint(target=2, source=1, label=[".subj.*"]),
+            EdgeConstraint(target=3, source=1, label=[".*"]),
+            EdgeConstraint(target=4, source=3, label=["acl(?!:relcl)"]),
+            EdgeConstraint(target=5, source=4, label=["mark"])
+        ],
+    )
     
     ret = match(sentence.values(), [[acl_to_rest]])
     if ret:
