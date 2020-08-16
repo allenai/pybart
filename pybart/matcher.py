@@ -106,7 +106,7 @@ class FullConstraint:
 # usage examples:
 #
 # for three-word-preposition processing
-# restriction = FullConstraint(
+# FullConstraint(
 #     names={1: "w1", 2: "w2", 3: "w3", 4: "w2_proxy_w3"},
 #     tokens=[
 #         TokenConstraint(id=1, outgoing_edges=[LabelConstraint(no_edge=".*")]),
@@ -140,6 +140,23 @@ class FullConstraint:
 #     ],
 # )
 #
+#
+# for passive alternation
+# FullConstraint(
+#     names={1: "predicate", 2: "subjpass", 3: "agent", 4: "by"},
+#     tokens=[
+#         TokenConstraint(id=1),
+#         TokenConstraint(id=2),
+#         TokenConstraint(id=3, optional=True),
+#         TokenConstraint(id=4, optional=True, spec=[FieldConstraint(FieldNames.WORD, FieldTypes.REGEX, "^(?i:by)$")])],
+#     edges=[
+#         EdgeConstraint(target=2, source=1, label=[".subjpass"]),
+#         EdgeConstraint(target=3, source=1, label=["^(nmod(:agent)?)$"]),
+#         EdgeConstraint(target=4, source=3, label=["case"])
+#         # TODO - I would like to restrict all edges between the predicate and the passive subject to not being an object
+#         #   EdgeConstraint(target=2, source=1, label=[".obj"], negative=True)
+#     ]
+# )
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
