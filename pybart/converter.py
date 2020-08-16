@@ -730,62 +730,62 @@ def attach_best_cc(conj, ccs, noun, verb):
 #   2. old_root's xpos restriction comes to make sure we catch only non verbal copulas to reconstruct
 #       (even though it should have been 'aux' instead of 'cop').
 #   3. we want to catch all instances at once (hence the use of 'all') of any possible (hence the use of 'opt') old_root's child.
-class CopulaReconstruction:
-    @staticmethod
-    def get_restriction() -> Restriction:
-        return Restriction(name="father", nested=[[
-            Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
-                Restriction(name="cop", gov="cop"),
-                Restriction(opt=True, all=True, name='regular_children', xpos="?!(TO)",  # avoid catching to-mark
-                            gov="discourse|punct|advcl|xcomp|ccomp|expl|parataxis|mark)"),
-                Restriction(opt=True, all=True, name='subjs', gov="(.subj.*)"),
-                # here catch to-mark or aux (hence VB), or advmod (hence W?RB) to transfer to the copula
-                Restriction(opt=True, all=True, name='to_cop', gov="(mark|aux.*|advmod)", xpos="(TO|VB|W?RB)"),
-                Restriction(opt=True, all=True, name='cases', gov="case"),
-                Restriction(opt=True, all=True, name='conjs', gov="conj", xpos="(VB.?)"),  # xpos rest -> transfer only conjoined verbs to the STATE
-                Restriction(opt=True, all=True, name='ccs', gov="cc")
-            ]])
-        ]])
-    
-    @staticmethod
-    def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
-        cop, _, cop_rel = hit_ns['cop']
-        old_root = hit_ns['old_root'][0]
-        
-        # add STATE node or nominate the copula as new root if we shouldn't add new nodes
-        if not g_remove_node_adding_conversions:
-            new_id = cop.get_conllu_field('id') + 0.1
-            new_root = cop.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
-            sentence[new_id] = new_root
-            # 'cop' becomes 'ev' (for event/evidential) to the new root
-            cop.replace_edge(cop_rel, "ev", old_root, new_root)
-        else:
-            new_root = cop
-            new_root.remove_edge(cop_rel, old_root)
-        
-        # transfer old-root's outgoing relation to new-root
-        for head, rel in old_root.get_new_relations():
-            old_root.remove_edge(rel, head)
-            new_root.add_edge(rel, head)
-        
-        # transfer all old-root's children that are to be transferred
-        for child, _, rel in hit_ns['regular_children'] + hit_ns['subjs']:
-            child.replace_edge(rel, rel, old_root, new_root)
-        for cur_to_cop, _, rel in hit_ns['to_cop']:
-            cur_to_cop.replace_edge(rel, rel, old_root, cop)
-        for conj, _, rel in hit_ns['conjs']:
-            conj.replace_edge(rel, rel, old_root, new_root)
-            # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
-            attach_best_cc(conj, list(zip(*hit_ns['ccs']))[0], old_root, new_root)
-        
-        # only if old_root is an adjective
-        if re.match("JJ.?", old_root.get_conllu_field("xpos")):
-            # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
-            for subj in hit_ns['subjs']:
-                old_root.add_edge(add_extra_info("amod", "cop"), subj)
-        
-        # connect the old_root as son of the new_root with the proper complement
-        old_root.add_edge("xcomp" if 'cases' not in hit_ns else udv("nmod", "obl"), new_root)
+# class CopulaReconstruction:
+#     @staticmethod
+#     def get_restriction() -> Restriction:
+#         return Restriction(name="father", nested=[[
+#             Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
+#                 Restriction(name="cop", gov="cop"),
+#                 Restriction(opt=True, all=True, name='regular_children', xpos="?!(TO)",  # avoid catching to-mark
+#                             gov="discourse|punct|advcl|xcomp|ccomp|expl|parataxis|mark)"),
+#                 Restriction(opt=True, all=True, name='subjs', gov="(.subj.*)"),
+#                 # here catch to-mark or aux (hence VB), or advmod (hence W?RB) to transfer to the copula
+#                 Restriction(opt=True, all=True, name='to_cop', gov="(mark|aux.*|advmod)", xpos="(TO|VB|W?RB)"),
+#                 Restriction(opt=True, all=True, name='cases', gov="case"),
+#                 Restriction(opt=True, all=True, name='conjs', gov="conj", xpos="(VB.?)"),  # xpos rest -> transfer only conjoined verbs to the STATE
+#                 Restriction(opt=True, all=True, name='ccs', gov="cc")
+#             ]])
+#         ]])
+#
+#     @staticmethod
+#     def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
+#         cop, _, cop_rel = hit_ns['cop']
+#         old_root = hit_ns['old_root'][0]
+#
+#         # add STATE node or nominate the copula as new root if we shouldn't add new nodes
+#         if not g_remove_node_adding_conversions:
+#             new_id = cop.get_conllu_field('id') + 0.1
+#             new_root = cop.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
+#             sentence[new_id] = new_root
+#             # 'cop' becomes 'ev' (for event/evidential) to the new root
+#             cop.replace_edge(cop_rel, "ev", old_root, new_root)
+#         else:
+#             new_root = cop
+#             new_root.remove_edge(cop_rel, old_root)
+#
+#         # transfer old-root's outgoing relation to new-root
+#         for head, rel in old_root.get_new_relations():
+#             old_root.remove_edge(rel, head)
+#             new_root.add_edge(rel, head)
+#
+#         # transfer all old-root's children that are to be transferred
+#         for child, _, rel in hit_ns['regular_children'] + hit_ns['subjs']:
+#             child.replace_edge(rel, rel, old_root, new_root)
+#         for cur_to_cop, _, rel in hit_ns['to_cop']:
+#             cur_to_cop.replace_edge(rel, rel, old_root, cop)
+#         for conj, _, rel in hit_ns['conjs']:
+#             conj.replace_edge(rel, rel, old_root, new_root)
+#             # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
+#             attach_best_cc(conj, list(zip(*hit_ns['ccs']))[0], old_root, new_root)
+#
+#         # only if old_root is an adjective
+#         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
+#             # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
+#             for subj in hit_ns['subjs']:
+#                 old_root.add_edge(add_extra_info("amod", "cop"), subj)
+#
+#         # connect the old_root as son of the new_root with the proper complement
+#         old_root.add_edge("xcomp" if 'cases' not in hit_ns else udv("nmod", "obl"), new_root)
 
 
 def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
