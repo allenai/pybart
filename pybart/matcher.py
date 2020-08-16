@@ -3,14 +3,16 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Union, Set
 from enum import Enum
 
+### TODO - old matcher's restriction, should be removed
+
 from collections import namedtuple
 
 fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
 Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
 
 
-# NOTE: same node cannot take two roles in structure.
-
+### new matcher description:
+# TODO - when writing the new matcher: same node cannot take two roles in structure.
 
 class FieldNames(Enum):
     WORD = 0
