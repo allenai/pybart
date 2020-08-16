@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Union, Set
+from typing import Mapping, Sequence, Union, Set
 from enum import Enum
 
 ### TODO - old matcher's restriction, should be removed
@@ -27,49 +27,49 @@ class FieldTypes(Enum):
     LIST = 2
 
 
-@dataclass
+@dataclass(frozen=True)
 class FieldConstraint:
     field: FieldNames
     type: FieldTypes
-    value: Union[str, List[str]]  # either an exact/regex string or a match of one of the strings in a list
+    value: Union[str, Sequence[str]]  # either an exact/regex string or a match of one of the strings in a list
 
 
-@dataclass
+@dataclass(frozen=True)
 class LabelConstraint:
     # has at least one edge of type (this covers the case of “has one edge of type” (if we give a list of length 1) and the case of OR. while the case of AND is covered by the incoming_edges/outgoing_edges in the TokenConstraint)
-    has_edge_from_list: List[str] = field(default_factory=list())
+    has_edge_from_list: Sequence[str] = field(default_factory=list)
     # does not have edge type (this covers the case of validating none of the edges has the following edge type. The AND case is covered by the incoming_edges/outgoing_edges in the TokenConstraint, and the OR case is not covered because it doesn’t make much sense)
     no_edge: str = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class TokenConstraint:
     id: int  # each token is indexed by a number
-    spec: List[FieldConstraint] = field(default_factory=list())
+    spec: Sequence[FieldConstraint] = field(default_factory=list)
     optional: bool = False  # is this an optional constraint or required
-    incoming_edges: List[LabelConstraint] = field(default_factory=list())
-    outgoing_edges: List[LabelConstraint] = field(default_factory=list())
+    incoming_edges: Sequence[LabelConstraint] = field(default_factory=list)
+    outgoing_edges: Sequence[LabelConstraint] = field(default_factory=list)
     is_root: bool = None  # optional field, if set, then check if this is/n't (depending on the bool value) the root
 
 
-@dataclass
+@dataclass(frozen=True)
 class EdgeConstraint:
     target: int
     source: int
-    label: List[str]  # TODO - str ot regex? or a class for Label, with basic/EUD/BART parts, which we will define later on
+    label: Sequence[str]  # TODO - str ot regex? or a class for Label, with basic/EUD/BART parts, which we will define later on
     # whether at least one match is enough or should be satisfied against all edges between the two nodes.
     #   This is for a case of negative lookup (regex-wise) in which we need to satisfy it against all edges (between the two nodes).
     negative: bool = False  # TODO - must be False for now (to discuss semantics of True later: probably applies after structure is set.)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExactLinearConstraint:
     tok1: int
     tok2: int
     distance: int  # -1 is not valid, 0 means no words in between, 3 means exactly words are allowed in between, etc.
 
 
-@dataclass
+@dataclass(frozen=True)
 class UptoLinearConstraint:
     tok1: int
     tok2: int
@@ -78,7 +78,7 @@ class UptoLinearConstraint:
     distance: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class TokenPairConstraint:  # the words of the nodes must match
     token1: int
     token2: int
@@ -86,7 +86,7 @@ class TokenPairConstraint:  # the words of the nodes must match
     in_set: bool = True # should or shouldn't match
 
 
-@dataclass
+@dataclass(frozen=True)
 class TokenTripletConstraint:  # the words of the nodes must/n't match
     token1: int
     token2: int
@@ -95,15 +95,15 @@ class TokenTripletConstraint:  # the words of the nodes must/n't match
     in_set: bool = True  # should or shouldn't match
 
 
-@dataclass
+@dataclass(frozen=True)
 class FullConstraint:
-    names: Dict[int, str] = field(default_factory=dict())
-    tokens: List[TokenConstraint] = field(default_factory=list())
-    edges: List[EdgeConstraint] = field(default_factory=list())
-    exact_linear: List[ExactLinearConstraint] = field(default_factory=list())
-    upto_linear: List[UptoLinearConstraint] = field(default_factory=list())
-    concat_pairs: List[TokenPairConstraint] = field(default_factory=list())
-    concat_triplets: List[TokenTripletConstraint] = field(default_factory=list())
+    names: Mapping[int, str] = field(default_factory=dict)
+    tokens: Sequence[TokenConstraint] = field(default_factory=list)
+    edges: Sequence[EdgeConstraint] = field(default_factory=list)
+    exact_linear: Sequence[ExactLinearConstraint] = field(default_factory=list)
+    upto_linear: Sequence[UptoLinearConstraint] = field(default_factory=list)
+    concat_pairs: Sequence[TokenPairConstraint] = field(default_factory=list)
+    concat_triplets: Sequence[TokenTripletConstraint] = field(default_factory=list)
 
 # usage examples:
 #
