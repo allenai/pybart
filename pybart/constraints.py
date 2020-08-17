@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Sequence, Set
 from enum import Enum
+from math import inf
 
 
 class FieldNames(Enum):
@@ -61,15 +62,20 @@ class Distance:
 @dataclass(frozen=True)
 class ExactDistance(Distance):
     # 0 means no words in between... 3 means exactly words are allowed in between, etc.
-    pass
+    def __post_init__(self):
+        if self.distance < 0:
+            raise ValueError("Exact distance can't be negative")
+        elif self.distance == inf:
+            raise ValueError("Exact distance can't be infinity")
 
 
 @dataclass(frozen=True)
 class UptoDistance(Distance):
     # 0 means no words in between... 3 means up to three words are allowed in between, etc.
     #   so infinity is like up to any number of words in between (which means only the order of the arguments matters).
-    pass
-
+    def __post_init__(self):
+        if self.distance < 0:
+            raise ValueError("'up-to' distance can't be negative")
 
 @dataclass(frozen=True)
 class TokenTuple:  # the words of the nodes must match
