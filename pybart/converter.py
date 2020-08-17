@@ -10,6 +10,7 @@ from math import copysign
 import inspect
 from typing import List
 
+from .constraints import *
 from .matcher import *
 
 # constants
@@ -479,19 +480,18 @@ def extra_amod_propagation(sentence):
 
 
 def extra_acl_propagation(sentence):
-    restriction = FullConstraint(
-        names={1: "verb", 2: "subj", 3: "middle_man", 4: "acl", 5: "to"},
+    restriction = Full(
         tokens=[
-            TokenConstraint(id=1, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.REGEX, "(VB.?)")]),
-            TokenConstraint(id=2),
-            TokenConstraint(id=3),
-            TokenConstraint(id=4, outgoing_edges=[LabelConstraint(no_edge=".subj.*")]),
-            TokenConstraint(id=5, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.EXACT, "TO")])],
+            Token(id="verb", spec=[Field(FieldNames.TAG, ["/(VB.?)/"])]),
+            Token(id="subj"),
+            Token(id="proxy"),
+            Token(id="acl", outgoing_edges=[HasNoLabel("/.subj.*/")]),
+            Token(id="to", spec=[Field(FieldNames.TAG, ["TO"])])],
         edges=[
-            EdgeConstraint(target=2, source=1, label=[".subj.*"]),
-            EdgeConstraint(target=3, source=1, label=[".*"]),
-            EdgeConstraint(target=4, source=3, label=["acl(?!:relcl)"]),
-            EdgeConstraint(target=5, source=4, label=["mark"])
+            Edge(child="subj", parent="verb", label=[HasLabelFromList(["/.subj.*/"])]),
+            Edge(child="proxy", parent="verb", label=[HasLabelFromList(["/.*/"])]),
+            Edge(child="acl", parent="proxy", label=[HasLabelFromList(["/acl(?!:relcl)/"])]),
+            Edge(child="to", parent="acl", label=[HasLabelFromList(["mark"])])
         ],
     )
 
@@ -1136,20 +1136,19 @@ def eudpp_process_complex_2wp(sentence):
 #   mwe(in-3, of-5)
 #   root(ROOT-0, you-6)
 def eudpp_process_3wp(sentence):
-    restriction = FullConstraint(
-        names={1: "w1", 2: "w2", 3: "w3", 4: "w2_proxy_w3"},
+    restriction = Full(
         tokens=[
-            TokenConstraint(id=1, outgoing_edges=[LabelConstraint(no_edge=".*")]),
-            TokenConstraint(id=2),
-            TokenConstraint(id=3, outgoing_edges=[LabelConstraint(no_edge=".*")]),
-            TokenConstraint(id=4)],
+            Token(id="w1", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="w2"),
+            Token(id="w3", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="proxy")],
         edges=[
-            EdgeConstraint(target=4, source=2, label=["(nmod|acl|advcl).*"]),
-            EdgeConstraint(target=1, source=2, label=["case"]),
-            EdgeConstraint(target=3, source=4, label=["case|mark"])
+            Edge(child="proxy", parent="w2", label=[HasLabelFromList(["/nmod|acl|advcl).*/"])]),
+            Edge(child="w1", parent="w2", label=[HasLabelFromList(["case"])]),
+            Edge(child="w3", parent="proxy", label=[HasLabelFromList(["case", "mark"])])
         ],
-        exact_linear=[ExactLinearConstraint(1, 2, distance=0), ExactLinearConstraint(2, 3, distance=0)],
-        concat_triplets=[TokenTripletConstraint(1, 2, 3, three_word_preps)]
+        distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "w3", distance=0)],
+        concats=[TokenTriplet(three_word_preps, "w1", "w2", "w3")]
     )
     
     forms = split_concats_by_index(three_word_preps, 3)
@@ -1591,19 +1590,17 @@ def extra_hyphen_reconstruction(sentence):
 
 # The bottle was broken by me.
 def extra_passive_alteration(sentence):
-    restriction = FullConstraint(
-        names={1: "predicate", 2: "subjpass", 3: "agent", 4: "by"},
+    restriction = Full(
         tokens=[
-            TokenConstraint(id=1),
-            TokenConstraint(id=2),
-            TokenConstraint(id=3, optional=True),
-            TokenConstraint(id=4, optional=True, spec=[FieldConstraint(FieldNames.WORD, FieldTypes.REGEX, "^(?i:by)$")])],
+            Token(id="predicate"),
+            Token(id="subjpass"),
+            Token(id="agent", optional=True),
+            Token(id="by", optional=True, spec=[Field(FieldNames.WORD, ["^(?i:by)$"])])],
         edges=[
-            EdgeConstraint(target=2, source=1, label=[".subjpass"]),
-            EdgeConstraint(target=3, source=1, label=["^(nmod(:agent)?)$"]),
-            EdgeConstraint(target=4, source=3, label=["case"])
-            # TODO - I would like to restrict all edges between the predicate and the passive subject to not being an object
-            #   EdgeConstraint(target=2, source=1, label=[".obj"], negative=True)
+            Edge(child="subjpass", parent="predicate", label=[HasLabelFromList(["/.subjpass/"])]),
+            Edge(child="agent", parent="predicate", label=[HasLabelFromList(["/^(nmod(:agent)?)$/"])]),
+            Edge(child="by", parent="agent", label=[HasLabelFromList(["case"])]),
+            Edge(child="subjpass", parent="predicate", label=[HasNoLabel(".obj")])
         ]
     )
 
