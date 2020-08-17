@@ -1,18 +1,13 @@
 import re
+from collections import namedtuple
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence, Union, Set
+from typing import Sequence, Set
 from enum import Enum
 
-### TODO - old matcher's restriction, should be removed
-
-from collections import namedtuple
-
+# TODO - old matcher's restriction, should be removed
 fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
 Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
 
-
-### new matcher description:
-# TODO - when writing the new matcher: same node cannot take two roles in structure.
 
 class FieldNames(Enum):
     WORD = 0
@@ -21,147 +16,145 @@ class FieldNames(Enum):
     ENTITY = 3
 
 
-class FieldTypes(Enum):
-    EXACT = 0
-    REGEX = 1
-    LIST = 2
-
-
 @dataclass(frozen=True)
-class FieldConstraint:
+class Field:
     field: FieldNames
-    type: FieldTypes
-    value: Union[str, Sequence[str]]  # either an exact/regex string or a match of one of the strings in a list
+    value: Sequence[str]  # match of one of the strings in a list
 
 
 @dataclass(frozen=True)
-class LabelConstraint:
-    # has at least one edge of type (this covers the case of “has one edge of type” (if we give a list of length 1) and the case of OR. while the case of AND is covered by the incoming_edges/outgoing_edges in the TokenConstraint)
-    has_edge_from_list: Sequence[str] = field(default_factory=list)
-    # does not have edge type (this covers the case of validating none of the edges has the following edge type. The AND case is covered by the incoming_edges/outgoing_edges in the TokenConstraint, and the OR case is not covered because it doesn’t make much sense)
-    no_edge: str = None
+class Label():
+    pass
 
 
 @dataclass(frozen=True)
-class TokenConstraint:
-    id: int  # each token is indexed by a number
-    spec: Sequence[FieldConstraint] = field(default_factory=list)
+class HasLabelFromList(Label):
+    # has at least one edge with value
+    value: Sequence[str]
+
+
+@dataclass(frozen=True)
+class HasNoLabel(Label):
+    # does not have edge with value
+    value: str
+
+
+@dataclass(frozen=True)
+class Token:
+    id: str  # id/name for the token
+    capture: bool = True
+    spec: Sequence[Field] = field(default_factory=list)
     optional: bool = False  # is this an optional constraint or required
-    incoming_edges: Sequence[LabelConstraint] = field(default_factory=list)
-    outgoing_edges: Sequence[LabelConstraint] = field(default_factory=list)
+    incoming_edges: Sequence[Label] = field(default_factory=list)
+    outgoing_edges: Sequence[Label] = field(default_factory=list)
     is_root: bool = None  # optional field, if set, then check if this is/n't (depending on the bool value) the root
 
 
 @dataclass(frozen=True)
-class EdgeConstraint:
-    target: int
-    source: int
-    label: Sequence[str]  # TODO - str ot regex? or a class for Label, with basic/EUD/BART parts, which we will define later on
-    # whether at least one match is enough or should be satisfied against all edges between the two nodes.
-    #   This is for a case of negative lookup (regex-wise) in which we need to satisfy it against all edges (between the two nodes).
-    negative: bool = False  # TODO - must be False for now (to discuss semantics of True later: probably applies after structure is set.)
+class Edge:
+    child: str
+    parent: str
+    label: Sequence[Label]
 
 
 @dataclass(frozen=True)
-class ExactLinearConstraint:
-    tok1: int
-    tok2: int
-    distance: int  # -1 is not valid, 0 means no words in between, 3 means exactly words are allowed in between, etc.
+class ExactDistance:
+    token1: str
+    token2: str
+    distance: int  # 0 means no words in between... 3 means exactly words are allowed in between, etc.
 
 
 @dataclass(frozen=True)
-class UptoLinearConstraint:
-    tok1: int
-    tok2: int
-    # -1 means only order matters (like up to any number of words in between), 0 means no words in between,
-    #   3 means up to three words are allowed in between, etc.
+class UptoDistance:
+    token1: str
+    token2: str
+    # 0 means no words in between... 3 means up to three words are allowed in between, etc.
+    #   so infinity is like up to any number of words in between (which means only the order of the arguments matters).
     distance: int
 
 
 @dataclass(frozen=True)
-class TokenPairConstraint:  # the words of the nodes must match
-    token1: int
-    token2: int
-    str_ids: Set[str]  # this str is word separated by _
-    in_set: bool = True # should or shouldn't match
+class TokenTuple:  # the words of the nodes must match
+    tuple_set: Set[str]  # each str is word pair separated by _
 
 
 @dataclass(frozen=True)
-class TokenTripletConstraint:  # the words of the nodes must/n't match
-    token1: int
-    token2: int
-    token3: int
-    str_ids: Set[str]  # this str is word separated by _
+class TokenPair(TokenTuple):  # the words of the nodes must match
+    token1: str
+    token2: str
     in_set: bool = True  # should or shouldn't match
 
 
 @dataclass(frozen=True)
-class FullConstraint:
-    names: Mapping[int, str] = field(default_factory=dict)
-    tokens: Sequence[TokenConstraint] = field(default_factory=list)
-    edges: Sequence[EdgeConstraint] = field(default_factory=list)
-    exact_linear: Sequence[ExactLinearConstraint] = field(default_factory=list)
-    upto_linear: Sequence[UptoLinearConstraint] = field(default_factory=list)
-    concat_pairs: Sequence[TokenPairConstraint] = field(default_factory=list)
-    concat_triplets: Sequence[TokenTripletConstraint] = field(default_factory=list)
+class TokenTriplet(TokenTuple):  # the words of the nodes must/n't match
+    token1: str
+    token2: str
+    token3: str
+    in_set: bool = True  # should or shouldn't match
+
+
+@dataclass(frozen=True)
+class Full:
+    tokens: Sequence[Token] = field(default_factory=list)
+    edges: Sequence[Edge] = field(default_factory=list)
+    distances: Sequence[TokenTuple] = field(default_factory=list)
+    concats: Sequence[TokenTuple] = field(default_factory=list)
+
 
 # usage examples:
 #
 # for three-word-preposition processing
-# FullConstraint(
-#     names={1: "w1", 2: "w2", 3: "w3", 4: "w2_proxy_w3"},
+# Full(
 #     tokens=[
-#         TokenConstraint(id=1, outgoing_edges=[LabelConstraint(no_edge=".*")]),
-#         TokenConstraint(id=2),
-#         TokenConstraint(id=3, outgoing_edges=[LabelConstraint(no_edge=".*")]),
-#         TokenConstraint(id=4)],
+#         Token(id="w1", outgoing_edges=[HasNoLabel("/.*/")]),
+#         Token(id="w2"),
+#         Token(id="w3", outgoing_edges=[HasNoLabel("/.*/")]),
+#         Token(id="proxy")],
 #     edges=[
-#         EdgeConstraint(target=4, source=2, label=["(nmod|acl|advcl).*"]),
-#         EdgeConstraint(target=1, source=2, label=["case"]),
-#         EdgeConstraint(target=3, source=4, label=["case|mark"])
+#         Edge(child="proxy", parent="w2", label=[HasLabelFromList([/"nmod|acl|advcl).*"//]),
+#         Edge(child="w1", parent="w2", label=[HasLabelFromList(["case"])]),
+#         Edge(child="w3", parent="proxy", label=[HasLabelFromList(["case", "mark"])])
 #     ],
-#     exact_linear=[ExactLinearConstraint(1, 2, distance=0), ExactLinearConstraint(2, 3, distance=0)],
-#     concat_triplets=[TokenTripletConstraint(1, 2, 3, three_word_preps)]
+#     exact_linear=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "w3", distance=0)],
+#     concat_triplets=[TokenTriplet(three_word_preps, "w1", "w2", "w3")]
 # )
 #
 #
 # for "acl propagation" (type1)
-# FullConstraint(
-#     names={1: "verb", 2: "subj", 3: "middle_man", 4: "acl", 5: "to"},
+# Full(
 #     tokens=[
-#         TokenConstraint(id=1, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.REGEX, "(VB.?)")]),
-#         TokenConstraint(id=2),
-#         TokenConstraint(id=3),
-#         TokenConstraint(id=4, outgoing_edges=[LabelConstraint(no_edge=".subj.*")]),
-#         TokenConstraint(id=5, spec=[FieldConstraint(FieldNames.TAG, FieldTypes.EXACT, "TO")])],
+#         Token(id="verb", spec=[Field(FieldNames.TAG, ["/(VB.?)/"])]),
+#         Token(id="subj"),
+#         Token(id="proxy"),
+#         Token(id="acl", outgoing_edges=[HasNoLabel("/.subj.*/")]),
+#         Token(id="to", spec=[Field(FieldNames.TAG, ["TO"])])],
 #     edges=[
-#         EdgeConstraint(target=2, source=1, label=[".subj.*"]),
-#         EdgeConstraint(target=3, source=1, label=[".*"]),
-#         EdgeConstraint(target=4, source=3, label=["acl(?!:relcl)"]),
-#         EdgeConstraint(target=5, source=4, label=["mark"])
+#         Edge(child="subj", parent="verb", label=[HasLabelFromList(["/.subj.*/"])]),
+#         Edge(child="proxy", parent="verb", label=[HasLabelFromList(["/.*/"])]),
+#         Edge(child="acl", parent="proxy", label=[HasLabelFromList(["/acl(?!:relcl)/"])]),
+#         Edge(child="to", parent="acl", label=[HasLabelFromList(["mark"])])
 #     ],
 # )
 #
 #
 # for passive alternation
-# FullConstraint(
-#     names={1: "predicate", 2: "subjpass", 3: "agent", 4: "by"},
+# Full(
 #     tokens=[
-#         TokenConstraint(id=1),
-#         TokenConstraint(id=2),
-#         TokenConstraint(id=3, optional=True),
-#         TokenConstraint(id=4, optional=True, spec=[FieldConstraint(FieldNames.WORD, FieldTypes.REGEX, "^(?i:by)$")])],
+#         Token(id="predicate"),
+#         Token(id="subjpass"),
+#         Token(id="agent", optional=True),
+#         Token(id="by", optional=True, spec=[Field(FieldNames.WORD, ["^(?i:by)$"])])],
 #     edges=[
-#         EdgeConstraint(target=2, source=1, label=[".subjpass"]),
-#         EdgeConstraint(target=3, source=1, label=["^(nmod(:agent)?)$"]),
-#         EdgeConstraint(target=4, source=3, label=["case"])
-#         # TODO - I would like to restrict all edges between the predicate and the passive subject to not being an object
-#         #   EdgeConstraint(target=2, source=1, label=[".obj"], negative=True)
+#         Edge(child="subjpass", parent="predicate", label=[HasLabelFromList(["/.subjpass/"])]),
+#         Edge(child="agent", parent="predicate", label=[HasLabelFromList(["/^(nmod(:agent)?)$/"])]),
+#         Edge(child="by", parent="agent", label=[HasLabelFromList(["case"])])
+#         Edge(child="subjpass", parent="predicate", label=[HasNoEdge(".obj")])
 #     ]
 # )
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
+# TODO - when writing the new matcher: same node cannot take two roles in structure.
 
 
 def named_nodes_restrictions(restriction, named_nodes):
