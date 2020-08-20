@@ -103,6 +103,23 @@ class Full:
     edges: Sequence[Edge] = field(default_factory=list)
     distances: Sequence[Distance] = field(default_factory=list)
     concats: Sequence[TokenTuple] = field(default_factory=list)
+    
+    def __post_init__(self):
+        # check for no repetition
+        names = [tok.id for tok in self.tokens]
+        names_set = set(names)
+        if len(names) != len(names_set):
+            raise ValueError("used same name twice")
+        
+        # validate for using only names defined in tokens
+        used_names = set()
+        [used_names.update({edge.child, edge.parent}) for edge in self.edges]
+        [used_names.update({dist.token1, dist.token2}) for dist in self.distances]
+        for concat in self.concats:
+            if isinstance(concat, TokenPair):
+                used_names.update({concat.token1, concat.token2})
+            elif isinstance(concat, TokenTriplet):
+                used_names.update({concat.token1, concat.token2, concat.token3})
 
 
 # usage examples:
