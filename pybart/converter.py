@@ -15,8 +15,8 @@ from .matcher import *
 
 # constants
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
-two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
-two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
+two_word_preps_regular = {"across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"}
+two_word_preps_complex = {"apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"}
 three_word_preps = {"by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"}
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
 quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
@@ -1044,8 +1044,21 @@ def split_concats_by_index(prep_list, prep_len):
 #   case(you-6, across-4)
 #   mwe(across-4, from-5)
 def eudpp_process_simple_2wp(sentence):
-    forms = split_concats_by_index(two_word_preps_regular, 2)
+    restriction = Full(
+        tokens=[
+            Token(id="w1", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="w2", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="common_parent")],
+        edges=[
+            Edge(child="w1", parent="common_parent", label=[HasLabelFromList(["case", "advmod"])]),
+            Edge(child="w2", parent="common_parent", label=[HasLabelFromList(["case"])])
+        ],
+        distances=[ExactDistance("w1", "w2", distance=0)],
+        concats=[TokenPair(two_word_preps_regular, "w1", "w2")]
+    )
     
+    forms = split_concats_by_index(two_word_preps_regular, 2)
+
     restriction = Restriction(nested=[[
         Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + forms[0] + "$"),
         Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + forms[1] + "$")
