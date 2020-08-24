@@ -18,7 +18,7 @@ class Field:
 
 
 @dataclass(frozen=True)
-class Label():
+class Label:
     pass
 
 
@@ -77,6 +77,7 @@ class UptoDistance(Distance):
         if self.distance < 0:
             raise ValueError("'up-to' distance can't be negative")
 
+
 @dataclass(frozen=True)
 class TokenTuple:  # the words of the nodes must match
     tuple_set: Set[str]  # each str is word pair separated by _
@@ -120,6 +121,9 @@ class Full:
                 used_names.update({concat.token1, concat.token2})
             elif isinstance(concat, TokenTriplet):
                 used_names.update({concat.token1, concat.token2, concat.token3})
+        
+        if len(used_names.difference(names_set)) != 0:
+            raise ValueError("used undefined names")
 
 
 # usage examples:
