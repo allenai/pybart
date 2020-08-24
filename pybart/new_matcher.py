@@ -24,6 +24,11 @@ from .constraints import *
 nlp = spacy.load("en_ud_model_lg")
 
 
+# function that checks that a sequence of Label constraints is satisfied
+def are_labels_satisfied(label_constraints: Sequence[Label], labels: List[str]) -> bool:
+    raise NotImplemented
+
+
 class SentenceMatch():
     def __init__(self, name2index, indices2label):
         self.name2index = name2index
@@ -58,11 +63,31 @@ class GlobalMatcher:
 
 
 class TokenMatcher:
-    def _convert_to_matchable(self, constraint: Sequence[Token]) -> Sequence[Tuple[str, bool, Any]]:  # TODO - change Any to whatever type we need
-        # convert the constraint to a spacy pattern
-        raise NotImplemented
+    # convert the constraint to a spacy pattern
+    @staticmethod
+    def _convert_to_matchable(constraints: Sequence[Token]) -> List[Tuple[str, bool, Any]]:  # TODO - change Any to whatever type we need
+        patterns = []
+        for constraint in constraints:
+            pattern = dict()
+            for spec in constraint.spec:
+                # TODO - the list is comprised of either strings or regexes - so spacy's 'IN' or 'REGEX' alone is not enough
+                #   (we need a combination or another solution)
+                if spec.field == FieldNames.WORD:
+                    # TODO - add separation between default LOWER and non default TEXT
+                    pattern["TEXT"] = {"IN", spec.value}
+                elif spec.field == FieldNames.LEMMA:
+                    pattern["LEMMA"] = {"IN", spec.value}
+                elif spec.field == FieldNames.TAG:
+                    pattern["TAG"] = {"IN", spec.value}
+                elif spec.field == FieldNames.ENTITY:
+                    pattern["ENT_TYPE"] = {"IN", spec.value}
+                
+            patterns.append((constraint.id, not constraint.optional, pattern))
+        return patterns
     
     def __init__(self, constraints: Sequence[Token]):
+        self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
+        self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
         self.required_tokens = set()
         self.matcher = SpacyMatcher(nlp.vocab)
         # convert the constraint to a list of matchable token patterns
@@ -72,9 +97,14 @@ class TokenMatcher:
             if is_required:
                 self.required_tokens.add(token_name)
     
-    def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]]) -> Mapping[str, List[int]]:
+    def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence) -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
-        raise NotImplemented
+        checked_tokens = dict()
+        for name, token_indices in matched_tokens.items():
+            checked_tokens[name] = [token for token in token_indices if
+                                    are_labels_satisfied(self.incoming_constraints[name], sentence.in_labels(token)) and
+                                    are_labels_satisfied(self.outgoing_constraints[name], sentence.out_labels(token))]
+        return checked_tokens
     
     def apply(self, sentence) -> Mapping[str, List[int]]:  # TODO - define the Graph class we will work with as sentence
         matched_tokens = defaultdict(list)
@@ -92,7 +122,7 @@ class TokenMatcher:
             raise ValueError("required token not matched")  # TODO - change to our Exception for handling more gently
         
         # extra token matching out of spacy's scope
-        matched_tokens = self._post_spacy_matcher(matched_tokens)
+        matched_tokens = self._post_spacy_matcher(matched_tokens, sentence)
         
         return matched_tokens
 
