@@ -16,48 +16,99 @@
 import itertools
 from collections import defaultdict
 from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple
+import re
 import spacy
 from spacy.matcher import Matcher as SpacyMatcher
 
 from .constraints import *
 
-nlp = spacy.load("en_ud_model_lg")
-
 
 # function that checks that a sequence of Label constraints is satisfied
-def are_labels_satisfied(label_constraints: Sequence[Label], labels: List[str]) -> bool:
-    raise NotImplemented
+# TODO - maybe move this function as a method of the Label constraint? will simplify this code to
+#   "for constraint in label_constraints: if not label_constraint.satisfied(actual_labels): return False; return True"
+def are_labels_satisfied(label_constraints: Sequence[Label], actual_labels: List[str]) -> bool:
+    for constraint in label_constraints:
+        if isinstance(constraint, HasNoLabel):
+            is_regex = constraint.value.startswith('/') and constraint.value.endswith('/')
+            for actual_label in actual_labels:
+                if (is_regex and re.match(constraint.value[1:-1], actual_label)) or (constraint.value == actual_label):
+                    return False
+        elif isinstance(constraint, HasLabelFromList):
+            found = False
+            for value_option in constraint.value:
+                is_regex = value_option.startswith('/') and value_option.endswith('/')
+                for actual_label in actual_labels:
+                    if (is_regex and re.match(value_option[1:-1], actual_label)) or (value_option == actual_label):
+                        found = True
+                        break
+                if found:
+                    break
+            if not found:
+                return False
+    
+    return True
 
 
 class SentenceMatch():
-    def __init__(self, name2index, indices2label):
+    def __init__(self, name2index):
         self.name2index = name2index
-        self.indices2label = indices2label
+        #self.indices2label = indices2label
     
     def token(self, name: str) -> int:
-        return self.name2index[name] if name in self.name2index else -1  # TODO - maybe this is should raise? it means typo in coding
+        return self.name2index.get(name, default=-1)  # TODO - maybe raise instead of returning -1? it means typo in coding
     
     def edge(self, t1: int, t2: int) -> Set[str]:
-        return self.indices2label[t1][t2] if t1 in self.indices2label and t2 in self.indices2label[t1] else None  # TODO - is this legitimate?
+        # TODO - I really think this would be problematic, because
+        raise NotImplemented
+        # return self.indices2label.get(t1, default=dict()).get(t2, default=None)  # TODO - is it legitimate to return None here?
 
 
 class GlobalMatcher:
     def __init__(self, constraint: Full):
-        raise NotImplemented
+        self.constraint = constraint
+        self.dont_capture_names = [token.id for token in constraint.tokens if not token.capture]
     
     def _filter(self, match: Mapping[str, int], sentence) -> bool:
-        raise NotImplemented
+        for distance in self.constraint.distances:
+            calculated_distance = sentence.index(match[distance.token2]) - sentence.index(match[distance.token1]) - 1
+            # TODO - maybe move the following switch case into a method of the Distance constraint? will simplify this code to
+            #   "if not distance.satisfied(calculated_distance): return False"
+            if isinstance(distance, ExactDistance) and distance.distance != calculated_distance:
+                return False
+            elif isinstance(distance, UptoDistance) and distance.distance < calculated_distance:
+                return False
+            else:
+                raise ValueError("Unknown Distance type")  # TODO - change to our exception?
+        
+        for concat in self.constraint.concats:
+            # TODO -
+            #   1. again, maybe should be moved to constraint's logic
+            #   2. can it be partially moved to initialization time (optimization)?
+            if isinstance(concat, TokenPair):
+                word_indices = [match[concat.token1], match[concat.token2]]
+            elif isinstance(concat, TokenTriplet):
+                word_indices = [match[concat.token1], match[concat.token2], match[concat.token3]]
+            else:
+                raise ValueError("Unknown TokenTuple type")  # TODO - change to our exception?
+            if "_".join(sentence.get_text(w) for w in word_indices) not in concat.tuple_set:
+                return False
+        
+        for edge in self.constraint.edges:
+            if not are_labels_satisfied(edge.label, sentence.get_labels(child=edge.child, parent=edge.parent)):
+                return False
+        
+        return False
     
     def apply(self, matches, sentence) -> List[SentenceMatch]:
         sentence_matches = []
         # form a cartesian product of the match groups
-        matches_names, matches_indices = zip(*matches.items())
-        for bundle in itertools.product(*matches_indices):
-            matches_product = dict(zip(matches_names, bundle))
-            if self._filter(matches_product, sentence):
-                sentence_matches.append(SentenceMatch(matches_product, ))
-        
-        # TODO - keep only captures (who to save)
+        match_names, matches_indices = zip(*matches.items())
+        for match_indices in itertools.product(*matches_indices):
+            match_dict = dict(zip(match_names, match_indices))
+            if self._filter(match_dict, sentence):
+                # keep only captures (who to save)
+                _ = [match_dict.pop(name) for name in self.dont_capture_names]
+                sentence_matches.append(SentenceMatch(match_dict))
         
         return sentence_matches
 
@@ -86,10 +137,11 @@ class TokenMatcher:
         return patterns
     
     def __init__(self, constraints: Sequence[Token]):
+        self.nlp = spacy.load("en_ud_model_lg")
         self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
         self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
         self.required_tokens = set()
-        self.matcher = SpacyMatcher(nlp.vocab)
+        self.matcher = SpacyMatcher(self.nlp.vocab)
         # convert the constraint to a list of matchable token patterns
         for token_name, is_required, matchable_pattern in self._convert_to_matchable(constraints):
             # add it to the matchable list
@@ -102,15 +154,15 @@ class TokenMatcher:
         checked_tokens = dict()
         for name, token_indices in matched_tokens.items():
             checked_tokens[name] = [token for token in token_indices if
-                                    are_labels_satisfied(self.incoming_constraints[name], sentence.in_labels(token)) and
-                                    are_labels_satisfied(self.outgoing_constraints[name], sentence.out_labels(token))]
+                                    are_labels_satisfied(self.incoming_constraints[name], sentence.get_labels(child=token)) and
+                                    are_labels_satisfied(self.outgoing_constraints[name], sentence.get_labels(parent=token))]
         return checked_tokens
     
     def apply(self, sentence) -> Mapping[str, List[int]]:  # TODO - define the Graph class we will work with as sentence
         matched_tokens = defaultdict(list)
         matches = self.matcher(sentence.doc)
         for match_id, start, end in matches:
-            token_name = nlp.vocab.strings[match_id]
+            token_name = self.nlp.vocab.strings[match_id]
             # assert that we matched no more than single token
             if end - 1 == start:
                 raise ValueError("matched more than single token")  # TODO - change to our Exception for handling more gently
@@ -169,7 +221,7 @@ class Matcher:
             outs[edge.child].extend(list(edge.label))
             ins[edge.parent].extend(list(edge.label))
 
-        # for each concat store the single words of the concat with thier corresepondandt token for token level WORD constraint
+        # for each concat store the single words of the concat with their correspondent token for token level WORD constraint
         words = defaultdict(list)
         for concat in constraint.concats:
             zipped_concat = list(zip(*[tuple(t.split("_")) for t in concat.tuple_set]))
@@ -190,8 +242,8 @@ class Matcher:
                     spec = list(token.spec) + [Field(FieldNames.WORD, words[token.id])]
             else:
                 spec = list(token.spec)
-            incoming_edges = list(token.incoming_edges) + (ins[token.id] if token.id in ins else [])
-            outgoing_edges = list(token.outgoing_edges) + (ins[token.id] if token.id in outs else [])
+            incoming_edges = list(token.incoming_edges) + ins.get(token.id, default=[])
+            outgoing_edges = list(token.outgoing_edges) + outs.get(token.id, default=[])
             tokens.append(Token(id=token.id, capture=token.capture, optional=token.optional, is_root=token.is_root, spec=spec,
                                 incoming_edges=incoming_edges, outgoing_edges=outgoing_edges))
         return Full(tokens=tokens, edges=constraint.edges, distances=constraint.distances, concats=constraint.concats)
