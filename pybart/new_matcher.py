@@ -19,54 +19,51 @@ from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple
 import re
 import spacy
 from spacy.matcher import Matcher as SpacyMatcher
-
 from .constraints import *
 
 
 # function that checks that a sequence of Label constraints is satisfied
-# TODO - maybe move this function as a method of the Label constraint? will simplify this code to
+# TODO - maybe move this function as a 'satisfied' method of the Label constraint? will simplify this code to
 #   "for constraint in label_constraints: if not label_constraint.satisfied(actual_labels): return False; return True"
-def are_labels_satisfied(label_constraints: Sequence[Label], actual_labels: List[str]) -> bool:
+def are_labels_satisfied(label_constraints: Sequence[Label], actual_labels: List[str]) -> Tuple[bool, List[str]]:
+    successfully_matched = []
     for constraint in label_constraints:
         if isinstance(constraint, HasNoLabel):
             is_regex = constraint.value.startswith('/') and constraint.value.endswith('/')
             for actual_label in actual_labels:
                 if (is_regex and re.match(constraint.value[1:-1], actual_label)) or (constraint.value == actual_label):
-                    return False
+                    return False, []
         elif isinstance(constraint, HasLabelFromList):
-            found = False
+            current_successfully_matched = []
             for value_option in constraint.value:
                 is_regex = value_option.startswith('/') and value_option.endswith('/')
                 for actual_label in actual_labels:
                     if (is_regex and re.match(value_option[1:-1], actual_label)) or (value_option == actual_label):
-                        found = True
-                        break
-                if found:
-                    break
-            if not found:
-                return False
+                        current_successfully_matched.append(actual_label)
+            if not current_successfully_matched:
+                return False, []
+            successfully_matched.extend(current_successfully_matched)
     
-    return True
+    return True, successfully_matched
 
 
 class SentenceMatch():
-    def __init__(self, name2index):
+    def __init__(self, name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]):
         self.name2index = name2index
-        #self.indices2label = indices2label
+        self.indices2label = indices2label
     
     def token(self, name: str) -> int:
         return self.name2index.get(name, default=-1)  # TODO - maybe raise instead of returning -1? it means typo in coding
     
     def edge(self, t1: int, t2: int) -> Set[str]:
-        # TODO - I really think this would be problematic, because
-        raise NotImplemented
-        # return self.indices2label.get(t1, default=dict()).get(t2, default=None)  # TODO - is it legitimate to return None here?
+        return self.indices2label.get((t1, t2), default=None)  # TODO - is it legitimate to return None here?
 
 
 class GlobalMatcher:
     def __init__(self, constraint: Full):
         self.constraint = constraint
         self.dont_capture_names = [token.id for token in constraint.tokens if not token.capture]
+        self.captured_labels = defaultdict(set)
     
     def _filter(self, match: Mapping[str, int], sentence) -> bool:
         for distance in self.constraint.distances:
@@ -94,8 +91,11 @@ class GlobalMatcher:
                 return False
         
         for edge in self.constraint.edges:
-            if not are_labels_satisfied(edge.label, sentence.get_labels(child=edge.child, parent=edge.parent)):
+            is_satisfied, captured_labels = are_labels_satisfied(edge.label, sentence.get_labels(child=match[edge.child], parent=match[edge.parent]))
+            if not is_satisfied:
                 return False
+            if captured_labels:
+                self.captured_labels[(match[edge.child], match[edge.parent])].update(captured_labels)
         
         return False
     
@@ -108,7 +108,7 @@ class GlobalMatcher:
             if self._filter(match_dict, sentence):
                 # keep only captures (who to save)
                 _ = [match_dict.pop(name) for name in self.dont_capture_names]
-                sentence_matches.append(SentenceMatch(match_dict))
+                sentence_matches.append(SentenceMatch(match_dict, self.captured_labels))
         
         return sentence_matches
 
@@ -154,8 +154,8 @@ class TokenMatcher:
         checked_tokens = dict()
         for name, token_indices in matched_tokens.items():
             checked_tokens[name] = [token for token in token_indices if
-                                    are_labels_satisfied(self.incoming_constraints[name], sentence.get_labels(child=token)) and
-                                    are_labels_satisfied(self.outgoing_constraints[name], sentence.get_labels(parent=token))]
+                                    are_labels_satisfied(self.incoming_constraints[name], sentence.get_labels(child=token))[0] and
+                                    are_labels_satisfied(self.outgoing_constraints[name], sentence.get_labels(parent=token))[0]]
         return checked_tokens
     
     def apply(self, sentence) -> Mapping[str, List[int]]:  # TODO - define the Graph class we will work with as sentence
