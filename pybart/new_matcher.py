@@ -61,7 +61,7 @@ def are_labels_satisfied(label_constraints: Sequence[Label], actual_labels: List
     return True, successfully_matched
 
 
-class SentenceMatch():
+class SentenceMatch:
     def __init__(self, name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]):
         self.name2index = name2index
         self.indices2label = indices2label
@@ -126,7 +126,7 @@ class GlobalMatcher:
         # form a cartesian product of the match groups
         match_names, matches_indices = zip(*matches.items())
         
-        # filter each match group acording to non-token constraints
+        # filter each match group according to non-token constraints
         for match_indices in itertools.product(*matches_indices):
             match_dict = dict(zip(match_names, match_indices))
             if self._filter(match_dict, sentence):
