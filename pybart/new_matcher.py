@@ -25,24 +25,38 @@ from .constraints import *
 # function that checks that a sequence of Label constraints is satisfied
 # TODO - maybe move this function as a 'satisfied' method of the Label constraint? will simplify this code to
 #   "for constraint in label_constraints: if not label_constraint.satisfied(actual_labels): return False; return True"
-def are_labels_satisfied(label_constraints: Sequence[Label], actual_labels: List[str]) -> Tuple[bool, List[str]]:
-    successfully_matched = []
+def are_labels_satisfied(label_constraints: Sequence[Label], actual_labels: List[str]) -> Tuple[bool, Set[str]]:
+    successfully_matched = set()
+    # we need to satisfy all constraints in the sequence, so if one fails, return False
     for constraint in label_constraints:
         if isinstance(constraint, HasNoLabel):
+            # check if a regex or exact match is required
             is_regex = constraint.value.startswith('/') and constraint.value.endswith('/')
+            
+            # for each edged label, check if the label matches the constraint, and fail if it does,
+            #   because it is a negative search (that is non of the labels should match)
             for actual_label in actual_labels:
                 if (is_regex and re.match(constraint.value[1:-1], actual_label)) or (constraint.value == actual_label):
-                    return False, []
+                    return False, set()
         elif isinstance(constraint, HasLabelFromList):
-            current_successfully_matched = []
+            current_successfully_matched = set()
+            # at least one of the constraint strings should match, so return False only if none of them did.
             for value_option in constraint.value:
+                # check if a regex or exact match is required
                 is_regex = value_option.startswith('/') and value_option.endswith('/')
+
+                # for each edged label, check if the label matches the constraint, and store it if it does,
+                #   because it is a positive search (that is at least one label should match)
                 for actual_label in actual_labels:
                     if (is_regex and re.match(value_option[1:-1], actual_label)) or (value_option == actual_label):
-                        current_successfully_matched.append(actual_label)
+                        # store the matched label
+                        current_successfully_matched.add(actual_label)
+            # this means no match, so fail
             if not current_successfully_matched:
-                return False, []
-            successfully_matched.extend(current_successfully_matched)
+                return False, set()
+            
+            # concat the captured labels of the current constraint with previous ones, as there can be a few positive constraints.
+            successfully_matched.update(current_successfully_matched)
     
     return True, successfully_matched
 
@@ -52,9 +66,11 @@ class SentenceMatch():
         self.name2index = name2index
         self.indices2label = indices2label
     
+    # return the index of the specific matched token in the sentence according to its name
     def token(self, name: str) -> int:
         return self.name2index.get(name, default=-1)  # TODO - maybe raise instead of returning -1? it means typo in coding
     
+    # return the set of captured labels between the two tokens, given their indices
     def edge(self, t1: int, t2: int) -> Set[str]:
         return self.indices2label.get((t1, t2), default=None)  # TODO - is it legitimate to return None here?
 
@@ -62,10 +78,13 @@ class SentenceMatch():
 class GlobalMatcher:
     def __init__(self, constraint: Full):
         self.constraint = constraint
-        self.dont_capture_names = [token.id for token in constraint.tokens if not token.capture]
         self.captured_labels = defaultdict(set)
+        # list of token ids that don't require a capture
+        self.dont_capture_names = [token.id for token in constraint.tokens if not token.capture]
     
+    # filter a single match group according to non-token constraints
     def _filter(self, match: Mapping[str, int], sentence) -> bool:
+        # check that the distance between the tokens is not more than or exactly as required
         for distance in self.constraint.distances:
             calculated_distance = sentence.index(match[distance.token2]) - sentence.index(match[distance.token1]) - 1
             # TODO - maybe move the following switch case into a method of the Distance constraint? will simplify this code to
@@ -77,6 +96,7 @@ class GlobalMatcher:
             else:
                 raise ValueError("Unknown Distance type")  # TODO - change to our exception?
         
+        # check for a two-word or three-word phrase match in a given phrases list
         for concat in self.constraint.concats:
             # TODO -
             #   1. again, maybe should be moved to constraint's logic
@@ -90,23 +110,27 @@ class GlobalMatcher:
             if "_".join(sentence.get_text(w) for w in word_indices) not in concat.tuple_set:
                 return False
         
+        # check that the labels between two tokens are satisfying the labels constraints
         for edge in self.constraint.edges:
             is_satisfied, captured_labels = are_labels_satisfied(edge.label, sentence.get_labels(child=match[edge.child], parent=match[edge.parent]))
             if not is_satisfied:
                 return False
             if captured_labels:
+                # store all captured labels according to the child-parent token pair
                 self.captured_labels[(match[edge.child], match[edge.parent])].update(captured_labels)
         
-        return False
+        return True
     
-    def apply(self, matches, sentence) -> List[SentenceMatch]:
+    def apply(self, matches: Mapping[str, List[int]], sentence) -> List[SentenceMatch]:
         sentence_matches = []
         # form a cartesian product of the match groups
         match_names, matches_indices = zip(*matches.items())
+        
+        # filter each match group acording to non-token constraints
         for match_indices in itertools.product(*matches_indices):
             match_dict = dict(zip(match_names, match_indices))
             if self._filter(match_dict, sentence):
-                # keep only captures (who to save)
+                # keep only required captures
                 _ = [match_dict.pop(name) for name in self.dont_capture_names]
                 sentence_matches.append(SentenceMatch(match_dict, self.captured_labels))
         
@@ -132,17 +156,19 @@ class TokenMatcher:
                     pattern["TAG"] = {"IN", spec.value}
                 elif spec.field == FieldNames.ENTITY:
                     pattern["ENT_TYPE"] = {"IN", spec.value}
-                
+            
             patterns.append((constraint.id, not constraint.optional, pattern))
         return patterns
     
     def __init__(self, constraints: Sequence[Token]):
         self.nlp = spacy.load("en_ud_model_lg")
+        self.matcher = SpacyMatcher(self.nlp.vocab)
+        # store the incoming/outgoing token constraints according to the token id for post token-level matching
         self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
         self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
-        self.required_tokens = set()
-        self.matcher = SpacyMatcher(self.nlp.vocab)
+        
         # convert the constraint to a list of matchable token patterns
+        self.required_tokens = set()
         for token_name, is_required, matchable_pattern in self._convert_to_matchable(constraints):
             # add it to the matchable list
             self.matcher.add(token_name, None, matchable_pattern)
@@ -160,7 +186,10 @@ class TokenMatcher:
     
     def apply(self, sentence) -> Mapping[str, List[int]]:  # TODO - define the Graph class we will work with as sentence
         matched_tokens = defaultdict(list)
+        
+        # apply spacy's token-level match
         matches = self.matcher(sentence.doc)
+        # validate the span and store each matched token
         for match_id, start, end in matches:
             token_name = self.nlp.vocab.strings[match_id]
             # assert that we matched no more than single token
@@ -190,6 +219,7 @@ class Match:
         self.sentence = sentence
     
     def names(self) -> List[str]:
+        # return constraint-name list
         return list(self.matchers.keys())
     
     def matcher_for(self, name: str) -> List[SentenceMatch]:
@@ -231,6 +261,7 @@ class Matcher:
             if isinstance(concat, TokenTriplet):
                 words[concat.token3].append(zipped_concat[2])
         
+        # TODO - this is kinda horrible, find alternatives
         # rebuild the constraint (as it is immutable)
         tokens = []
         for token in constraint.tokens:
@@ -257,5 +288,6 @@ class Matcher:
             # initialize internal matchers
             self.matchers[constraint.name] = Matchers(TokenMatcher(preprocessed_constraint.tokens), GlobalMatcher(preprocessed_constraint))
 
+    # apply the matching process on a given sentence
     def __call__(self, sentence) -> Match:  # TODO - define the Graph class we will work with as sentence
         return Match(self.matchers, sentence)
