@@ -86,6 +86,8 @@ class GlobalMatcher:
     def _filter(self, match: Mapping[str, int], sentence) -> bool:
         # check that the distance between the tokens is not more than or exactly as required
         for distance in self.constraint.distances:
+            if distance.token1 not in match or distance.token2 not in match:
+                continue
             calculated_distance = sentence.index(match[distance.token2]) - sentence.index(match[distance.token1]) - 1
             # TODO - maybe move the following switch case into a method of the Distance constraint? will simplify this code to
             #   "if not distance.satisfied(calculated_distance): return False"
@@ -102,40 +104,75 @@ class GlobalMatcher:
             #   1. again, maybe should be moved to constraint's logic
             #   2. can it be partially moved to initialization time (optimization)?
             if isinstance(concat, TokenPair):
+                if concat.token1 not in match or concat.token2 not in match:
+                    continue
                 word_indices = [match[concat.token1], match[concat.token2]]
             elif isinstance(concat, TokenTriplet):
+                if concat.token1 not in match or concat.token2 not in match or concat.token3 not in match:
+                    continue
                 word_indices = [match[concat.token1], match[concat.token2], match[concat.token3]]
             else:
                 raise ValueError("Unknown TokenTuple type")  # TODO - change to our exception?
             if "_".join(sentence.get_text(w) for w in word_indices) not in concat.tuple_set:
                 return False
         
-        # check that the labels between two tokens are satisfying the labels constraints
-        for edge in self.constraint.edges:
-            is_satisfied, captured_labels = are_labels_satisfied(edge.label, sentence.get_labels(child=match[edge.child], parent=match[edge.parent]))
-            if not is_satisfied:
-                return False
-            if captured_labels:
-                # store all captured labels according to the child-parent token pair
-                self.captured_labels[(match[edge.child], match[edge.parent])].update(captured_labels)
-        
         return True
+        
+    @staticmethod
+    def _try_merge(base_assignment: Mapping[str, int], new_assignment: Mapping[str, int]) -> Mapping[str, int]:
+        # try to merge two assignment if they do not contradict
+        for k, v in new_assignment.items():
+            if v != base_assignment.get(k, v):
+                return {}
+        return {**base_assignment, **new_assignment}
     
     def apply(self, matches: Mapping[str, List[int]], sentence) -> List[SentenceMatch]:
         sentence_matches = []
-        # form a cartesian product of the match groups
-        match_names, matches_indices = zip(*matches.items())
+        edge_assignments = list()
+        # pick possible assignments according to the edge constraint
+        for i, edge in enumerate(self.constraint.edges):
+            edge_assignments[i] = []
+            # try each pair as a candidate
+            for child in matches[edge.child]:
+                for parent in matches[edge.parent]:
+                    # check if edge constraint is satisfied
+                    is_satisfied, captured_labels = are_labels_satisfied(edge.label, sentence.get_labels(child=child, parent=parent))
+                    assignment = {edge.child: child, edge.parent: parent}
+                    
+                    # TODO - compare the speed of non-edge filtering here to the current post-merging location
+                    if is_satisfied:  # and self._filter(assignment, sentence):
+                        # store all captured labels according to the child-parent token pair
+                        self.captured_labels[(edge.child, child, edge.parent, parent)].update(captured_labels)
+                        # keep the filtered assignment for further merging
+                        edge_assignments[i].append(assignment)
         
-        # filter each match group according to non-token constraints
-        for match_indices in itertools.product(*matches_indices):
-            match_dict = dict(zip(match_names, match_indices))
-            if self._filter(match_dict, sentence):
+        merges = [{}]
+        # for each list of possible assignments of an edge
+        for i in range(len(self.constraint.edges)):
+            new_merges = []
+            # for each merged assignment
+            for merged in merges:
+                # for each possible assignment in the current list
+                for assignment in edge_assignments[i]:
+                    # try to merge (see that there is no contradiction on hashing)
+                    just_merged = self._try_merge(merged, assignment)
+                    if just_merged:
+                        new_merges.append(just_merged)
+            if not new_merges:
+                return []
+            merges = new_merges
+        
+        for merged_assignment in merges:
+            # TODO - compare the speed of non-edge filtering here to the on-going edge filter (see previous todo)
+            if self._filter(merged_assignment, sentence):
                 # keep only required captures
-                _ = [match_dict.pop(name) for name in self.dont_capture_names]
-                sentence_matches.append(SentenceMatch(match_dict, self.captured_labels))
-        
+                _ = [merged_assignment.pop(name) for name in self.dont_capture_names]
+                captured_labels = {(v1, v2): labels for (k1, v1, k2, v2), labels in self.captured_labels.items()
+                                   if merged_assignment[k1] == v1 and merged_assignment[k2] == v2}
+                # append assignment to output
+                sentence_matches.append(SentenceMatch(merged_assignment, captured_labels))
         return sentence_matches
-
+       
 
 class TokenMatcher:
     # convert the constraint to a spacy pattern
