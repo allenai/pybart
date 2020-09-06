@@ -13,52 +13,20 @@
 # for doc in docs:
 #     convert_sentence(sentence, matcher)
 
-import itertools
+from dataclasses import replace
 from collections import defaultdict
 from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple
-import re
-import spacy
+from spacy.vocab import Vocab
 from spacy.matcher import Matcher as SpacyMatcher
 from .constraints import *
 
 
 # function that checks that a sequence of Label constraints is satisfied
-# TODO - maybe move this function as a 'satisfied' method of the Label constraint? will simplify this code to
-#   "for constraint in label_constraints: if not label_constraint.satisfied(actual_labels): return False; return True"
-def are_labels_satisfied(label_constraints: Sequence[Label], actual_labels: List[str]) -> Tuple[bool, Set[str]]:
+def get_matched_labels(label_constraints: Sequence[Label], actual_labels: List[str]) -> Set[str]:
     successfully_matched = set()
     # we need to satisfy all constraints in the sequence, so if one fails, return False
-    for constraint in label_constraints:
-        if isinstance(constraint, HasNoLabel):
-            # check if a regex or exact match is required
-            is_regex = constraint.value.startswith('/') and constraint.value.endswith('/')
-            
-            # for each edged label, check if the label matches the constraint, and fail if it does,
-            #   because it is a negative search (that is non of the labels should match)
-            for actual_label in actual_labels:
-                if (is_regex and re.match(constraint.value[1:-1], actual_label)) or (constraint.value == actual_label):
-                    return False, set()
-        elif isinstance(constraint, HasLabelFromList):
-            current_successfully_matched = set()
-            # at least one of the constraint strings should match, so return False only if none of them did.
-            for value_option in constraint.value:
-                # check if a regex or exact match is required
-                is_regex = value_option.startswith('/') and value_option.endswith('/')
-
-                # for each edged label, check if the label matches the constraint, and store it if it does,
-                #   because it is a positive search (that is at least one label should match)
-                for actual_label in actual_labels:
-                    if (is_regex and re.match(value_option[1:-1], actual_label)) or (value_option == actual_label):
-                        # store the matched label
-                        current_successfully_matched.add(actual_label)
-            # this means no match, so fail
-            if not current_successfully_matched:
-                return False, set()
-            
-            # concat the captured labels of the current constraint with previous ones, as there can be a few positive constraints.
-            successfully_matched.update(current_successfully_matched)
-    
-    return True, successfully_matched
+    _ = [successfully_matched.update(constraint.satisfied(actual_labels)) for constraint in label_constraints]
+    return successfully_matched
 
 
 class SentenceMatch:
@@ -136,15 +104,17 @@ class GlobalMatcher:
             for child in matches[edge.child]:
                 for parent in matches[edge.parent]:
                     # check if edge constraint is satisfied
-                    is_satisfied, captured_labels = are_labels_satisfied(edge.label, sentence.get_labels(child=child, parent=parent))
-                    assignment = {edge.child: child, edge.parent: parent}
-                    
+                    try:
+                        captured_labels = get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
+                    except: # TODO - define only for our exception type
+                        continue
                     # TODO - compare the speed of non-edge filtering here to the current post-merging location
-                    if is_satisfied:  # and self._filter(assignment, sentence):
-                        # store all captured labels according to the child-parent token pair
-                        self.captured_labels[(edge.child, child, edge.parent, parent)].update(captured_labels)
-                        # keep the filtered assignment for further merging
-                        edge_assignments[i].append(assignment)
+                    # if self._filter(assignment, sentence):
+                    assignment = {edge.child: child, edge.parent: parent}
+                    # store all captured labels according to the child-parent token pair
+                    self.captured_labels[(edge.child, child, edge.parent, parent)].update(captured_labels)
+                    # keep the filtered assignment for further merging
+                    edge_assignments[i].append(assignment)
         
         merges = [{}]
         # for each list of possible assignments of an edge
@@ -175,6 +145,21 @@ class GlobalMatcher:
        
 
 class TokenMatcher:
+    def __init__(self, constraints: Sequence[Token], vocab: Vocab):
+        self.vocab = vocab
+        self.matcher = SpacyMatcher(vocab)
+        # store the incoming/outgoing token constraints according to the token id for post token-level matching
+        self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
+        self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
+        
+        # convert the constraint to a list of matchable token patterns
+        self.required_tokens = set()
+        for token_name, is_required, matchable_pattern in self._convert_to_matchable(constraints):
+            # add it to the matchable list
+            self.matcher.add(token_name, None, matchable_pattern)
+            if is_required:
+                self.required_tokens.add(token_name)
+    
     # convert the constraint to a spacy pattern
     @staticmethod
     def _convert_to_matchable(constraints: Sequence[Token]) -> List[Tuple[str, bool, Any]]:  # TODO - change Any to whatever type we need
@@ -197,28 +182,13 @@ class TokenMatcher:
             patterns.append((constraint.id, not constraint.optional, pattern))
         return patterns
     
-    def __init__(self, constraints: Sequence[Token]):
-        self.nlp = spacy.load("en_ud_model_lg")
-        self.matcher = SpacyMatcher(self.nlp.vocab)
-        # store the incoming/outgoing token constraints according to the token id for post token-level matching
-        self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
-        self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
-        
-        # convert the constraint to a list of matchable token patterns
-        self.required_tokens = set()
-        for token_name, is_required, matchable_pattern in self._convert_to_matchable(constraints):
-            # add it to the matchable list
-            self.matcher.add(token_name, None, matchable_pattern)
-            if is_required:
-                self.required_tokens.add(token_name)
-    
     def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence) -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
         checked_tokens = dict()
         for name, token_indices in matched_tokens.items():
             checked_tokens[name] = [token for token in token_indices if
-                                    are_labels_satisfied(self.incoming_constraints[name], sentence.get_labels(child=token))[0] and
-                                    are_labels_satisfied(self.outgoing_constraints[name], sentence.get_labels(parent=token))[0]]
+                                    len(get_matched_labels(self.incoming_constraints[name], sentence.get_labels(child=token))) > 0 and
+                                    len(get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))) > 0]
         return checked_tokens
     
     def apply(self, sentence) -> Mapping[str, List[int]]:  # TODO - define the Graph class we will work with as sentence
@@ -228,7 +198,7 @@ class TokenMatcher:
         matches = self.matcher(sentence.doc)
         # validate the span and store each matched token
         for match_id, start, end in matches:
-            token_name = self.nlp.vocab.strings[match_id]
+            token_name = self.vocab.strings[match_id]
             # assert that we matched no more than single token
             if end - 1 == start:
                 raise ValueError("matched more than single token")  # TODO - change to our Exception for handling more gently
@@ -274,57 +244,54 @@ class NamedConstraint(NamedTuple):
     constraint: Full
 
 
+# add TokenConstraints based on the other non-token constraints (optimization step).
+def preprocess_constraint(constraint: Full) -> Full:
+    # for each edge store the labels that could be filtered as incoming or outgoing token constraints in the parent or child accordingly
+    outs = defaultdict(list)
+    ins = defaultdict(list)
+    for edge in constraint.edges:
+        # skip HasNoLabel as they check for non existing label between two nodes, and if we add a token constraint it would be to harsh
+        if isinstance(edge.label, HasNoLabel):
+            continue
+        outs[edge.child].extend(list(edge.label))
+        ins[edge.parent].extend(list(edge.label))
+
+    # for each concat store the single words of the concat with their correspondent token for token level WORD constraint
+    words = defaultdict(list)
+    for concat in constraint.concats:
+        zipped_concat = list(zip(*[tuple(t.split("_")) for t in concat.tuple_set]))
+        if isinstance(concat, TokenPair) or isinstance(concat, TokenTriplet):
+            words[concat.token1].append(zipped_concat[0])
+            words[concat.token2].append(zipped_concat[1])
+        if isinstance(concat, TokenTriplet):
+            words[concat.token3].append(zipped_concat[2])
+
+    # rebuild the constraint (as it is immutable)
+    tokens = []
+    for token in constraint.tokens:
+        incoming_edges = list(token.incoming_edges) + ins.get(token.id, default=[])
+        outgoing_edges = list(token.outgoing_edges) + outs.get(token.id, default=[])
+        # add the word constraint to an existing WORD field if exists
+        word_fields = [replace(s, value=list(s.value) + words.get(token.id, [])) for s in token.spec if s.field == FieldNames.WORD]
+        if (len(word_fields) == 0) and (token.id in words):
+            # simply create a new WORD field
+            word_fields = [Field(FieldNames.WORD, words[token.id])]
+        # attach the replaced/newly-formed word constraint to the rest of the token spec
+        spec = [s for s in token.spec if s.field != FieldNames.WORD] + word_fields
+        tokens.append(replace(token, spec=spec, incoming_edges=incoming_edges, outgoing_edges=outgoing_edges))
+    return replace(constraint, tokens=tokens)
+
+
 class Matcher:
-    @staticmethod
-    # add TokenConstraints based on the other non-token constraints (optimization step).
-    def _preprocess(constraint: Full) -> Full:
-        # for each edge store the labels that could be filtered as incoming or outgoing token constraints in the parent or child accordingly
-        outs = defaultdict(list)
-        ins = defaultdict(list)
-        for edge in constraint.edges:
-            # skip HasNoLabel as they check for non existing label between two nodes, and if we add a token constraint it would be to harsh
-            if isinstance(edge.label, HasNoLabel):
-                continue
-            outs[edge.child].extend(list(edge.label))
-            ins[edge.parent].extend(list(edge.label))
-
-        # for each concat store the single words of the concat with their correspondent token for token level WORD constraint
-        words = defaultdict(list)
-        for concat in constraint.concats:
-            zipped_concat = list(zip(*[tuple(t.split("_")) for t in concat.tuple_set]))
-            if isinstance(concat, TokenPair) or isinstance(concat, TokenTriplet):
-                words[concat.token1].append(zipped_concat[0])
-                words[concat.token2].append(zipped_concat[1])
-            if isinstance(concat, TokenTriplet):
-                words[concat.token3].append(zipped_concat[2])
-        
-        # TODO - this is kinda horrible, find alternatives
-        # rebuild the constraint (as it is immutable)
-        tokens = []
-        for token in constraint.tokens:
-            if token.id in words:
-                # add the word constraint to an existing WORD field if exists, otherwise simply create a new WORD field
-                if any(s.field == FieldNames.WORD for s in token.spec):
-                    spec = [Field(s.field, list(s.value) + (words[token.id] if s.field == FieldNames.WORD else [])) for s in token.spec]
-                else:
-                    spec = list(token.spec) + [Field(FieldNames.WORD, words[token.id])]
-            else:
-                spec = list(token.spec)
-            incoming_edges = list(token.incoming_edges) + ins.get(token.id, default=[])
-            outgoing_edges = list(token.outgoing_edges) + outs.get(token.id, default=[])
-            tokens.append(Token(id=token.id, capture=token.capture, optional=token.optional, is_root=token.is_root, spec=spec,
-                                incoming_edges=incoming_edges, outgoing_edges=outgoing_edges))
-        return Full(tokens=tokens, edges=constraint.edges, distances=constraint.distances, concats=constraint.concats)
-
-    def __init__(self, constraints: Sequence[NamedConstraint]):
+    def __init__(self, constraints: Sequence[NamedConstraint], vocab: Vocab):
         self.matchers = dict()
         for constraint in constraints:
             # preprocess the constraints (optimizations)
-            preprocessed_constraint = self._preprocess(constraint.constraint)
+            preprocessed_constraint = preprocess_constraint(constraint.constraint)
             
             # initialize internal matchers
-            self.matchers[constraint.name] = Matchers(TokenMatcher(preprocessed_constraint.tokens), GlobalMatcher(preprocessed_constraint))
-
+            self.matchers[constraint.name] = Matchers(TokenMatcher(preprocessed_constraint.tokens, vocab), GlobalMatcher(preprocessed_constraint))
+    
     # apply the matching process on a given sentence
     def __call__(self, sentence) -> Match:  # TODO - define the Graph class we will work with as sentence
         return Match(self.matchers, sentence)

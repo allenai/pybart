@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Sequence, Set
+from typing import Sequence, Set, List, Tuple
 from enum import Enum
 from math import inf
+from abc import ABC, abstractmethod
+import re
 
 
 class FieldNames(Enum):
@@ -18,20 +20,51 @@ class Field:
 
 
 @dataclass(frozen=True)
-class Label:
-    pass
+class Label(ABC):
+    @abstractmethod
+    def satisfied(self, actual_labels: List[str]) -> Set[str]:
+        pass
 
 
 @dataclass(frozen=True)
 class HasLabelFromList(Label):
     # has at least one edge with value
     value: Sequence[str]
+    
+    def satisfied(self, actual_labels: List[str]) -> Set[str]:
+        current_successfully_matched = set()
+        # at least one of the constraint strings should match, so return False only if none of them did.
+        for value_option in self.value:
+            # check if a regex or exact match is required
+            is_regex = value_option.startswith('/') and value_option.endswith('/')
+        
+            # for each edged label, check if the label matches the constraint, and store it if it does,
+            #   because it is a positive search (that is at least one label should match)
+            for actual_label in actual_labels:
+                if (is_regex and re.match(value_option[1:-1], actual_label)) or (value_option == actual_label):
+                    # store the matched label
+                    current_successfully_matched.add(actual_label)
+        if len(current_successfully_matched) > 0:
+            raise ValueError  # TODO - change to our exception
+        return current_successfully_matched
 
 
 @dataclass(frozen=True)
 class HasNoLabel(Label):
     # does not have edge with value
     value: str
+    
+    def satisfied(self, actual_labels: List[str]) -> Set[str]:
+        # check if a regex or exact match is required
+        is_regex = self.value.startswith('/') and self.value.endswith('/')
+    
+        # for each edged label, check if the label matches the constraint, and fail if it does,
+        #   because it is a negative search (that is non of the labels should match)
+        for actual_label in actual_labels:
+            if (is_regex and re.match(self.value[1:-1], actual_label)) or (self.value == actual_label):
+                raise ValueError  # TODO - change to our exception
+        
+        return set()
 
 
 @dataclass(frozen=True)
