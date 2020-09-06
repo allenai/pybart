@@ -4,6 +4,7 @@ from enum import Enum
 from math import inf
 from abc import ABC, abstractmethod
 import re
+from .matching_exceptions import *
 
 
 class FieldNames(Enum):
@@ -17,6 +18,7 @@ class FieldNames(Enum):
 class Field:
     field: FieldNames
     value: Sequence[str]  # match of one of the strings in a list
+    in_sequence: bool = True
 
 
 @dataclass(frozen=True)
@@ -49,7 +51,7 @@ class HasLabelFromList(Label):
                     # store the matched label
                     current_successfully_matched.add(actual_label)
         if len(current_successfully_matched) > 0:
-            raise ValueError  # TODO - change to our exception
+            raise LabelMismatch
         return current_successfully_matched
 
 
@@ -69,7 +71,7 @@ class HasNoLabel(Label):
         #   because it is a negative search (that is non of the labels should match)
         for actual_label in actual_labels:
             if (self.is_regex and re.match(self.value, actual_label)) or (self.value == actual_label):
-                raise ValueError  # TODO - change to our exception
+                raise LabelMismatch
         
         return set()
 
@@ -93,10 +95,14 @@ class Edge:
 
 
 @dataclass(frozen=True)
-class Distance:
+class Distance(ABC):
     token1: str
     token2: str
     distance: int
+
+    @abstractmethod
+    def satisfied(self, calculated_distance: int) -> bool:
+        pass
 
 
 @dataclass(frozen=True)
@@ -108,6 +114,9 @@ class ExactDistance(Distance):
         elif self.distance == inf:
             raise ValueError("Exact distance can't be infinity")
 
+    def satisfied(self, calculated_distance: int) -> bool:
+        return self.distance == calculated_distance
+
 
 @dataclass(frozen=True)
 class UptoDistance(Distance):
@@ -117,10 +126,27 @@ class UptoDistance(Distance):
         if self.distance < 0:
             raise ValueError("'up-to' distance can't be negative")
 
+    def satisfied(self, calculated_distance: int) -> bool:
+        return self.distance >= calculated_distance
+
 
 @dataclass(frozen=True)
-class TokenTuple:  # the words of the nodes must match
+class TokenTuple(ABC):  # the words of the nodes must match
     tuple_set: Set[str]  # each str is word pair separated by _
+
+    # Note - a bit ugly but best workaround for defining in_set in the parent level, as it has a default value,
+    #   and can't be declared before the children's Tokens, but also not sufficient to declare only at children,
+    #   as then we would need to have a copy of satisfied for each child
+    @property
+    def in_set(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_token_names(self) -> Sequence[str]:
+        pass
+
+    def satisfied(self, optional_tuple: str) -> bool:
+        return not ((optional_tuple in self.tuple_set) ^ self.in_set)
 
 
 @dataclass(frozen=True)
@@ -129,6 +155,9 @@ class TokenPair(TokenTuple):  # the words of the nodes must match
     token2: str
     in_set: bool = True  # should or shouldn't match
 
+    def get_token_names(self) -> Sequence[str]:
+        return [self.token1, self.token2]
+
 
 @dataclass(frozen=True)
 class TokenTriplet(TokenTuple):  # the words of the nodes must/n't match
@@ -136,6 +165,9 @@ class TokenTriplet(TokenTuple):  # the words of the nodes must/n't match
     token2: str
     token3: str
     in_set: bool = True  # should or shouldn't match
+
+    def get_token_names(self) -> Sequence[str]:
+        return [self.token1, self.token2, self.token3]
 
 
 @dataclass(frozen=True)
