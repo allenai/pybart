@@ -15,7 +15,7 @@
 
 from dataclasses import replace
 from collections import defaultdict
-from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple
+from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple, Generator, Dict
 from spacy.vocab import Vocab
 from spacy.matcher import Matcher as SpacyMatcher
 from .constraints import *
@@ -29,7 +29,7 @@ def get_matched_labels(label_constraints: Sequence[Label], actual_labels: List[s
     return successfully_matched
 
 
-class SentenceMatch:
+class MatchingResult:
     def __init__(self, name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]):
         self.name2index = name2index
         self.indices2label = indices2label
@@ -51,7 +51,7 @@ class GlobalMatcher:
         self.dont_capture_names = [token.id for token in constraint.tokens if not token.capture]
     
     # filter a single match group according to non-token constraints
-    def _filter(self, match: Mapping[str, int], sentence) -> bool:
+    def _filter_distance_constraints(self, match: Mapping[str, int], sentence) -> bool:
         # check that the distance between the tokens is not more than or exactly as required
         for distance in self.constraint.distances:
             if distance.token1 not in match or distance.token2 not in match:
@@ -66,6 +66,10 @@ class GlobalMatcher:
             else:
                 raise ValueError("Unknown Distance type")  # TODO - change to our exception?
         
+        return True
+
+    # filter a single match group according to non-token constraints
+    def _filter_concat_constraints(self, match: Mapping[str, int], sentence) -> bool:
         # check for a two-word or three-word phrase match in a given phrases list
         for concat in self.constraint.concats:
             # TODO -
@@ -83,9 +87,9 @@ class GlobalMatcher:
                 raise ValueError("Unknown TokenTuple type")  # TODO - change to our exception?
             if "_".join(sentence.get_text(w) for w in word_indices) not in concat.tuple_set:
                 return False
-        
+
         return True
-        
+
     @staticmethod
     def _try_merge(base_assignment: Mapping[str, int], new_assignment: Mapping[str, int]) -> Mapping[str, int]:
         # try to merge two assignment if they do not contradict
@@ -93,9 +97,8 @@ class GlobalMatcher:
             if v != base_assignment.get(k, v):
                 return {}
         return {**base_assignment, **new_assignment}
-    
-    def apply(self, matches: Mapping[str, List[int]], sentence) -> List[SentenceMatch]:
-        sentence_matches = []
+
+    def _filter_edge_constraints(self, matches, sentence) -> List[Dict[str, int]]:
         edge_assignments = list()
         # pick possible assignments according to the edge constraint
         for i, edge in enumerate(self.constraint.edges):
@@ -105,8 +108,9 @@ class GlobalMatcher:
                 for parent in matches[edge.parent]:
                     # check if edge constraint is satisfied
                     try:
-                        captured_labels = get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
-                    except: # TODO - define only for our exception type
+                        captured_labels = get_matched_labels(edge.label,
+                                                             sentence.get_labels(child=child, parent=parent))
+                    except:  # TODO - define only for our exception type
                         continue
                     # TODO - compare the speed of non-edge filtering here to the current post-merging location
                     # if self._filter(assignment, sentence):
@@ -115,7 +119,7 @@ class GlobalMatcher:
                     self.captured_labels[(edge.child, child, edge.parent, parent)].update(captured_labels)
                     # keep the filtered assignment for further merging
                     edge_assignments[i].append(assignment)
-        
+
         merges = [{}]
         # for each list of possible assignments of an edge
         for i in range(len(self.constraint.edges)):
@@ -131,18 +135,24 @@ class GlobalMatcher:
             if not new_merges:
                 return []
             merges = new_merges
+
+        return merges
+
+    def apply(self, matches: Mapping[str, List[int]], sentence) -> Generator[MatchingResult, None, None]:
+
+        merges = self._filter_edge_constraints(matches, sentence)
         
         for merged_assignment in merges:
             # TODO - compare the speed of non-edge filtering here to the on-going edge filter (see previous todo)
-            if self._filter(merged_assignment, sentence):
+            if self._filter_distance_constraints(merged_assignment, sentence) and \
+                    self._filter_concat_constraints(merged_assignment, sentence):
                 # keep only required captures
                 _ = [merged_assignment.pop(name) for name in self.dont_capture_names]
                 captured_labels = {(v1, v2): labels for (k1, v1, k2, v2), labels in self.captured_labels.items()
                                    if merged_assignment[k1] == v1 and merged_assignment[k2] == v2}
                 # append assignment to output
-                sentence_matches.append(SentenceMatch(merged_assignment, captured_labels))
-        return sentence_matches
-       
+                yield MatchingResult(merged_assignment, captured_labels)
+
 
 class TokenMatcher:
     def __init__(self, constraints: Sequence[Token], vocab: Vocab):
@@ -229,14 +239,12 @@ class Match:
         # return constraint-name list
         return list(self.matchers.keys())
     
-    def matcher_for(self, name: str) -> List[SentenceMatch]:
+    def matches_for(self, name: str) -> Generator[MatchingResult, None, None]:
         # token match
         matches = self.matchers[name].token_matcher.apply(self.sentence)
         
         # filter
-        sentence_matches = self.matchers[name].global_matcher.apply(matches, self.sentence)
-        
-        return sentence_matches
+        yield from self.matchers[name].global_matcher.apply(matches, self.sentence)
 
 
 class NamedConstraint(NamedTuple):

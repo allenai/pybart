@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Sequence, Set, List, Tuple
+from typing import Sequence, Set, List
 from enum import Enum
 from math import inf
 from abc import ABC, abstractmethod
@@ -30,18 +30,22 @@ class Label(ABC):
 class HasLabelFromList(Label):
     # has at least one edge with value
     value: Sequence[str]
-    
+    is_regex: Sequence[bool] = field(init=False)
+
+    def __post_init__(self):
+        new_values = [v[1:-1] if v.startswith('/') and v.endswith('/') else v for v in self.value]
+        new_is_regex = [v.startswith('/') and v.endswith('/') for v in self.value]
+        object.__setattr__(self, 'value', new_values)
+        object.__setattr__(self, 'is_regex', new_is_regex)
+
     def satisfied(self, actual_labels: List[str]) -> Set[str]:
         current_successfully_matched = set()
         # at least one of the constraint strings should match, so return False only if none of them did.
-        for value_option in self.value:
-            # check if a regex or exact match is required
-            is_regex = value_option.startswith('/') and value_option.endswith('/')
-        
+        for value_option, is_current_regex in zip(self.value, self.is_regex):
             # for each edged label, check if the label matches the constraint, and store it if it does,
             #   because it is a positive search (that is at least one label should match)
             for actual_label in actual_labels:
-                if (is_regex and re.match(value_option[1:-1], actual_label)) or (value_option == actual_label):
+                if (is_current_regex and re.match(value_option, actual_label)) or (value_option == actual_label):
                     # store the matched label
                     current_successfully_matched.add(actual_label)
         if len(current_successfully_matched) > 0:
@@ -53,15 +57,18 @@ class HasLabelFromList(Label):
 class HasNoLabel(Label):
     # does not have edge with value
     value: str
-    
+    is_regex: bool = field(init=False, default=False)
+
+    def __post_init__(self):
+        if self.value.startswith('/') and self.value.endswith('/'):
+            object.__setattr__(self, 'value', self.value[1:-1])
+            object.__setattr__(self, 'is_regex', True)
+
     def satisfied(self, actual_labels: List[str]) -> Set[str]:
-        # check if a regex or exact match is required
-        is_regex = self.value.startswith('/') and self.value.endswith('/')
-    
         # for each edged label, check if the label matches the constraint, and fail if it does,
         #   because it is a negative search (that is non of the labels should match)
         for actual_label in actual_labels:
-            if (is_regex and re.match(self.value[1:-1], actual_label)) or (self.value == actual_label):
+            if (self.is_regex and re.match(self.value, actual_label)) or (self.value == actual_label):
                 raise ValueError  # TODO - change to our exception
         
         return set()
