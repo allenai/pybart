@@ -71,8 +71,8 @@ class HasNoLabel(Label):
         # for each edged label, check if the label matches the constraint, and fail if it does,
         #   because it is a negative search (that is non of the labels should match)
         for actual_label in actual_labels:
-            if (self.is_regex and not re.match(self.value, actual_label)) or \
-                    (not self.is_regex and self.value != actual_label):
+            if (self.is_regex and re.match(self.value, actual_label)) or \
+                    (not self.is_regex and self.value == actual_label):
                 raise LabelMismatch
         return set()
 
