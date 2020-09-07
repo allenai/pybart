@@ -47,10 +47,11 @@ class HasLabelFromList(Label):
             # for each edged label, check if the label matches the constraint, and store it if it does,
             #   because it is a positive search (that is at least one label should match)
             for actual_label in actual_labels:
-                if (is_current_regex and re.match(value_option, actual_label)) or (value_option == actual_label):
+                if (is_current_regex and re.match(value_option, actual_label)) or \
+                        (not is_current_regex and value_option == actual_label):
                     # store the matched label
                     current_successfully_matched.add(actual_label)
-        if len(current_successfully_matched) > 0:
+        if len(current_successfully_matched) == 0:
             raise LabelMismatch
         return current_successfully_matched
 
@@ -70,9 +71,9 @@ class HasNoLabel(Label):
         # for each edged label, check if the label matches the constraint, and fail if it does,
         #   because it is a negative search (that is non of the labels should match)
         for actual_label in actual_labels:
-            if (self.is_regex and re.match(self.value, actual_label)) or (self.value == actual_label):
+            if (self.is_regex and not re.match(self.value, actual_label)) or \
+                    (not self.is_regex and self.value != actual_label):
                 raise LabelMismatch
-        
         return set()
 
 
