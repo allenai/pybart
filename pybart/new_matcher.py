@@ -39,11 +39,11 @@ class MatchingResult:
     def token(self, name: str) -> int:
         # since optional tokens can have no match, thus should be legitimate to get here their names
         # so we return -1 to inform this
-        return self.name2index.get(name, default=-1)
+        return self.name2index.get(name, -1)
     
     # return the set of captured labels between the two tokens, given their indices
     def edge(self, t1: int, t2: int) -> Set[str]:
-        return self.indices2label.get((t1, t2), default=None)
+        return self.indices2label.get((t1, t2), None)
 
 
 class GlobalMatcher:
@@ -53,28 +53,32 @@ class GlobalMatcher:
         # list of token ids that don't require a capture
         self.dont_capture_names = [token.id for token in constraint.tokens if not token.capture]
     
-    # filter a single match group according to non-token constraints
-    def _filter_distance_constraints(self, match: Mapping[str, int], sentence) -> bool:
+    # filter a single match group according to distance constraints
+    def _filter_distance_constraints(self, match: Mapping[str, int]) -> bool:
         # check that the distance between the tokens is not more than or exactly as required
         for distance in self.constraint.distances:
+            # Note - we assume that if a token is not in the match dict, then it was an optional one,
+            #   and thus we can skip on this distance constraint
             if distance.token1 not in match or distance.token2 not in match:
                 continue
-            calculated_distance = sentence.index(match[distance.token2]) - sentence.index(match[distance.token1]) - 1
+            # TODO - why would we need sentence.index
+            calculated_distance = match[distance.token2] - match[distance.token1] - 1
             if not distance.satisfied(calculated_distance):
                 return False
         return True
 
-    # filter a single match group according to non-token constraints
+    # filter a single match group according to concat constraints
     def _filter_concat_constraints(self, match: Mapping[str, int], sentence) -> bool:
         # check for a two-word or three-word phrase match in a given phrases list
         for concat in self.constraint.concats:
             token_names = concat.get_token_names()
+            # Note - we assume that if a token is not in the match dict, then it was an optional one,
+            #   and thus we can skip on this concat constraint
             if len(set(concat.get_token_names()).difference(match)) > 0:
                 continue
             word_indices = [match[token_name] for token_name in token_names]
             if not concat.satisfied("_".join(sentence.get_text(w) for w in word_indices)):
                 return False
-
         return True
 
     @staticmethod
@@ -85,7 +89,7 @@ class GlobalMatcher:
                 return {}
         return {**base_assignment, **new_assignment}
 
-    def _filter_edge_constraints(self, matches, sentence) -> List[Dict[str, int]]:
+    def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence) -> List[Dict[str, int]]:
         edges_assignments = list()
         # pick possible assignments according to the edge constraint
         for edge in self.constraint.edges:
@@ -93,11 +97,11 @@ class GlobalMatcher:
             # try each pair as a candidate
             # Note - we assume that if a token is not in the matches dict, then it was an optional one,
             #   and thus we can skip on this edge constraint
-            for child in matches.get(edge.child, default=[]):
-                for parent in matches.get(edge.parent, default=[]):
+            for child in matches.get(edge.child, []):
+                for parent in matches.get(edge.parent, []):
                     # check if edge constraint is satisfied
                     try:
-                        captured_labels =\
+                        captured_labels = \
                             get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
                     except Mismatch:
                         continue
@@ -134,7 +138,7 @@ class GlobalMatcher:
         
         for merged_assignment in merges:
             # TODO - compare the speed of non-edge filtering here to the on-going edge filter (see previous todo)
-            if self._filter_distance_constraints(merged_assignment, sentence) and \
+            if self._filter_distance_constraints(merged_assignment) and \
                     self._filter_concat_constraints(merged_assignment, sentence):
                 # keep only required captures
                 _ = [merged_assignment.pop(name) for name in self.dont_capture_names]
@@ -156,7 +160,7 @@ class TokenMatcher:
         self.required_tokens = set()
         for token_name, is_required, matchable_pattern in self._make_patterns(constraints):
             # add it to the matchable list
-            self.matcher.add(token_name, None, matchable_pattern)
+            self.matcher.add(token_name, None, [matchable_pattern])
             if is_required:
                 self.required_tokens.add(token_name)
     
@@ -279,8 +283,8 @@ def preprocess_constraint(constraint: Full) -> Full:
     # rebuild the constraint (as it is immutable)
     tokens = []
     for token in constraint.tokens:
-        incoming_edges = list(token.incoming_edges) + ins.get(token.id, default=[])
-        outgoing_edges = list(token.outgoing_edges) + outs.get(token.id, default=[])
+        incoming_edges = list(token.incoming_edges) + ins.get(token.id, [])
+        outgoing_edges = list(token.outgoing_edges) + outs.get(token.id, [])
         # add the word constraint to an existing WORD field if exists
         word_fields = [replace(s, value=list(s.value) + words.get(token.id, []))
                        for s in token.spec if s.field == FieldNames.WORD]
