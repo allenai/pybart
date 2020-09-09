@@ -25,14 +25,14 @@ from .constraints import *
 # function that checks that a sequence of Label constraints is satisfied
 def get_matched_labels(label_constraints: Sequence[Label], actual_labels: List[str]) -> Optional[Set[str]]:
     successfully_matched = set()
-    # we need to satisfy all constraints in the sequence, so if one fails, return False
+    # we need to satisfy all constraints in the sequence, so if one fails, return None
     # TODO - optional optimization step:
     #   _ = [successfully_matched.update(constraint.satisfied(actual_labels)) for constraint in label_constraints]
     for constraint in label_constraints:
-        bla = constraint.satisfied(actual_labels)
-        if bla is None:
+        satisfied_labels = constraint.satisfied(actual_labels)
+        if satisfied_labels is None:
             return None
-        successfully_matched.update(bla)
+        successfully_matched.update(satisfied_labels)
     return successfully_matched
 
 
