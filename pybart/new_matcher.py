@@ -229,11 +229,6 @@ class TokenMatcher:
         return matched_tokens
 
 
-class Matchers(NamedTuple):
-    token_matcher: TokenMatcher
-    global_matcher: GlobalMatcher
-
-
 class Match:
     def __init__(self, token_matchers: Mapping[str, TokenMatcher],
                  global_matchers: Mapping[str, GlobalMatcher], sentence):
@@ -254,6 +249,11 @@ class Match:
         
         # filter
         yield from self.global_matchers[name].apply(matches, self.sentence)
+
+
+class NamedConstraint(NamedTuple):
+    name: str
+    constraint: Full
 
 
 # add TokenConstraints based on the other non-token constraints (optimization step).
