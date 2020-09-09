@@ -271,8 +271,6 @@ def preprocess_constraint(constraint: Full) -> Full:
         #   and if we add a token constraint it would be to harsh
         if isinstance(edge.label, HasNoLabel):
             continue
-        if any(tok.no_children for tok in constraint.tokens if tok.id == edge.parent):
-            raise ValueError("Found an edge constraint with a parent token that already has a no_children constraint")
         outs[edge.parent].extend(list(edge.label))
         ins[edge.child].extend(list(edge.label))
 

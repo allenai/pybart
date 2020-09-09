@@ -198,6 +198,16 @@ class Full:
         if len(used_names.difference(names_set)) != 0:
             raise ValueError("used undefined names")
 
+        # validate no_children doesn't clash with edges or label constraints
+        for edge in self.edges:
+            if any(tok.no_children for tok in self.tokens if tok.id == edge.parent):
+                raise ValueError(
+                    "Found an edge constraint with a parent token that already has a no_children constraint")
+        for tok in self.tokens:
+            if tok.no_children and any(isinstance(out, HasLabelFromList) for out in tok.outgoing_edges):
+                raise ValueError(
+                    "Found a token with a no_children constraint and outgoing HasLabelFromList constraint")
+
 
 # usage examples:
 #
