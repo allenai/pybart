@@ -16,17 +16,23 @@
 
 from dataclasses import replace
 from collections import defaultdict
-from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple, Generator, Dict
+from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple, Generator, Dict, Optional
 from spacy.vocab import Vocab
 from spacy.matcher import Matcher as SpacyMatcher
 from .constraints import *
 
 
 # function that checks that a sequence of Label constraints is satisfied
-def get_matched_labels(label_constraints: Sequence[Label], actual_labels: List[str]) -> Set[str]:
+def get_matched_labels(label_constraints: Sequence[Label], actual_labels: List[str]) -> Optional[Set[str]]:
     successfully_matched = set()
     # we need to satisfy all constraints in the sequence, so if one fails, return False
-    _ = [successfully_matched.update(constraint.satisfied(actual_labels)) for constraint in label_constraints]
+    # TODO - optional optimization step:
+    #   _ = [successfully_matched.update(constraint.satisfied(actual_labels)) for constraint in label_constraints]
+    for constraint in label_constraints:
+        bla = constraint.satisfied(actual_labels)
+        if bla is None:
+            return None
+        successfully_matched.update(bla)
     return successfully_matched
 
 
@@ -100,10 +106,9 @@ class GlobalMatcher:
             for child in matches.get(edge.child, []):
                 for parent in matches.get(edge.parent, []):
                     # check if edge constraint is satisfied
-                    try:
-                        captured_labels = \
+                    captured_labels = \
                             get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
-                    except Mismatch:
+                    if captured_labels is None:
                         continue
                     # TODO - compare the speed of non-edge filtering here to the current post-merging location
                     # if self._filter(assignment, sentence):
@@ -192,16 +197,15 @@ class TokenMatcher:
         checked_tokens = defaultdict(list)
         for name, token_indices in matched_tokens.items():
             for token in token_indices:
-                try:
-                    _ = get_matched_labels(self.incoming_constraints[name], sentence.get_labels(child=token))
-                    _ = get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))
-                except Mismatch:
+                in_matched = get_matched_labels(self.incoming_constraints[name], sentence.get_labels(child=token))
+                out_matched = get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))
+                if in_matched is None or out_matched is None:
                     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
                     continue
                 checked_tokens[name].append(token)
         return checked_tokens
     
-    def apply(self, sentence) -> Mapping[str, List[int]]:
+    def apply(self, sentence) -> Optional[Mapping[str, List[int]]]:
         matched_tokens = defaultdict(list)
         
         # apply spacy's token-level match
@@ -220,7 +224,7 @@ class TokenMatcher:
 
         # reverse validate the 'optional' constraint
         if len(self.required_tokens.difference(set(matched_tokens.keys()))) != 0:
-            raise RequiredTokenMismatch
+            return None
         
         return matched_tokens
 
@@ -240,10 +244,9 @@ class Match:
         return list(self.matchers.keys())
     
     def matches_for(self, name: str) -> Generator[MatchingResult, None, None]:
-        try:
-            # token match
-            matches = self.matchers[name].token_matcher.apply(self.sentence)
-        except Mismatch:
+        # token match
+        matches = self.matchers[name].token_matcher.apply(self.sentence)
+        if matches is None:
             return
         
         # filter

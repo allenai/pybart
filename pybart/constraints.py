@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Sequence, Set, List
+from typing import Sequence, Set, List, Optional
 from enum import Enum
 from math import inf
 from abc import ABC, abstractmethod
 import re
-from .matching_exceptions import *
 
 
 class FieldNames(Enum):
@@ -40,7 +39,7 @@ class HasLabelFromList(Label):
         object.__setattr__(self, 'value', new_values)
         object.__setattr__(self, 'is_regex', new_is_regex)
 
-    def satisfied(self, actual_labels: List[str]) -> Set[str]:
+    def satisfied(self, actual_labels: List[str]) -> Optional[Set[str]]:
         current_successfully_matched = set()
         # at least one of the constraint strings should match, so return False only if none of them did.
         for value_option, is_current_regex in zip(self.value, self.is_regex):
@@ -52,7 +51,7 @@ class HasLabelFromList(Label):
                     # store the matched label
                     current_successfully_matched.add(actual_label)
         if len(current_successfully_matched) == 0:
-            raise LabelMismatch
+            return None
         return current_successfully_matched
 
 
@@ -67,13 +66,13 @@ class HasNoLabel(Label):
             object.__setattr__(self, 'value', self.value[1:-1])
             object.__setattr__(self, 'is_regex', True)
 
-    def satisfied(self, actual_labels: List[str]) -> Set[str]:
+    def satisfied(self, actual_labels: List[str]) -> Optional[Set[str]]:
         # for each edged label, check if the label matches the constraint, and fail if it does,
         #   because it is a negative search (that is non of the labels should match)
         for actual_label in actual_labels:
             if (self.is_regex and re.match(self.value, actual_label)) or \
                     (not self.is_regex and self.value == actual_label):
-                raise LabelMismatch
+                return None
         return set()
 
 
