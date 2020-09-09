@@ -235,27 +235,25 @@ class Matchers(NamedTuple):
 
 
 class Match:
-    def __init__(self, matchers: Mapping[str, Matchers], sentence):
-        self.matchers = matchers
+    def __init__(self, token_matchers: Mapping[str, TokenMatcher],
+                 global_matchers: Mapping[str, GlobalMatcher], sentence):
+        assert token_matchers.keys() == global_matchers.keys()
+        self.token_matchers = token_matchers
+        self.global_matchers = global_matchers
         self.sentence = sentence
     
     def names(self) -> List[str]:
         # return constraint-name list
-        return list(self.matchers.keys())
+        return list(self.token_matchers.keys())
     
     def matches_for(self, name: str) -> Generator[MatchingResult, None, None]:
         # token match
-        matches = self.matchers[name].token_matcher.apply(self.sentence)
+        matches = self.token_matchers[name].apply(self.sentence)
         if matches is None:
             return
         
         # filter
-        yield from self.matchers[name].global_matcher.apply(matches, self.sentence)
-
-
-class NamedConstraint(NamedTuple):
-    name: str
-    constraint: Full
+        yield from self.global_matchers[name].apply(matches, self.sentence)
 
 
 # add TokenConstraints based on the other non-token constraints (optimization step).
@@ -302,15 +300,16 @@ def preprocess_constraint(constraint: Full) -> Full:
 
 class Matcher:
     def __init__(self, constraints: Sequence[NamedConstraint], vocab: Vocab):
-        self.matchers = dict()
+        self.token_matchers = dict()
+        self.global_matchers = dict()
         for constraint in constraints:
             # preprocess the constraints (optimizations)
             preprocessed_constraint = preprocess_constraint(constraint.constraint)
             
             # initialize internal matchers
-            self.matchers[constraint.name] = Matchers(
-                TokenMatcher(preprocessed_constraint.tokens, vocab), GlobalMatcher(preprocessed_constraint))
+            self.token_matchers[constraint.name] = TokenMatcher(preprocessed_constraint.tokens, vocab)
+            self.global_matchers[constraint.name] = GlobalMatcher(preprocessed_constraint)
     
     # apply the matching process on a given sentence
     def __call__(self, sentence) -> Match:
-        return Match(self.matchers, sentence)
+        return Match(self.token_matchers, self.global_matchers, sentence)
