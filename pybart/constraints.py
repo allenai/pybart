@@ -84,6 +84,7 @@ class Token:
     optional: bool = False  # is this an optional constraint or required
     incoming_edges: Sequence[Label] = field(default_factory=list)
     outgoing_edges: Sequence[Label] = field(default_factory=list)
+    no_children: bool = False  # should this token have no children or can it
     is_root: bool = None  # optional field, if set, then check if this is/n't (depending on the bool value) the root
 
 

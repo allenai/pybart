@@ -157,7 +157,8 @@ class TokenMatcher:
     def __init__(self, constraints: Sequence[Token], vocab: Vocab):
         self.vocab = vocab
         self.matcher = SpacyMatcher(vocab)
-        # store the incoming/outgoing token constraints according to the token id for post token-level matching
+        # store the no_children/incoming/outgoing token constraints according to the token id for post spacy matching
+        self.no_children = {constraint.id: constraint.no_children for constraint in constraints}
         self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
         self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
         
@@ -197,8 +198,11 @@ class TokenMatcher:
         checked_tokens = defaultdict(list)
         for name, token_indices in matched_tokens.items():
             for token in token_indices:
+                if self.no_children[name] and len(sentence.get_labels(parent=token)) != 0:
+                    continue
+                else:
+                    out_matched = get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))
                 in_matched = get_matched_labels(self.incoming_constraints[name], sentence.get_labels(child=token))
-                out_matched = get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))
                 if in_matched is None or out_matched is None:
                     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
                     continue
@@ -267,6 +271,8 @@ def preprocess_constraint(constraint: Full) -> Full:
         #   and if we add a token constraint it would be to harsh
         if isinstance(edge.label, HasNoLabel):
             continue
+        if any(tok.no_children for tok in constraint.tokens if tok.id == edge.parent):
+            raise ValueError("Found an edge constraint with a parent token that already has a no_children constraint")
         outs[edge.parent].extend(list(edge.label))
         ins[edge.child].extend(list(edge.label))
 
@@ -285,7 +291,7 @@ def preprocess_constraint(constraint: Full) -> Full:
     tokens = []
     for token in constraint.tokens:
         incoming_edges = list(token.incoming_edges) + ins.get(token.id, [])
-        outgoing_edges = list(token.outgoing_edges) + outs.get(token.id, [])
+        outgoing_edges = (list(token.outgoing_edges) + outs.get(token.id, [])) if not token.no_children else []
         # add the word constraint to an existing WORD field if exists
         word_fields = [replace(s, value=list(s.value) + words.get(token.id, []))
                        for s in token.spec if s.field == FieldNames.WORD]
