@@ -267,8 +267,8 @@ def preprocess_constraint(constraint: Full) -> Full:
         #   and if we add a token constraint it would be to harsh
         if isinstance(edge.label, HasNoLabel):
             continue
-        outs[edge.child].extend(list(edge.label))
-        ins[edge.parent].extend(list(edge.label))
+        outs[edge.parent].extend(list(edge.label))
+        ins[edge.child].extend(list(edge.label))
 
     # for each concat store the single words of the concat
     #   with their correspondent token for token level WORD constraint
