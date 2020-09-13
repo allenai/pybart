@@ -95,7 +95,7 @@ class GlobalMatcher:
                 return {}
         return {**base_assignment, **new_assignment}
 
-    def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence) -> List[Dict[str, int]]:
+    def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence) -> List[List[Dict[str, int]]]:
         edges_assignments = list()
         # pick possible assignments according to the edge constraint
         for edge in self.constraint.edges:
@@ -103,6 +103,8 @@ class GlobalMatcher:
             # try each pair as a candidate
             # Note - we assume that if a token is not in the matches dict, then it was an optional one,
             #   and thus we can skip on this edge constraint
+            # Note2 - we assume that if a node is not mentioned in any edge constraint,
+            #   then it is a redundant token-constraint (TODO - validate this assumption)
             for child in matches.get(edge.child, []):
                 for parent in matches.get(edge.parent, []):
                     # check if edge constraint is satisfied
@@ -110,26 +112,28 @@ class GlobalMatcher:
                             get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
                     if captured_labels is None:
                         continue
-                    # TODO - compare the speed of non-edge filtering here to the current post-merging location
-                    # if self._filter(assignment, sentence):
-                    assignment = {edge.child: child, edge.parent: parent}
+                    # TODO - compare the speed of non-edge filtering here to the current post-merging location:
+                    #   "if self._filter(assignment, sentence)"
                     # store all captured labels according to the child-parent token pair
                     self.captured_labels[(edge.child, child, edge.parent, parent)].update(captured_labels)
                     # keep the filtered assignment for further merging
-                    edge_assignments.append(assignment)
+                    edge_assignments.append({edge.child: child, edge.parent: parent})
             if edge_assignments:
                 edges_assignments.append(edge_assignments)
+        return edges_assignments
 
-        merges = [{}]
+    @staticmethod
+    def _merge_edges_assignments(edges_assignments: List[List[Dict[str, int]]]) -> List[Dict[str, int]]:
+        merges = []
         # for each list of possible assignments of an edge
         for edge_assignments in edges_assignments:
             new_merges = []
-            # for each merged assignment
-            for merged in merges:
+            # for each merged assignment. (we need an empty dictionary for the first cycle to start with)
+            for merged in (merges if merges else [{}]):
                 # for each possible assignment in the current list
                 for assignment in edge_assignments:
                     # try to merge (see that there is no contradiction on hashing)
-                    just_merged = self._try_merge(merged, assignment)
+                    just_merged = GlobalMatcher._try_merge(merged, assignment)
                     if just_merged:
                         new_merges.append(just_merged)
             if not new_merges:
@@ -139,14 +143,15 @@ class GlobalMatcher:
         return merges
 
     def apply(self, matches: Mapping[str, List[int]], sentence) -> Generator[MatchingResult, None, None]:
-        merges = self._filter_edge_constraints(matches, sentence)
-        
+        filtered = self._filter_edge_constraints(matches, sentence)
+        merges = self._merge_edges_assignments(filtered)
+
         for merged_assignment in merges:
             # TODO - compare the speed of non-edge filtering here to the on-going edge filter (see previous todo)
             if self._filter_distance_constraints(merged_assignment) and \
                     self._filter_concat_constraints(merged_assignment, sentence):
                 # keep only required captures
-                _ = [merged_assignment.pop(name) for name in self.dont_capture_names]
+                _ = [merged_assignment.pop(name, None) for name in self.dont_capture_names]
                 captured_labels = {(v1, v2): labels for (k1, v1, k2, v2), labels in self.captured_labels.items()
                                    if merged_assignment[k1] == v1 and merged_assignment[k2] == v2}
                 # append assignment to output
@@ -178,7 +183,7 @@ class TokenMatcher:
             pattern = dict()
             for spec in constraint.spec:
                 # TODO - the list is comprised of either strings or regexes - so spacy's 'IN' or 'REGEX' won't do
-                #   for now, assuming a list is given (hence the use of "IN")
+                #   for now, assuming a list is given (hence the use of "IN"/"NOT_IN")
                 in_or_not_in = "IN" if spec.in_sequence else "NOT_IN"
                 if spec.field == FieldNames.WORD:
                     # TODO - check if you need non LOWER case (i.e. TEXT)
@@ -198,10 +203,9 @@ class TokenMatcher:
         checked_tokens = defaultdict(list)
         for name, token_indices in matched_tokens.items():
             for token in token_indices:
-                if self.no_children[name] and len(sentence.get_labels(parent=token)) != 0:
+                if self.no_children[name] and (len(sentence.get_labels(parent=token)) != 0):
                     continue
-                else:
-                    out_matched = get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))
+                out_matched = get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))
                 in_matched = get_matched_labels(self.incoming_constraints[name], sentence.get_labels(child=token))
                 if in_matched is None or out_matched is None:
                     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
