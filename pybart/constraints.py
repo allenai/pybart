@@ -19,6 +19,11 @@ class Field:
     value: Sequence[str]  # match of one of the strings in a list
     in_sequence: bool = True
 
+    def __post_init__(self):
+        # validate value's value specifically because str is converted to list and this is hard to debug
+        if not isinstance(self.value, list):
+            raise ValueError(f"Expected <class 'list'> got {type(self.value)}")
+
 
 @dataclass(frozen=True)
 class Label(ABC):
@@ -34,6 +39,9 @@ class HasLabelFromList(Label):
     is_regex: Sequence[bool] = field(init=False)
 
     def __post_init__(self):
+        # validate value's value specifically because str is converted to list and this is hard to debug
+        if not isinstance(self.value, list):
+            raise ValueError(f"Expected <class 'list'> got {type(self.value)}")
         new_values = [v[1:-1] if v.startswith('/') and v.endswith('/') else v for v in self.value]
         new_is_regex = [v.startswith('/') and v.endswith('/') for v in self.value]
         object.__setattr__(self, 'value', new_values)
@@ -85,7 +93,7 @@ class Token:
     incoming_edges: Sequence[Label] = field(default_factory=list)
     outgoing_edges: Sequence[Label] = field(default_factory=list)
     no_children: bool = False  # should this token have no children or can it
-    is_root: bool = None  # optional field, if set, then check if this is/n't (depending on the bool value) the root
+    is_root: bool = False  # should this token have no parents (i.e. it is the root) or can it
 
 
 @dataclass(frozen=True)
@@ -134,6 +142,11 @@ class UptoDistance(Distance):
 @dataclass(frozen=True)
 class TokenTuple(ABC):  # the words of the nodes must match
     tuple_set: Set[str]  # each str is word pair separated by _
+
+    def __post_init__(self):
+        # validate value's value specifically because str is converted to list and this is hard to debug
+        if not isinstance(self.tuple_set, set):
+            raise ValueError(f"Expected <class 'set'> got {type(self.tuple_set)}")
 
     # Note - a bit ugly but best workaround for defining in_set in the parent level, as it has a default value,
     #   and can't be declared before the children's Tokens, but also not sufficient to declare only at children,
@@ -203,10 +216,13 @@ class Full:
             if any(tok.no_children for tok in self.tokens if tok.id == edge.parent):
                 raise ValueError(
                     "Found an edge constraint with a parent token that already has a no_children constraint")
-        for tok in self.tokens:
-            if tok.no_children and any(isinstance(out, HasLabelFromList) for out in tok.outgoing_edges):
+            if any(tok.is_root for tok in self.tokens if tok.id == edge.child):
                 raise ValueError(
-                    "Found a token with a no_children constraint and outgoing HasLabelFromList constraint")
+                    "Found an edge constraint with a child token that already has a is_root constraint")
+        for tok in self.tokens:
+            if (tok.no_children and tok.outgoing_edges) or (tok.is_root and tok.incoming_edges):
+                raise ValueError(
+                    "Found a token with a no_children/is_root constraint and outgoing_edges/incoming_edges constraint")
 
 
 # usage examples:
