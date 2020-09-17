@@ -1,8 +1,8 @@
 import math
 from pybart.new_matcher import *
-from spacy.vocab import Vocab
+import spacy
 
-# nlp = spacy.load("en_ud_model_sm")
+nlp = spacy.load("en_ud_model_sm")
 
 
 def init_full_constraints():
@@ -105,20 +105,21 @@ class TestConstraints:
 
 
 class TestMatcher:
-    # def test_sanity(self):
-    #     conversions = [("conversion1", init_full_constraints()[0]), ("conversion2", init_full_constraints()[1])]
-    #     matcher = Matcher([NamedConstraint(name, constraint) for name, constraint in conversions], nlp.vocab)
-    #
-    #     docs = [nlp("bla1 bla2 bla3"), nlp("TODO2")]  # TODO
-    #
-    #     for doc in docs:
-    #         m = matcher(doc)
-    #         for conv_name in m.names():
-    #             matches = m.matches_for(conv_name)
-    #             # for match in matches:
-    #             #     print(match)
-    #             #     print(match.token("token1"), match.token("token2"),
-    #             #           match.edge(match.token("token1"), match.token("token2")))
+    def test_sanity(self):
+        conversions = [("conversion1", Full(
+            tokens=[Token("tok2"), Token("tok1", spec=[Field(FieldNames.WORD, ["went"])])],
+            edges=[Edge("tok1", "tok2", [HasLabelFromList(["some_label"])])]))]
+        matcher = Matcher([NamedConstraint(name, constraint) for name, constraint in conversions], nlp.vocab)
+
+        sentences = [StubSentence("He went home today")]
+        for sent in sentences:
+            m = matcher(sent)
+            for conv_name in m.names():
+                matches = m.matches_for(conv_name)
+                for match in matches:
+                    assert match.token("tok1") == 1
+                    assert match.token("tok2") == 3
+                    assert match.edge(1, 3) == {"some_label"}
 
     def test_get_matched_labels(self):
         assert {"nmod:of", "bla"} == get_matched_labels(
@@ -141,8 +142,8 @@ class TestMatcher:
         gm = GlobalMatcher(Full(tokens=[Token("tok1"), Token("tok2"), Token("tok3", optional=True)],
                                 concats=[TokenPair({"test1_test2"}, "tok1", "tok2"),
                                          TokenPair({"test1_test3"}, "tok1", "tok3")]))
-        assert gm._filter_concat_constraints({"tok1": 0, "tok2": 1}, TestSentence())
-        assert not gm._filter_concat_constraints({"tok1": 0, "tok2": 2}, TestSentence())
+        assert gm._filter_concat_constraints({"tok1": 0, "tok2": 1}, StubSentence())
+        assert not gm._filter_concat_constraints({"tok1": 0, "tok2": 2}, StubSentence())
 
     def test_try_merge(self):
         assert GlobalMatcher._try_merge({"a": 1, "b": 2, "c": 3}, {"b": 2, "c": 3, "d": 4}) == \
@@ -161,16 +162,16 @@ class TestMatcher:
         # no parents
         assert gm._filter_edge_constraints({"tok1": [2]}, None) == []
         # get_matched_labels returns None (and that's it)
-        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [2]}, TestSentence()) == []
+        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [2]}, StubSentence()) == []
         # get_matched_labels returns None (once, but there are more results)
-        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4]}, TestSentence()) == \
+        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4]}, StubSentence()) == \
                [[{"tok1": 1, "tok2": 3}, {"tok1": 1, "tok2": 4}]]
 
         # more than one edge_assignments
         gm = GlobalMatcher(Full(tokens=[Token("tok1"), Token("tok2"), Token("tok3")], edges=[
             Edge("tok1", "tok2", [HasLabelFromList(["some_label"])]),
             Edge("tok1", "tok3", [HasLabelFromList(["some_label"])])]))
-        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4], "tok3": [5, 6]}, TestSentence()) == \
+        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4], "tok3": [5, 6]}, StubSentence()) == \
                [[{"tok1": 1, "tok2": 3}, {"tok1": 1, "tok2": 4}], [{"tok1": 1, "tok3": 5}, {"tok1": 1, "tok3": 6}]]
 
     def test_merge_edges_assignments(self):
@@ -195,15 +196,15 @@ class TestMatcher:
     def test_gm_apply(self):
         # no merges
         gm = GlobalMatcher(Full())
-        assert len(list(gm.apply({}, TestSentence()))) == 0
+        assert len(list(gm.apply({}, StubSentence()))) == 0
         # only one merge that fails a distance or concat filter
         gm = GlobalMatcher(Full(tokens=[Token("tok1"), Token("tok2"), Token("tok3", capture=False)],
                                 edges=[Edge("tok1", "tok2", [HasLabelFromList(["some_label"])]),
                                        Edge("tok1", "tok3", [HasLabelFromList(["some_label"])])],
                                 distances=[ExactDistance("tok1", "tok2", 10)]))
-        assert len(list(gm.apply({"tok1": [1], "tok2": [3]}, TestSentence()))) == 0
+        assert len(list(gm.apply({"tok1": [1], "tok2": [3]}, StubSentence()))) == 0
         # sanity (but have redundant token names so we can validate they are filtered)
-        for res in gm.apply({"tok1": [1], "tok2": [12], "tok3": [2]}, TestSentence()):
+        for res in gm.apply({"tok1": [1], "tok2": [12], "tok3": [2]}, StubSentence()):
             assert res.edge(1, 12) == {"some_label"}
             assert res.token("tok1") == 1
             assert res.token("tok2") == 12
@@ -223,21 +224,83 @@ class TestMatcher:
 
     def test_post_spacy_matcher(self):
         # empty matched_tokens
-        tm = TokenMatcher([], Vocab())
-        assert {} == tm._post_spacy_matcher({}, TestSentence())
+        tm = TokenMatcher([], nlp.vocab)
+        assert {} == tm._post_spacy_matcher({}, StubSentence())
 
         # have one no_children with children, have one out_matched/in_matched as None, have one successful token
         tm = TokenMatcher([Token("tok1", no_children=True),
                            Token("tok2", outgoing_edges=[HasNoLabel("some_label")]),
-                           Token("tok3")], Vocab())
+                           Token("tok3")], nlp.vocab)
         assert {"tok2": [5], "tok3": [3, 4]} == \
-               tm._post_spacy_matcher({"tok1": [3], "tok2": [3, 5], "tok3": [3, 4]}, TestSentence())
+               tm._post_spacy_matcher({"tok1": [3], "tok2": [3, 5], "tok3": [3, 4]}, StubSentence())
+
+    def test_tm_apply(self):
+        # no matches with optional
+        tm = TokenMatcher([Token("tok1", optional=True, spec=[Field(FieldNames.WORD, ["by"])])], nlp.vocab)
+        assert {} == tm.apply(StubSentence("test sentence 1"))
+
+        # no matches with no optional
+        tm = TokenMatcher([Token("tok1", spec=[Field(FieldNames.WORD, ["by"])])], nlp.vocab)
+        assert tm.apply(StubSentence("test sentence 1")) is None
+
+        # matches
+        tm = TokenMatcher([Token("tok1", spec=[Field(FieldNames.WORD, ["he"])]),
+                           Token("verb", spec=[Field(FieldNames.TAG, ["VBD", "VB"])])], nlp.vocab)
+        assert {"tok1": [0], "verb": [1, 3]} == tm.apply(StubSentence("He wanted to go"))
 
 
-class TestSentence:
+class TestMatch:
+    def test_matched_for(self):
+        constraint = Full(tokens=[Token("tok1", spec=[Field(FieldNames.WORD, ["by"])])])
+        constraint2 = Full(tokens=[Token("tok2"), Token("tok1", spec=[Field(FieldNames.WORD, ["he"])])],
+                           edges=[Edge("tok1", "tok2", [HasLabelFromList(["no_label"])])])
+        constraint3 = Full(tokens=[Token("tok2"), Token("tok1", spec=[Field(FieldNames.WORD, ["he"])])],
+                           edges=[Edge("tok1", "tok2", [HasLabelFromList(["some_label"])])])
+        match = Match(
+            {"constraint1": TokenMatcher(constraint.tokens, nlp.vocab),
+             "constraint2": TokenMatcher(constraint2.tokens, nlp.vocab),
+             "constraint3": TokenMatcher(constraint3.tokens, nlp.vocab)},
+            {"constraint1": GlobalMatcher(constraint),
+             "constraint2": GlobalMatcher(constraint2),
+             "constraint3": GlobalMatcher(constraint3)},
+            StubSentence("He went home"))
+        assert len(list(match.matches_for("constraint1"))) == 0
+        assert len(list(match.matches_for("constraint2"))) == 0
+        assert len(list(match.matches_for("constraint3"))) == 1
+        for m in match.matches_for("constraint3"):
+            assert m.token("tok1") == 0
+            assert m.token("tok2") == 2
+            assert m.edge(0, 2) == {"some_label"}
+
+
+def test_preprocess_constraint():
+    ret = preprocess_constraint(Full(
+        tokens=[Token("tok1"), Token("tok2"), Token("tok3")],
+        edges=[Edge("tok1", "tok2", [HasLabelFromList(["nsubj"]), HasNoLabel("dobj")]),
+               Edge("tok2", "tok3", [HasLabelFromList(["nmod"]), HasNoLabel("xcomp")])],
+        concats=[TokenPair({"tok1_tok3"}, "tok1", "tok3"), TokenTriplet({"tok2_tok1_tok3"}, "tok2", "tok1", "tok3")]))
+    assert ret.tokens[0].id == "tok1"
+    assert ret.tokens[1].id == "tok2"
+    assert ret.tokens[2].id == "tok3"
+    assert ret.tokens[0].incoming_edges[0].value == ["nsubj"]
+    assert ret.tokens[1].outgoing_edges[0].value == ["nsubj"]
+    assert ret.tokens[1].incoming_edges[0].value == ["nmod"]
+    assert ret.tokens[2].outgoing_edges[0].value == ["nmod"]
+    assert ret.tokens[0].spec[0].value == ["tok1"]
+    assert ret.tokens[0].spec[0].field == FieldNames.WORD
+    assert ret.tokens[1].spec[0].value == ["tok2"]
+    assert ret.tokens[1].spec[0].field == FieldNames.WORD
+    assert ret.tokens[2].spec[0].value == ["tok3"]
+    assert ret.tokens[2].spec[0].field == FieldNames.WORD
+
+
+class StubSentence:
     # TODO - this is temporary until we have real sentence class
     #   Actually unnecessarily as we dont need to test here sentence, so a decoy is sufficient
     spec = {0: "test1", 1: "test2", 2: "test3"}
+
+    def __init__(self, sent=""):
+        self.sent = sent
 
     def get_text(self, i):
         return self.spec[i]
@@ -248,7 +311,10 @@ class TestSentence:
                 return ["bad_label"]
             else:
                 return ["some_label"]
-        elif parent == 3:
+        elif parent == 3 or parent == 2:
             return ["some_label"]
         else:
             return []
+
+    def doc(self):
+        return nlp(self.sent)
