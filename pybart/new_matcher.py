@@ -109,7 +109,7 @@ class GlobalMatcher:
                 for parent in matches.get(edge.parent, []):
                     # check if edge constraint is satisfied
                     captured_labels = \
-                            get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
+                        get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
                     if captured_labels is None:
                         continue
                     # TODO - compare the speed of non-edge filtering here to the current post-merging location:
@@ -217,15 +217,15 @@ class TokenMatcher:
         matched_tokens = defaultdict(list)
         
         # apply spacy's token-level match
-        matches = self.matcher(sentence.doc)
+        matches = self.matcher(sentence.doc())
         # validate the span and store each matched token
         for match_id, start, end in matches:
             token_name = self.vocab.strings[match_id]
             # assert that we matched no more than single token
             if end - 1 != start:
                 continue
-            token = sentence.doc[start]
-            matched_tokens[token_name].append(token.id)
+            token = sentence.doc()[start]
+            matched_tokens[token_name].append(token.i)
 
         # extra token matching out of spacy's scope
         matched_tokens = self._post_spacy_matcher(matched_tokens, sentence)
@@ -280,14 +280,14 @@ def preprocess_constraint(constraint: Full) -> Full:
 
     # for each concat store the single words of the concat
     #   with their correspondent token for token level WORD constraint
-    words = defaultdict(list)
+    words = defaultdict(set)
     for concat in constraint.concats:
         zipped_concat = list(zip(*[tuple(t.split("_")) for t in concat.tuple_set]))
         if isinstance(concat, TokenPair) or isinstance(concat, TokenTriplet):
-            words[concat.token1].append(zipped_concat[0])
-            words[concat.token2].append(zipped_concat[1])
+            words[concat.token1].update(set(zipped_concat[0]))
+            words[concat.token2].update(set(zipped_concat[1]))
         if isinstance(concat, TokenTriplet):
-            words[concat.token3].append(zipped_concat[2])
+            words[concat.token3].update(set(zipped_concat[2]))
 
     # rebuild the constraint (as it is immutable)
     tokens = []
@@ -295,11 +295,11 @@ def preprocess_constraint(constraint: Full) -> Full:
         incoming_edges = list(token.incoming_edges) + ins.get(token.id, [])
         outgoing_edges = (list(token.outgoing_edges) + outs.get(token.id, [])) if not token.no_children else []
         # add the word constraint to an existing WORD field if exists
-        word_fields = [replace(s, value=list(s.value) + words.get(token.id, []))
+        word_fields = [replace(s, value=list(words.get(token.id, set()).union(s.value)))
                        for s in token.spec if s.field == FieldNames.WORD]
         if (len(word_fields) == 0) and (token.id in words):
             # simply create a new WORD field
-            word_fields = [Field(FieldNames.WORD, words[token.id])]
+            word_fields = [Field(FieldNames.WORD, list(words[token.id]))]
         # attach the replaced/newly-formed word constraint to the rest of the token spec
         spec = [s for s in token.spec if s.field != FieldNames.WORD] + word_fields
         tokens.append(replace(token, spec=spec, incoming_edges=incoming_edges, outgoing_edges=outgoing_edges))
