@@ -217,14 +217,15 @@ class TokenMatcher:
         matched_tokens = defaultdict(list)
         
         # apply spacy's token-level match
-        matches = self.matcher(sentence.doc())
+        doc = sentence.doc()
+        matches = self.matcher(doc)
         # validate the span and store each matched token
         for match_id, start, end in matches:
             token_name = self.vocab.strings[match_id]
             # assert that we matched no more than single token
             if end - 1 != start:
                 continue
-            token = sentence.doc()[start]
+            token = doc[start]
             matched_tokens[token_name].append(token.i)
 
         # extra token matching out of spacy's scope
