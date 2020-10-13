@@ -10,13 +10,14 @@ from math import copysign
 import inspect
 from typing import List
 
-from .matcher import match, Restriction
+from .constraints import *
+from .matcher import *
 
 # constants
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
-two_word_preps_regular = ["across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"]
-two_word_preps_complex = ["apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"]
-three_word_preps = ["by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"]
+two_word_preps_regular = {"across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"}
+two_word_preps_complex = {"apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"}
+three_word_preps = {"by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"}
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
 quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
 quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
@@ -479,6 +480,21 @@ def extra_amod_propagation(sentence):
 
 
 def extra_acl_propagation(sentence):
+    restriction = Full(
+        tokens=[
+            Token(id="verb", spec=[Field(FieldNames.TAG, ["/(VB.?)/"])]),
+            Token(id="subj"),
+            Token(id="proxy"),
+            Token(id="acl", outgoing_edges=[HasNoLabel("/.subj.*/")]),
+            Token(id="to", spec=[Field(FieldNames.TAG, ["TO"])])],
+        edges=[
+            Edge(child="subj", parent="verb", label=[HasLabelFromList(["/.subj.*/"])]),
+            Edge(child="proxy", parent="verb", label=[HasLabelFromList(["/.*/"])]),
+            Edge(child="acl", parent="proxy", label=[HasLabelFromList(["/acl(?!:relcl)/"])]),
+            Edge(child="to", parent="acl", label=[HasLabelFromList(["mark"])])
+        ],
+    )
+
     # part1: take care of all acl's that are marked by 'to'
     acl_to_rest = Restriction(name="root_or_so", nested=[[
         Restriction(name="verb", xpos="(VB.?)", nested=[[
@@ -703,6 +719,73 @@ def attach_best_cc(conj, ccs, noun, verb):
             closest_dist = conj.dist(closest_cc)
     if closest_cc:
         closest_cc.replace_edge("cc", "cc", noun, verb)
+
+# Purpose: TODO
+# Notes:
+#   1. formerly we did this as long as we find what to change, and each time change only one match, instead of fixing all matches found each time.
+#       As every change we did might effect what can be found next, and old relations that were matched might be out dated.
+#       But since this was a bad practice: (a) we dont use the matching properly, and (b) we use while true which might run forever,
+#       and (c) we didn't kept a record of any case that could be harmed.
+#       So we reverted it to regular behavior. When we do find such a case, we should record it and handle it more appropriately
+#   2. old_root's xpos restriction comes to make sure we catch only non verbal copulas to reconstruct
+#       (even though it should have been 'aux' instead of 'cop').
+#   3. we want to catch all instances at once (hence the use of 'all') of any possible (hence the use of 'opt') old_root's child.
+# class CopulaReconstruction:
+#     @staticmethod
+#     def get_restriction() -> Restriction:
+#         return Restriction(name="father", nested=[[
+#             Restriction(name="old_root", xpos="(?!(VB.?))", nested=[[
+#                 Restriction(name="cop", gov="cop"),
+#                 Restriction(opt=True, all=True, name='regular_children', xpos="?!(TO)",  # avoid catching to-mark
+#                             gov="discourse|punct|advcl|xcomp|ccomp|expl|parataxis|mark)"),
+#                 Restriction(opt=True, all=True, name='subjs', gov="(.subj.*)"),
+#                 # here catch to-mark or aux (hence VB), or advmod (hence W?RB) to transfer to the copula
+#                 Restriction(opt=True, all=True, name='to_cop', gov="(mark|aux.*|advmod)", xpos="(TO|VB|W?RB)"),
+#                 Restriction(opt=True, all=True, name='cases', gov="case"),
+#                 Restriction(opt=True, all=True, name='conjs', gov="conj", xpos="(VB.?)"),  # xpos rest -> transfer only conjoined verbs to the STATE
+#                 Restriction(opt=True, all=True, name='ccs', gov="cc")
+#             ]])
+#         ]])
+#
+#     @staticmethod
+#     def rewrite(hit_ns: Dict[str, Tuple[Token, Token, str]], sentence: List[Token] = None) -> None:
+#         cop, _, cop_rel = hit_ns['cop']
+#         old_root = hit_ns['old_root'][0]
+#
+#         # add STATE node or nominate the copula as new root if we shouldn't add new nodes
+#         if not g_remove_node_adding_conversions:
+#             new_id = cop.get_conllu_field('id') + 0.1
+#             new_root = cop.copy(new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
+#             sentence[new_id] = new_root
+#             # 'cop' becomes 'ev' (for event/evidential) to the new root
+#             cop.replace_edge(cop_rel, "ev", old_root, new_root)
+#         else:
+#             new_root = cop
+#             new_root.remove_edge(cop_rel, old_root)
+#
+#         # transfer old-root's outgoing relation to new-root
+#         for head, rel in old_root.get_new_relations():
+#             old_root.remove_edge(rel, head)
+#             new_root.add_edge(rel, head)
+#
+#         # transfer all old-root's children that are to be transferred
+#         for child, _, rel in hit_ns['regular_children'] + hit_ns['subjs']:
+#             child.replace_edge(rel, rel, old_root, new_root)
+#         for cur_to_cop, _, rel in hit_ns['to_cop']:
+#             cur_to_cop.replace_edge(rel, rel, old_root, cop)
+#         for conj, _, rel in hit_ns['conjs']:
+#             conj.replace_edge(rel, rel, old_root, new_root)
+#             # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
+#             attach_best_cc(conj, list(zip(*hit_ns['ccs']))[0], old_root, new_root)
+#
+#         # only if old_root is an adjective
+#         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
+#             # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
+#             for subj in hit_ns['subjs']:
+#                 old_root.add_edge(add_extra_info("amod", "cop"), subj)
+#
+#         # connect the old_root as son of the new_root with the proper complement
+#         old_root.add_edge("xcomp" if 'cases' not in hit_ns else udv("nmod", "obl"), new_root)
 
 
 def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential):
@@ -961,8 +1044,21 @@ def split_concats_by_index(prep_list, prep_len):
 #   case(you-6, across-4)
 #   mwe(across-4, from-5)
 def eudpp_process_simple_2wp(sentence):
-    forms = split_concats_by_index(two_word_preps_regular, 2)
+    restriction = Full(
+        tokens=[
+            Token(id="w1", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="w2", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="common_parent")],
+        edges=[
+            Edge(child="w1", parent="common_parent", label=[HasLabelFromList(["case", "advmod"])]),
+            Edge(child="w2", parent="common_parent", label=[HasLabelFromList(["case"])])
+        ],
+        distances=[ExactDistance("w1", "w2", distance=0)],
+        concats=[TokenPair(two_word_preps_regular, "w1", "w2")]
+    )
     
+    forms = split_concats_by_index(two_word_preps_regular, 2)
+
     restriction = Restriction(nested=[[
         Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + forms[0] + "$"),
         Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + forms[1] + "$")
@@ -1053,6 +1149,21 @@ def eudpp_process_complex_2wp(sentence):
 #   mwe(in-3, of-5)
 #   root(ROOT-0, you-6)
 def eudpp_process_3wp(sentence):
+    restriction = Full(
+        tokens=[
+            Token(id="w1", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="w2"),
+            Token(id="w3", outgoing_edges=[HasNoLabel("/.*/")]),
+            Token(id="proxy")],
+        edges=[
+            Edge(child="proxy", parent="w2", label=[HasLabelFromList(["/nmod|acl|advcl).*/"])]),
+            Edge(child="w1", parent="w2", label=[HasLabelFromList(["case"])]),
+            Edge(child="w3", parent="proxy", label=[HasLabelFromList(["case", "mark"])])
+        ],
+        distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "w3", distance=0)],
+        concats=[TokenTriplet(three_word_preps, "w1", "w2", "w3")]
+    )
+    
     forms = split_concats_by_index(three_word_preps, 3)
     
     restriction = Restriction(name="gov", nested=[[
@@ -1080,6 +1191,8 @@ def eudpp_process_3wp(sentence):
             continue
         
         # Determine the relation to use
+        # TODO - replace with reattach_parents, which is something like:
+        #   [(old_child.remove_edge(rel, head) and new_child.add_edge(rel if new_rel is None else new_rel, head)) for (head, rel) in old_head.get_new_relations()]
         if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
             gov2.replace_edge(gov2_rel, gov2_rel, w2, gov)
             case = "mark"
@@ -1490,6 +1603,20 @@ def extra_hyphen_reconstruction(sentence):
 
 # The bottle was broken by me.
 def extra_passive_alteration(sentence):
+    restriction = Full(
+        tokens=[
+            Token(id="predicate"),
+            Token(id="subjpass"),
+            Token(id="agent", optional=True),
+            Token(id="by", optional=True, spec=[Field(FieldNames.WORD, ["^(?i:by)$"])])],
+        edges=[
+            Edge(child="subjpass", parent="predicate", label=[HasLabelFromList(["/.subjpass/"])]),
+            Edge(child="agent", parent="predicate", label=[HasLabelFromList(["/^(nmod(:agent)?)$/"])]),
+            Edge(child="by", parent="agent", label=[HasLabelFromList(["case"])]),
+            Edge(child="subjpass", parent="predicate", label=[HasNoLabel(".obj")])
+        ]
+    )
+
     restriction = Restriction(name="predicate", nested=[
         [
             Restriction(name="subjpass", gov=".subjpass"),
@@ -1511,11 +1638,16 @@ def extra_passive_alteration(sentence):
             # avoid fixing a fixed passive.
             continue
         if 'agent' in name_space:
+            # TODO validate 'by' is in the namespace as well
             agent, _, agent_rel = name_space['agent']
             agent.add_edge(add_extra_info("nsubj", "passive", prevs=agent_rel), predicate)
         
         # the special case of csubj (divided into ccomp and xcomp according to 'that' and 'to' subordinates.
         subj_new_rel = "dobj"
+        # TODO -
+        #   1. this entire part can be refactored using a global reuseable function.
+        #   2. there are also: an advcl option, what in addition to that for ccomp, and the 'obj' condition is weird.
+        #   3. actually I can't reproduce any of these cases using the current model, but they still exists in theory. so IDKWTD
         if subj_rel.startswith("csubj"):
             for child, rel in subj.get_children_with_rels():
                 if (rel == "mark") and (child.get_conllu_field("form") == "to"):

@@ -1,11 +1,14 @@
 import re
 from collections import namedtuple
 
+
+# TODO - old matcher's restriction, should be removed
 fields = ('name', 'gov', 'no_sons_of', 'form', 'lemma', 'xpos', 'follows', 'followed_by', 'diff', 'nested')
 Restriction = namedtuple('Restriction', fields, defaults=(None,) * len(fields))
 
 
 # ----------------------------------------- matching functions ----------------------------------- #
+# TODO - when writing the new matcher: same node cannot take two roles in structure.
 
 
 def named_nodes_restrictions(restriction, named_nodes):
