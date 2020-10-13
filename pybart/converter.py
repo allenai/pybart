@@ -1750,6 +1750,22 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     iids = dict()
     
     override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
+
+    # conversions = [SomeConversion, SomeConversion1, ...]
+    # matcher = Matcher(NamedConstraint(conversion.get_name(), conversion.get_constraint()) for conversion in conversions)
+    #
+    # def convert_sentence(sentence, matcher) -> sentence:
+    #     last_converted_sentences = None
+    #     # till convergence of the sentence
+    #     while (i < conv_iterations) and (get_rel_set(converted_sentences) != last_converted_sentences)
+    #         m = matcher(doc)
+    #         for conv_name in m.names():
+    #             matches = m.matches_for(conv_name)
+    #             transform(matches…) # TBD
+    #         sentence = ...
+    #
+    # for doc in docs:
+    #     convert_sentence(sentence, matcher)
     
     # we iterate till convergence or till user defined maximum is reached - the first to come.
     converted_sentences = parsed
