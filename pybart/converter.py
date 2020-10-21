@@ -8,12 +8,14 @@ import sys
 import re
 from math import copysign
 import inspect
-from typing import List
+from typing import List, Dict, Callable, Any
 
 from .constraints import *
 from .matcher import *
 
 # constants
+from .new_matcher import Matcher, NamedConstraint
+
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
 two_word_preps_regular = {"across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"}
 two_word_preps_complex = {"apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"}
@@ -35,45 +37,10 @@ g_remove_enhanced_extra_info = False
 g_remove_bart_extra_info = False
 g_remove_node_adding_conversions = False
 
-
-class ConvsCanceler:
-    def __init__(self, cancel_list: List[str] = None):
-        self.cancel_list = cancel_list
-        self.original = {func_name: func_pointer for (func_name, func_pointer) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
-                         if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
-        self._func_names = self.original.keys()
     
-    def restore_funcs(self):
-        # best effort in cleanup
-        try:
-            for func_name, func_pointer in self.original.items():
-                setattr(sys.modules[__name__], func_name, func_pointer)
-        except KeyError:
-            pass
-    
-    def override_funcs(self):
-        if self.cancel_list:
-            for func_name in self.cancel_list:
-                if func_name not in self._func_names:
-                    raise ValueError(f"{func_name} is not a real function name")
-                setattr(sys.modules[__name__], func_name, lambda *x: None)
-    
-    def update_funcs(self, func_names: List[str]):
-        if self.cancel_list:
-            self.cancel_list.extend(func_names)
-        else:
-            self.cancel_list = func_names
-    
-    def update_funcs_by_prefix(self, prefix: str):
-        func_names = list()
-        for func_name in self._func_names:
-            if func_name.startswith(prefix):
-                func_names.append(func_name)
-        self.update_funcs(func_names)
-    
-    @staticmethod
-    def get_conversion_names():
-        return set(ConvsCanceler()._func_names)
+def get_conversion_names():
+    return {func_name for (func_name, _) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
+            if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
 
 
 def split_by_at(label):
@@ -1660,131 +1627,163 @@ def extra_passive_alteration(sentence):
         subj.add_edge(add_extra_info(subj_new_rel, "passive", prevs=subj_rel), predicate)
     
 
-def convert_sentence(sentence, iids):
-    # The order of eud and eudpp is according to the order of the original CoreNLP.
-    # The extra are our enhancements in which been added where we thought it best.
-    
-    eud_correct_subj_pass(sentence)  # correctDependencies - correctSubjPass
-
-    eudpp_process_simple_2wp(sentence)  # processMultiwordPreps: processSimple2WP
-    eudpp_process_complex_2wp(sentence)  # processMultiwordPreps: processComplex2WP
-    eudpp_process_3wp(sentence)  # processMultiwordPreps: process3WP
-    eudpp_demote_quantificational_modifiers(sentence)  # demoteQuantificationalModifiers
-
-    extra_nmod_advmod_reconstruction(sentence)
-    
-    extra_copula_reconstruction(sentence)
-    extra_evidential_reconstruction(sentence)
-    extra_aspectual_reconstruction(sentence)
-    extra_reported_evidentiality(sentence)
-    extra_fix_nmod_npmod(sentence)
-    extra_hyphen_reconstruction(sentence)
-
-    eudpp_expand_pp_or_prep_conjunctions(sentence)  # add copy nodes: expandPPConjunctions, expandPrepConjunctions
-
-    eud_passive_agent(sentence)  # addCaseMarkerInformation
-    eud_heads_of_conjuncts(sentence)  # treatCC
-    eud_prep_patterns(sentence)  # addCaseMarkerInformation
-    eud_conj_info(sentence)  # addConjInformation
-
-    extra_add_ref_and_collapse(sentence)
-    eudpp_add_ref_and_collapse(sentence)  # referent: addRef, collapseReferent
-
-    eud_subj_of_conjoined_verbs(sentence)  # treatCC
-    eud_xcomp_propagation(sentence)  # addExtraNSubj
-
-    extra_of_prep_alteration(sentence)
-    extra_compound_propagation(sentence)
-    extra_xcomp_propagation_no_to(sentence)
-    extra_advcl_propagation(sentence, iids)
-    extra_advcl_ambiguous_propagation(sentence, iids)
-    extra_acl_propagation(sentence)
-    extra_dep_propagation(sentence, iids)
-    extra_conj_propagation_of_nmods(sentence)
-    extra_conj_propagation_of_poss(sentence)
-    extra_advmod_propagation(sentence)
-    extra_appos_propagation(sentence)
-    extra_subj_obj_nmod_propagation_of_nmods(sentence)
-    extra_passive_alteration(sentence)
-    
-    return sentence
+######################################################################################################################################################
 
 
-def override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
+def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
     if not enhanced:
-        funcs_to_cancel.update_funcs_by_prefix('eud_')
+        conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.EUD}
     if not enhanced_plus_plus:
-        funcs_to_cancel.update_funcs_by_prefix('eudpp_')
+        conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.EUDPP}
     if not enhanced_extra:
-        funcs_to_cancel.update_funcs_by_prefix('extra_')
+        conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.BART}
     if remove_enhanced_extra_info:
-        funcs_to_cancel.update_funcs(['eud_passive_agent', 'eud_conj_info'])
+        conversions.pop('eud_passive_agent')
+        conversions.pop('eud_conj_info')
     if remove_node_adding_conversions:
-        funcs_to_cancel.update_funcs(['eudpp_expand_pp_or_prep_conjunctions'])  # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
+        conversions.pop('eudpp_expand_pp_or_prep_conjunctions')  # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
     if remove_unc:
-        funcs_to_cancel.update_funcs(['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation'])
+        for func_name in ['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation']:
+            conversions.pop(func_name)
     if query_mode:
-        all_funcs = ConvsCanceler.get_conversion_names()
-        all_funcs.difference_update(['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_passive_agent', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers'])
-        funcs_to_cancel.update_funcs(all_funcs)
-    
-    funcs_to_cancel.override_funcs()
+        for func_name in conversions.keys():
+            if func_name in ['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_passive_agent', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers']:
+                conversions.pop(func_name)
+    for func_to_cancel in funcs_to_cancel:
+        conversions.pop(func_to_cancel)
+
+    return conversions
 
 
-def get_rel_set(converted_sentences):
-    return set([(head.get_conllu_field("form"), rel, tok.get_conllu_field("form")) for sent in converted_sentences for tok in sent.values() for (head, rel) in tok.get_new_relations()])
+def get_rel_set(converted_sentence):
+    # TODO: rel (LabelInfo change)
+    return set([(head.get_conllu_field("id"), rel, tok.get_conllu_field("id")) for tok in converted_sentence.values() for (head, rel) in tok.get_new_relations()])
 
 
-def on_last_iter_convs(sentence):
+def convert_sentence(sentence: Dict[Token], conversions, matcher: Matcher, conv_iterations: int, iids: Dict):
+    # TODO - get rid of the iids param
+    last_converted_sentences = None
+    i = 0
+    # we iterate till convergence or till user defined maximum is reached - the first to come.
+    while (i < conv_iterations) and (get_rel_set(sentence) != last_converted_sentences):
+        last_converted_sentences = get_rel_set(sentence)
+        m = matcher(sentence)
+        for conv_name in m.names():
+            # TODO: try to check that the subject didnt came from an amod for extra_amod_propagation,
+            #  so we wont need this on_last iteration mechanism.
+            # if conv_name in on_last_iter:
+            #     continue
+            matches = m.matches_for(conv_name)
+            conversions[conv_name].transformation(sentence, matches, iids)
+        i += 1
+
+    return i
+
+
+class ConvTypes(Enum):
+    EUD = 1
+    EUDPP = 2
+    BART = 3
+
+
+ConvFuncSignature = Callable[[Any, Any, Any], None]
+
+
+@dataclass(frozen=True)
+class Conversion:
+    conv_type: ConvTypes
+    constraint: Full
+    transformation: ConvFuncSignature
+
+    def __post_init__(self):
+        self.name = self.transformation.__name__
+
+
+def init_conversions():
+    correct_subj_pass = Conversion(ConvTypes.EUD, Full(), eud_correct_subj_pass)
+
+    process_simple_2wp = Conversion(ConvTypes.EUDPP, Full(), eudpp_process_simple_2wp)
+    process_complex_2wp = Conversion(ConvTypes.EUDPP, Full(), eudpp_process_complex_2wp)
+    process_3wp = Conversion(ConvTypes.EUDPP, Full(), eudpp_process_3wp)
+    demote_quantificational_modifiers = Conversion(ConvTypes.EUDPP, Full(), eudpp_demote_quantificational_modifiers)
+
+    nmod_advmod_reconstruction = Conversion(ConvTypes.BART, Full(), extra_nmod_advmod_reconstruction)
+
+    copula_reconstruction = Conversion(ConvTypes.BART, Full(), extra_copula_reconstruction)
+    evidential_reconstruction = Conversion(ConvTypes.BART, Full(), extra_evidential_reconstruction)
+    aspectual_reconstruction = Conversion(ConvTypes.BART, Full(), extra_aspectual_reconstruction)
+    reported_evidentiality = Conversion(ConvTypes.BART, Full(), extra_reported_evidentiality)
+    fix_nmod_npmod = Conversion(ConvTypes.BART, Full(), extra_fix_nmod_npmod)
+    hyphen_reconstruction = Conversion(ConvTypes.BART, Full(), extra_hyphen_reconstruction)
+
+    expand_pp_or_prep_conjunctions = Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions)
+
+    passive_agent = Conversion(ConvTypes.EUD, Full(), eud_passive_agent)
+    heads_of_conjuncts = Conversion(ConvTypes.EUD, Full(), eud_heads_of_conjuncts)
+    prep_patterns = Conversion(ConvTypes.EUD, Full(), eud_prep_patterns)
+    conj_info = Conversion(ConvTypes.EUD, Full(), eud_conj_info)
+
+    add_ref_and_collapse_bart_version = Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse)
+    add_ref_and_collapse = Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse)
+
+    subj_of_conjoined_verbs = Conversion(ConvTypes.EUD, Full(), eud_subj_of_conjoined_verbs)
+    xcomp_propagation = Conversion(ConvTypes.EUD, Full(), eud_xcomp_propagation)
+
+    of_prep_alteration = Conversion(ConvTypes.BART, Full(), extra_of_prep_alteration)
+    compound_propagation = Conversion(ConvTypes.BART, Full(), extra_compound_propagation)
+    xcomp_propagation_no_to = Conversion(ConvTypes.BART, Full(), extra_xcomp_propagation_no_to)
+    advcl_propagation = Conversion(ConvTypes.BART, Full(), extra_advcl_propagation)  # TODO - needs iids
+    advcl_ambiguous_propagation = Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation)  # TODO - needs iids
+    acl_propagation = Conversion(ConvTypes.BART, Full(), extra_acl_propagation)
+    dep_propagation = Conversion(ConvTypes.BART, Full(), extra_dep_propagation)  # TODO - needs iids
+    conj_propagation_of_nmods = Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods)
+    conj_propagation_of_poss = Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss)
+    advmod_propagation = Conversion(ConvTypes.BART, Full(), extra_advmod_propagation)
+    appos_propagation = Conversion(ConvTypes.BART, Full(), extra_appos_propagation)
+    subj_obj_nmod_propagation_of_nmods = Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods)
+    passive_alteration = Conversion(ConvTypes.BART, Full(), extra_passive_alteration)
     # TODO: after refactoring, if the match and replace system is more concise
     #   maybe it would be better to simply check that the subject didnt cpme from an amod.
-    extra_amod_propagation(sentence)
-    return sentence
+    amod_propagation = Conversion(ConvTypes.BART, Full(), extra_amod_propagation)
+
+    return {correct_subj_pass.name: correct_subj_pass, process_simple_2wp.name: process_simple_2wp,
+            process_complex_2wp.name: process_complex_2wp, process_3wp.name: process_3wp,
+            demote_quantificational_modifiers.name: demote_quantificational_modifiers,
+            nmod_advmod_reconstruction.name: nmod_advmod_reconstruction, copula_reconstruction.name: copula_reconstruction,
+            evidential_reconstruction.name: evidential_reconstruction, aspectual_reconstruction.name: aspectual_reconstruction,
+            reported_evidentiality.name: reported_evidentiality, fix_nmod_npmod.name: fix_nmod_npmod,
+            hyphen_reconstruction.name: hyphen_reconstruction, expand_pp_or_prep_conjunctions.name: expand_pp_or_prep_conjunctions,
+            passive_agent.name: passive_agent, heads_of_conjuncts.name: heads_of_conjuncts, prep_patterns.name: prep_patterns,
+            conj_info.name: conj_info, add_ref_and_collapse_bart_version.name: add_ref_and_collapse_bart_version,
+            add_ref_and_collapse.name: add_ref_and_collapse, subj_of_conjoined_verbs.name: subj_of_conjoined_verbs,
+            xcomp_propagation.name: xcomp_propagation, of_prep_alteration.name: of_prep_alteration,
+            compound_propagation.name: compound_propagation, xcomp_propagation_no_to.name: xcomp_propagation_no_to,
+            advcl_propagation.name: advcl_propagation, advcl_ambiguous_propagation.name: advcl_ambiguous_propagation,
+            acl_propagation.name: acl_propagation, dep_propagation.name: dep_propagation,
+            conj_propagation_of_nmods.name: conj_propagation_of_nmods, conj_propagation_of_poss.name: conj_propagation_of_poss,
+            advmod_propagation.name: advmod_propagation, appos_propagation.name: appos_propagation,
+            subj_obj_nmod_propagation_of_nmods.name: subj_obj_nmod_propagation_of_nmods,
+            passive_alteration.name: passive_alteration, amod_propagation.name: amod_propagation}
 
 
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info, remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
+def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
+            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, context=None):
     global g_remove_enhanced_extra_info, g_remove_bart_extra_info, g_remove_node_adding_conversions
     g_remove_enhanced_extra_info = remove_enhanced_extra_info
     g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
     iids = dict()
     
-    override_funcs(enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
+    conversions = init_conversions()
+    remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
+                   remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
+    matcher = Matcher([NamedConstraint(conversion.name, conversion.constraint) for conversion in conversions], context)
 
-    # conversions = [SomeConversion, SomeConversion1, ...]
-    # matcher = Matcher(NamedConstraint(conversion.get_name(), conversion.get_constraint()) for conversion in conversions)
-    #
-    # def convert_sentence(sentence, matcher) -> sentence:
-    #     last_converted_sentences = None
-    #     # till convergence of the sentence
-    #     while (i < conv_iterations) and (get_rel_set(converted_sentences) != last_converted_sentences)
-    #         m = matcher(doc)
-    #         for conv_name in m.names():
-    #             matches = m.matches_for(conv_name)
-    #             transform(matches…) # TBD
-    #         sentence = ...
-    #
-    # for doc in docs:
-    #     convert_sentence(sentence, matcher)
-    
-    # we iterate till convergence or till user defined maximum is reached - the first to come.
-    converted_sentences = parsed
     i = 0
-    while i < conv_iterations:
-        last_converted_sentences = get_rel_set(converted_sentences)
-        temp = []
-        for sentence in converted_sentences:
-            temp.append(convert_sentence(sentence, iids))
-        converted_sentences = temp
-        if get_rel_set(converted_sentences) == last_converted_sentences:
-            break
-        i += 1
+    for sentence in parsed:
+        i = max(i, convert_sentence(sentence, conversions, matcher, conv_iterations, iids))
 
-    # here we run some conversions that we believe should run only once and after all other conversions
-    temp = []
-    for sent in converted_sentences:
-        temp.append(on_last_iter_convs(sent))
-    converted_sentences = temp
-    
-    funcs_to_cancel.restore_funcs()
-    return converted_sentences, i
+    return parsed, i
+
+
+
