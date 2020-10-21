@@ -38,7 +38,7 @@ class Token:
     def get_conllu_string(self):
         # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
         # as required by the format.
-        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + b for (a, b) in sorted(self.get_new_relations())])
+        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + b.to_str() for (a, b) in sorted(self.get_new_relations())])
         return "\t".join([str(v) for v in self._conllu_info.values()])
     
     def set_conllu_field(self, field, val):
@@ -69,15 +69,6 @@ class Token:
                     new_deps_pairs.append((head, edge))
         
         return new_deps_pairs
-    
-    def match_rel(self, str_to_match, head):
-        ret = []
-        # having more than one edge should really never happen
-        for edge in self._new_deps[head]:
-            m = re.match(str_to_match, edge)
-            if m:
-                ret.append(edge)
-        return ret
     
     def add_edge(self, rel, head, extra_info=None):
         if head in self._new_deps:

@@ -34,34 +34,12 @@ def parse_spacy_sent(sent):
 
 
 def parse_bart_label(rel, is_state_head_node):
-    # For the rare case which involvs a '@' preposition,
-    # we temporarily replace it with 'at', instead of simply doing rel.split("@")
-    rel_l = [x.replace(":at", ":@") for x in rel.replace(":@", ":at").split("@")]
+    if rel.src is not None:
+        src = (rel.src,) + tuple(filter(None, [rel.src_type, rel.phrase]))
+    else:
+        src = "UD" if not is_state_head_node else "BART"
     
-    # defaults
-    src = "UD" if not is_state_head_node else "BART"
-    alt = None
-    unc = False
-    
-    # if new info exists parse it
-    if len(rel_l) > 1:
-        # alternatives info
-        if len(rel_l[1].split("#")) > 1:
-            alt = int(rel_l[1].split("#")[1].split("+")[0])
-        # extra info
-        src = rel_l[1].split("(")[0]
-        extras = rel_l[1].split("(")[1].split(")")[0].split(", ")
-        if '' in extras:
-            extras.remove('')
-        # uncertinty info
-        if "UNC" in extras:
-            unc = True
-            extras.remove("UNC")
-        if len(extras) > 0:
-            src = (src,) + tuple(extras)
-    new_rel = rel_l[0]
-    
-    return new_rel, src, unc, alt
+    return rel.with_no_bart(), src, bool(rel.uncertain), rel.alt
 
 
 def serialize_spacy_doc(orig_doc, converted_sentences):

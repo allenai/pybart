@@ -175,7 +175,7 @@ def fix_graph(conllu_sentence, odin_sentence, is_basic):
                     odin_sentence["graphs"]["universal-enhanced"]["roots"].append(iid - 1)
                 else:
                     odin_sentence["graphs"]["universal-enhanced"]["edges"].append(
-                        {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel})
+                        {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel.to_str()})
     
     return odin_sentence
 

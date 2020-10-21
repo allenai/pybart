@@ -38,45 +38,57 @@ g_remove_enhanced_extra_info = False
 g_remove_bart_extra_info = False
 g_remove_node_adding_conversions = False
 
-    
+
+class ConvTypes(Enum):
+    EUD = 1
+    EUDPP = 2
+    BART = 3
+
+
+ConvFuncSignature = Callable[[Any, Any, Any], None]
+
+
+@dataclass
+class Conversion:
+    conv_type: ConvTypes
+    constraint: Full
+    transformation: ConvFuncSignature
+
+    def __post_init__(self):
+        self.name = self.transformation.__name__
+
+
+@dataclass
+class Label:
+    base: str
+    eud: str = None
+    src: str = None
+    src_type: str = None
+    phrase: str = None
+    uncertain: bool = False
+    iid: int = None
+
+    def to_str(self, no_bart=False):
+        eud = ""
+        if self.eud is not None and not g_remove_enhanced_extra_info:
+            eud = ":" + self.eud
+
+        bart = ""
+        if not no_bart:
+            if self.src is not None and not g_remove_bart_extra_info:
+                iid_str = "" if self.iid is None else "#" + str(self.iid)
+                dep_args = ", ".join(x for x in filter(None, [self.src_type, self.phrase, "UNC" if self.uncertain else None]))
+                bart = "@" + self.src + "(" + dep_args + ")" + iid_str
+
+        return self.base + eud + bart
+
+    def with_no_bart(self):
+        return self.to_str(no_bart=True)
+
+
 def get_conversion_names():
     return {func_name for (func_name, _) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
-
-
-def split_by_at(label):
-    # For the rare case which involvs a '@' preposition,
-    # we temporarily replace it with 'at', instead of simply doing rel.split("@")
-    return [x.replace(":at", ":@") for x in label.replace(":@", ":at").split("@")]
-
-
-def naked_label(label):
-    return split_by_at(label)[0].split(":")[0]
-
-
-def add_eud_info(orig, extra):
-    at = orig.split("@")
-    base = at[0]
-    if ":" in orig:
-        base = at[0].split(":")[0]
-    return base + ((":" + extra) if not g_remove_enhanced_extra_info else "") + (("@" + at[1]) if len(at) > 1 else "")
-
-
-def add_extra_info(orig, dep, dep_type=None, phrase=None, iid=None, uncertain=False, prevs=None):
-    global g_remove_bart_extra_info
-    
-    source_str = ""
-    if not g_remove_bart_extra_info:
-        iid_str = ""
-        if iid is not None:
-            iid_str = "#" + str(iid)
-        prevs_str = ""
-        if (prevs is not None) and (len(prevs.split("@")) > 1):
-            prevs_str = "+" + prevs.split("@")[-1]
-        dep_args = ", ".join([x for x in [dep_type, phrase, "UNC" if uncertain else None] if x])
-        source_str = "@" + dep + "(" + dep_args + ")" + iid_str + prevs_str
-    
-    return orig + source_str
 
 
 # correctDependencies - correctSubjPass
@@ -126,7 +138,7 @@ def eud_passive_agent(sentence):
     for name_space in ret:
         gov, _, _ = name_space['gov']
         mod, _, mod_rel = name_space['mod']
-        mod.replace_edge(mod_rel, add_eud_info(mod_rel, "agent"), gov, gov)
+        mod.replace_edge(mod_rel, Label(mod_rel, eud="agent"), gov, gov)
 
 
 # we need to create a concat string for every marker neighbor chain
@@ -171,7 +183,7 @@ def prep_patterns_per_type(sentence, restriction):
         
         mod.remove_edge(mod_rel, mod_head)
         for prep_sequence in sequences:
-            mod.add_edge(add_eud_info(mod_rel, prep_sequence.lower()), mod_head)
+            mod.add_edge(Label(mod_rel, prep_sequence.lower()), mod_head)
 
 
 def prep_patterns_inner(sentence, first_gov, second_gov):
@@ -230,7 +242,7 @@ def eud_heads_of_conjuncts(sentence):
         # NOTE: actually SC restrict this more aggressively.
         if (gov_head, gov_rel) not in gov.get_extra_info_edges() \
                 and gov_head != dep \
-                and (gov_head, naked_label(gov_rel)) not in [(h, naked_label(r)) for (h, r) in dep.get_new_relations()]:
+                and (gov_head, gov_rel.base) not in [(h, r.base) for (h, r) in dep.get_new_relations()]:
             dep.add_edge(gov_rel, gov_head)
         
         # NOTE: this is not part of the original SC.
@@ -292,8 +304,8 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
     for name_space in ret:
         new_subj, _, rel = name_space['new_subj']
         dep, _, _ = name_space['dep']
-        new_subj.add_edge(add_eud_info("nsubj", "xcomp(INF)") if not is_extra else
-                          add_extra_info("nsubj", "xcomp", dep_type="GERUND", prevs=rel), dep)
+        new_subj.add_edge(Label("nsubj", "xcomp(INF)") if not is_extra else
+                          Label("nsubj", src="xcomp", src_type="GERUND"), dep)
 
 
 # Add extra nsubj dependencies when collapsing basic dependencies.
@@ -350,7 +362,7 @@ def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc, iids):
         new_subj, _, rel = name_space[new_subj_str]
         mark, _, _ = name_space['mark'] if 'mark' in name_space else (None, _, _)
         phrase = mark.get_conllu_field("form") if mark else "NULL"
-        new_subj.add_edge(add_extra_info("nsubj", type_, phrase=phrase, prevs=rel, iid=cur_iid, uncertain=unc), dep)
+        new_subj.add_edge(Label("nsubj", src=type_, phrase=phrase, iid=cur_iid, uncertain=unc), dep)
 
 
 def extra_advcl_propagation(sentence, iids):
@@ -408,7 +420,7 @@ def extra_of_prep_alteration(sentence):
     for name_space in ret:
         father, _, _ = name_space['father']
         nmod, _, rel = name_space['nmod']
-        nmod.add_edge(add_extra_info("compound", "nmod", phrase="of", prevs=rel), father)
+        nmod.add_edge(Label("compound", src="nmod", phrase="of"), father)
 
 
 def extra_compound_propagation(sentence):
@@ -426,10 +438,10 @@ def extra_compound_propagation(sentence):
         father, _, _ = name_space['father']
         _, _, rel = name_space['middle_man']
         compound, _, _ = name_space['compound']
-        pure_rel = split_by_at(rel)[0]
+        pure_rel = rel.with_no_bart()
         if any([re.match("(.obj|.subj.*)", rel) for head, rel in compound.get_new_relations()]):
             continue
-        compound.add_edge(add_extra_info(pure_rel, "compound", dep_type="NULL", uncertain=True, prevs=rel), father)
+        compound.add_edge(Label(pure_rel, src="compound", src_type="NULL", uncertain=True), father)
 
 
 def extra_amod_propagation(sentence):
@@ -444,7 +456,7 @@ def extra_amod_propagation(sentence):
     for name_space in ret:
         father, _, _ = name_space['father']
         amod, _, rel = name_space['amod']
-        father.add_edge(add_extra_info("nsubj", "amod", prevs=rel), amod)
+        father.add_edge(Label("nsubj", src="amod"), amod)
 
 
 def extra_acl_propagation(sentence):
@@ -480,7 +492,7 @@ def extra_acl_propagation(sentence):
         for name_space in ret:
             subj, _, _ = name_space['subj']
             acl, _, rel = name_space['acl']
-            subj.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase='to', prevs=rel), acl)
+            subj.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase='to'), acl)
     
     # part2: take care of all acl's that are not marked by 'to'
     acl_rest = Restriction(name="father", nested=[[
@@ -494,7 +506,7 @@ def extra_acl_propagation(sentence):
     for name_space in ret:
         father, _, _ = name_space['father']
         acl, _, rel = name_space['acl']
-        father.add_edge(add_extra_info("nsubj", "acl", dep_type="NULL", phrase="REDUCED", prevs=rel), acl)
+        father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
 
 
 def extra_dep_propagation(sentence, iids):
@@ -536,7 +548,7 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence):
         mediator_rel = name_space['mediator'][2]
         
         phrase = [prep for prep in ["like", "such_as", "including"] if prep in name_space][0]
-        nmod.add_edge(add_extra_info(split_by_at(mediator_rel)[0], "nmod", phrase=phrase, prevs=mediator_rel), receiver)
+        nmod.add_edge(Label(mediator_rel.with_no_bart(), src="nmod", phrase=phrase), receiver)
 
 
 def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=False):
@@ -567,7 +579,7 @@ def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=Fal
         
         if '.' not in str(receiver.get_conllu_field("id")) and \
                 (dont_check_precedence or nmod.get_conllu_field("id") > receiver.get_conllu_field("id")):
-            nmod.add_edge(add_extra_info(split_by_at(nmod_rel)[0], "conj", uncertain=True, phrase=cc_assignments[conj], prevs=nmod_rel), receiver)
+            nmod.add_edge(Label(nmod_rel.with_no_bart(), src="conj", uncertain=True, phrase=cc_assignments[conj]), receiver)
 
 
 def extra_conj_propagation_of_nmods(sentence):
@@ -614,7 +626,7 @@ def extra_advmod_propagation(sentence):
         case, _, _ = name_space['case']
         
         if gov not in advmod.get_parents():
-            advmod.add_edge(add_extra_info(split_by_at(advmod_rel)[0], "nmod", dep_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True, prevs=middle_man_rel), gov)
+            advmod.add_edge(Label(advmod_rel.with_no_bart(), src="nmod", src_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True), gov)
 
 
 # "I went back to prison"
@@ -646,11 +658,11 @@ def extra_nmod_advmod_reconstruction(sentence):
         
         mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
         if mwe in nmod_advmod_complex:
-            nmod.add_edge(add_extra_info(add_eud_info(split_by_at(nmod_rel)[0], case.get_conllu_field("form").lower()), "advmod_prep"), gov)
+            nmod.add_edge(Label(nmod_rel.with_no_bart(), eud=case.get_conllu_field("form").lower(), src="advmod_prep"), gov)
         else:
-            advmod.replace_edge(advmod_rel, add_extra_info(split_by_at(case_rel)[0], "advmod_prep"), gov, nmod)
-            case.replace_edge(case_rel, add_extra_info("mwe", "advmod_prep"), nmod, advmod)
-            nmod.replace_edge(nmod_rel, add_extra_info(add_eud_info(split_by_at(nmod_rel)[0], mwe), "advmod_prep"), advmod, gov)
+            advmod.replace_edge(advmod_rel, Label(case_rel.with_no_bart(), src="advmod_prep"), gov, nmod)
+            case.replace_edge(case_rel, Label("mwe", src="advmod_prep"), nmod, advmod)
+            nmod.replace_edge(nmod_rel, Label(nmod_rel.with_no_bart(), eud=mwe, src="advmod_prep"), advmod, gov)
 
 
 def extra_appos_propagation(sentence):
@@ -667,11 +679,11 @@ def extra_appos_propagation(sentence):
         
         for (gov_head, gov_in_rel) in gov.get_new_relations():
             if (gov_head, gov_in_rel) not in appos.get_new_relations():
-                appos.add_edge(add_extra_info(split_by_at(gov_in_rel)[0], "appos", prevs=gov_in_rel), gov_head)
+                appos.add_edge(Label(gov_in_rel.with_no_bart(), src="appos"), gov_head)
         
         for (gov_son, gov_out_rel) in gov.get_children_with_rels():
             if re.match("(acl|amod)", gov_out_rel) and (gov_son, gov_out_rel) not in appos.get_children_with_rels():
-                gov_son.add_edge(add_extra_info(split_by_at(gov_out_rel)[0], "appos", prevs=gov_out_rel), appos)
+                gov_son.add_edge(Label(gov_out_rel.with_no_bart(), src="appos"), appos)
 
 
 # find the closest cc to the conj with precedence for left hand ccs
@@ -750,7 +762,7 @@ def attach_best_cc(conj, ccs, noun, verb):
 #         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
 #             # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
 #             for subj in hit_ns['subjs']:
-#                 old_root.add_edge(add_extra_info("amod", "cop"), subj)
+#                 old_root.add_edge(Label("amod", src="cop"), subj)
 #
 #         # connect the old_root as son of the new_root with the proper complement
 #         old_root.add_edge("xcomp" if 'cases' not in hit_ns else udv("nmod", "obl"), new_root)
@@ -780,7 +792,7 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
             
             # The old_root's father cant be 'STATE' or connect via ev. as it means we were already handled.
             #   The old_root's children cant be 'xcomp'(+'JJ') or 'ccomp' as they are handled separately.
-            if any((head.get_conllu_field("form") == "STATE") or (split_by_at(rel)[0] == 'ev') for head, rel in old_root.get_new_relations()):
+            if any((head.get_conllu_field("form") == "STATE") or (rel.with_no_bart() == 'ev') for head, rel in old_root.get_new_relations()):
                 old_root = None
                 predecessor = None
                 continue
@@ -849,7 +861,7 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
         #   new_amod can be the old_root if it was a copula construct, or the old_root's 'xcomp' son if not.
         if re.match("JJ.?", new_amod.get_conllu_field("xpos")):
             for subj in subjs:
-                new_amod.add_edge(add_extra_info("amod", "cop"), subj)
+                new_amod.add_edge(Label("amod", src="cop"), subj)
         
         # connect the old_root as son of the new_root as 'ev' if it was an evidential root,
         # or with the proper complement if it was an adjectival root under the copula construct
@@ -892,7 +904,7 @@ def per_type_weak_modified_verb_reconstruction(sentence, rest, type_, ccomp_case
                     if inter_root == new_root:
                         break
                     ev_sons = [c for c,r in inter_root.get_children_with_rels() if 'ev' == r.split('@')[0]]
-                old_root.add_edge(add_extra_info('ev', rel, dep_type=type_), inter_root)
+                old_root.add_edge(Label('ev', src=rel, src_type=type_), inter_root)
             elif rel == "mark":
                 # see notes in copula
                 if child.get_conllu_field('xpos') != 'TO':
@@ -976,7 +988,7 @@ def extra_reported_evidentiality(sentence):
         ev, _, _ = name_space['ev']
         new_root, _, _ = name_space['new_root']
         
-        ev.add_edge(add_extra_info("ev", "ccomp", dep_type="REPORTED"), new_root)
+        ev.add_edge(Label("ev", src="ccomp", src_type="REPORTED"), new_root)
 
 
 def create_mwe(words, head, rel):
@@ -1212,7 +1224,7 @@ def demote_per_type(sentence, restriction):
         
         [child.replace_edge(rel, rel, old_gov, gov2) for (child, rel) in old_gov.get_children_with_rels() if rel == "case"]
         gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
-        create_mwe(words, gov2, add_eud_info("det", "qmod"))
+        create_mwe(words, gov2, Label("det", "qmod"))
         # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
         [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels() if rel != "mwe"]
 
@@ -1328,16 +1340,16 @@ def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
                 leftmost_rel = 'nmod:tmod'
                 phrase = 'when'
             elif 'why' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
-                leftmost_rel = add_eud_info('nmod', 'because_of')
+                leftmost_rel = Label('nmod', 'because_of')
                 phrase = 'why'
             
             # continue with *reduced* relcl, cased of orphan case/marker should become nmod and not obj
             elif ('nmod', 'RB') in rels_with_pos:
-                leftmost_rel = add_eud_info('nmod', rels_with_pos[('nmod', 'RB')])
+                leftmost_rel = Label('nmod', rels_with_pos[('nmod', 'RB')])
             elif ('advmod', 'RB') in rels_with_pos:
-                leftmost_rel = add_eud_info('nmod', rels_with_pos[('advmod', 'RB')])
+                leftmost_rel = Label('nmod', rels_with_pos[('advmod', 'RB')])
             elif ('nmod', 'IN') in rels_with_pos:
-                leftmost_rel = add_eud_info('nmod', rels_with_pos[('nmod', 'IN')])
+                leftmost_rel = Label('nmod', rels_with_pos[('nmod', 'IN')])
             
             # NOTE: I couldn't find an example for the following commented out very specific adjusment. TODO - remove in near future.
             # # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
@@ -1350,8 +1362,8 @@ def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
             #                              (child, relation) in obj.get_children_with_rels()}
             #         if (('nmod', 'IN') in rels_with_pos_obj) or (('nmod', 'RB') in rels_with_pos_obj):
             #             case = rels_with_pos_obj[('nmod', 'IN')] if ('nmod', 'IN') in rels_with_pos_obj else rels_with_pos_obj[('nmod', 'RB')]
-            #             gov.add_edge(add_extra_info(add_eud_info("nmod", case.get_conllu_field('form')), "reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
-            #             case.add_edge(add_extra_info("case", "reduced-relcl"), gov)
+            #             gov.add_edge(Label("nmod", eud=case.get_conllu_field('form'), src="reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
+            #             case.add_edge(Label("case", src="reduced-relcl"), gov)
             #             found = True
             #             break
             #     if found:
@@ -1360,7 +1372,7 @@ def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
             #     leftmost_rel = 'dobj'
             else:
                 leftmost_rel = 'dobj'
-            gov.add_edge(add_extra_info(leftmost_rel, "acl", dep_type="RELCL", phrase=phrase, prevs=prevs_rel), leftmost_head, extra_info=EXTRA_INFO_STUB)
+            gov.add_edge(Label(leftmost_rel, src="acl", src_type="RELCL", phrase=phrase), leftmost_head, extra_info=EXTRA_INFO_STUB)
 
 
 def eudpp_add_ref_and_collapse(sentence):
@@ -1438,7 +1450,7 @@ def eud_conj_info(sentence):
             continue
         cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
         
-        conj.replace_edge(conj_rel, add_eud_info(conj_rel, cc_assignment), gov, gov)
+        conj.replace_edge(conj_rel, Label(conj_rel, cc_assignment), gov, gov)
 
 
 # The label of the conjunct relation includes the conjunction type
@@ -1479,7 +1491,7 @@ def expand_per_type(sentence, restriction, is_pp):
             head="_",
             deprel="_",
             misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
-        copy_node.add_edge(add_eud_info("conj", cc_assignment), to_copy)
+        copy_node.add_edge(Label("conj", cc_assignment), to_copy)
         sentence[new_id] = copy_node
         
         if is_pp:
@@ -1492,7 +1504,7 @@ def expand_per_type(sentence, restriction, is_pp):
         else:
             # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
             modifier, _, modifier_rel = name_space['modifier']
-            modifier.add_edge(add_eud_info(modifier_rel, conj.get_conllu_field('form')), copy_node)
+            modifier.add_edge(Label(modifier_rel, conj.get_conllu_field('form')), copy_node)
 
 
 # Expands PPs with conjunctions such as in the sentence
@@ -1565,8 +1577,8 @@ def extra_hyphen_reconstruction(sentence):
         verb, _, _ = name_space['verb']
         noun, _, noun_rel = name_space['noun']
         
-        subj.add_edge(add_extra_info("nsubj", "compound", dep_type="HYPHEN", prevs=subj_rel), verb)
-        noun.add_edge(add_extra_info("nmod", "compound", dep_type="HYPHEN", prevs=noun_rel), verb)
+        subj.add_edge(Label("nsubj", src="compound", src_type="HYPHEN"), verb)
+        noun.add_edge(Label("nmod", src="compound", src_type="HYPHEN"), verb)
 
 
 # The bottle was broken by me.
@@ -1602,13 +1614,13 @@ def extra_passive_alteration(sentence):
     for name_space in ret:
         subj, _, subj_rel = name_space['subjpass']
         predicate, _, _ = name_space['predicate']
-        if subj.match_rel(".obj", predicate):
-            # avoid fixing a fixed passive.
-            continue
+        # if subj.match_rel(".obj", predicate):
+        #     # avoid fixing a fixed passive.
+        #     continue
         if 'agent' in name_space:
             # TODO validate 'by' is in the namespace as well
             agent, _, agent_rel = name_space['agent']
-            agent.add_edge(add_extra_info("nsubj", "passive", prevs=agent_rel), predicate)
+            agent.add_edge(Label("nsubj", src="passive"), predicate)
         
         # the special case of csubj (divided into ccomp and xcomp according to 'that' and 'to' subordinates.
         subj_new_rel = "dobj"
@@ -1625,7 +1637,7 @@ def extra_passive_alteration(sentence):
         elif "dobj" in [rel for (_, rel) in predicate.get_children_with_rels()]:
             subj_new_rel = "iobj"
         
-        subj.add_edge(add_extra_info(subj_new_rel, "passive", prevs=subj_rel), predicate)
+        subj.add_edge(Label(subj_new_rel, src="passive"), predicate)
     
 
 ######################################################################################################################################################
@@ -1681,26 +1693,8 @@ def convert_sentence(sentence: Dict[Token], conversions, matcher: Matcher, conv_
     return i
 
 
-class ConvTypes(Enum):
-    EUD = 1
-    EUDPP = 2
-    BART = 3
-
-
-ConvFuncSignature = Callable[[Any, Any, Any], None]
-
-
-@dataclass
-class Conversion:
-    conv_type: ConvTypes
-    constraint: Full
-    transformation: ConvFuncSignature
-
-    def __post_init__(self):
-        self.name = self.transformation.__name__
-
-
 def init_conversions():
+    # TODO - update Full to each constraint
     conversion_list = [
         Conversion(ConvTypes.EUD, Full(), eud_correct_subj_pass),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_process_simple_2wp),
@@ -1762,6 +1756,3 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
         i = max(i, convert_sentence(sentence, conversions, matcher, conv_iterations, iids))
 
     return parsed, i
-
-
-
