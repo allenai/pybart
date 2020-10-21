@@ -1,7 +1,7 @@
 import re
 
 
-class Token(object):
+class Token:
     def __init__(self, new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc):
         # format of CoNLL-U as described here: https://universaldependencies.org/format.html
         self._conllu_info = {"id": new_id, "form": form, "lemma": lemma, "upos": upos, "xpos": xpos,
