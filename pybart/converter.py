@@ -15,6 +15,7 @@ from .matcher import *
 
 # constants
 from .new_matcher import Matcher, NamedConstraint
+from dataclasses import dataclass
 
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
 two_word_preps_regular = {"across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"}
@@ -1689,7 +1690,7 @@ class ConvTypes(Enum):
 ConvFuncSignature = Callable[[Any, Any, Any], None]
 
 
-@dataclass(frozen=True)
+@dataclass
 class Conversion:
     conv_type: ConvTypes
     constraint: Full
