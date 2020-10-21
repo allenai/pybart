@@ -1700,70 +1700,47 @@ class Conversion:
 
 
 def init_conversions():
-    correct_subj_pass = Conversion(ConvTypes.EUD, Full(), eud_correct_subj_pass)
+    conversion_list = [
+        Conversion(ConvTypes.EUD, Full(), eud_correct_subj_pass),
+        Conversion(ConvTypes.EUDPP, Full(), eudpp_process_simple_2wp),
+        Conversion(ConvTypes.EUDPP, Full(), eudpp_process_complex_2wp),
+        Conversion(ConvTypes.EUDPP, Full(), eudpp_process_3wp),
+        Conversion(ConvTypes.EUDPP, Full(), eudpp_demote_quantificational_modifiers),
+        Conversion(ConvTypes.BART, Full(), extra_nmod_advmod_reconstruction),
+        Conversion(ConvTypes.BART, Full(), extra_copula_reconstruction),
+        Conversion(ConvTypes.BART, Full(), extra_evidential_reconstruction),
+        Conversion(ConvTypes.BART, Full(), extra_aspectual_reconstruction),
+        Conversion(ConvTypes.BART, Full(), extra_reported_evidentiality),
+        Conversion(ConvTypes.BART, Full(), extra_fix_nmod_npmod),
+        Conversion(ConvTypes.BART, Full(), extra_hyphen_reconstruction),
+        Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
+        Conversion(ConvTypes.EUD, Full(), eud_passive_agent),
+        Conversion(ConvTypes.EUD, Full(), eud_heads_of_conjuncts),
+        Conversion(ConvTypes.EUD, Full(), eud_prep_patterns),
+        Conversion(ConvTypes.EUD, Full(), eud_conj_info),
+        Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse),
+        Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse),
+        Conversion(ConvTypes.EUD, Full(), eud_subj_of_conjoined_verbs),
+        Conversion(ConvTypes.EUD, Full(), eud_xcomp_propagation),
+        Conversion(ConvTypes.BART, Full(), extra_of_prep_alteration),
+        Conversion(ConvTypes.BART, Full(), extra_compound_propagation),
+        Conversion(ConvTypes.BART, Full(), extra_xcomp_propagation_no_to),
+        Conversion(ConvTypes.BART, Full(), extra_advcl_propagation),  # TODO - needs iids
+        Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation),  # TODO - needs iids
+        Conversion(ConvTypes.BART, Full(), extra_acl_propagation),
+        Conversion(ConvTypes.BART, Full(), extra_dep_propagation),  # TODO - needs iids
+        Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods),
+        Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss),
+        Conversion(ConvTypes.BART, Full(), extra_advmod_propagation),
+        Conversion(ConvTypes.BART, Full(), extra_appos_propagation),
+        Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods),
+        Conversion(ConvTypes.BART, Full(), extra_passive_alteration),
+        # TODO: after refactoring, if the match and replace system is more concise
+        #   maybe it would be better to simply check that the subject didnt cpme from an amod.
+        Conversion(ConvTypes.BART, Full(), extra_amod_propagation)
+    ]
 
-    process_simple_2wp = Conversion(ConvTypes.EUDPP, Full(), eudpp_process_simple_2wp)
-    process_complex_2wp = Conversion(ConvTypes.EUDPP, Full(), eudpp_process_complex_2wp)
-    process_3wp = Conversion(ConvTypes.EUDPP, Full(), eudpp_process_3wp)
-    demote_quantificational_modifiers = Conversion(ConvTypes.EUDPP, Full(), eudpp_demote_quantificational_modifiers)
-
-    nmod_advmod_reconstruction = Conversion(ConvTypes.BART, Full(), extra_nmod_advmod_reconstruction)
-
-    copula_reconstruction = Conversion(ConvTypes.BART, Full(), extra_copula_reconstruction)
-    evidential_reconstruction = Conversion(ConvTypes.BART, Full(), extra_evidential_reconstruction)
-    aspectual_reconstruction = Conversion(ConvTypes.BART, Full(), extra_aspectual_reconstruction)
-    reported_evidentiality = Conversion(ConvTypes.BART, Full(), extra_reported_evidentiality)
-    fix_nmod_npmod = Conversion(ConvTypes.BART, Full(), extra_fix_nmod_npmod)
-    hyphen_reconstruction = Conversion(ConvTypes.BART, Full(), extra_hyphen_reconstruction)
-
-    expand_pp_or_prep_conjunctions = Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions)
-
-    passive_agent = Conversion(ConvTypes.EUD, Full(), eud_passive_agent)
-    heads_of_conjuncts = Conversion(ConvTypes.EUD, Full(), eud_heads_of_conjuncts)
-    prep_patterns = Conversion(ConvTypes.EUD, Full(), eud_prep_patterns)
-    conj_info = Conversion(ConvTypes.EUD, Full(), eud_conj_info)
-
-    add_ref_and_collapse_bart_version = Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse)
-    add_ref_and_collapse = Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse)
-
-    subj_of_conjoined_verbs = Conversion(ConvTypes.EUD, Full(), eud_subj_of_conjoined_verbs)
-    xcomp_propagation = Conversion(ConvTypes.EUD, Full(), eud_xcomp_propagation)
-
-    of_prep_alteration = Conversion(ConvTypes.BART, Full(), extra_of_prep_alteration)
-    compound_propagation = Conversion(ConvTypes.BART, Full(), extra_compound_propagation)
-    xcomp_propagation_no_to = Conversion(ConvTypes.BART, Full(), extra_xcomp_propagation_no_to)
-    advcl_propagation = Conversion(ConvTypes.BART, Full(), extra_advcl_propagation)  # TODO - needs iids
-    advcl_ambiguous_propagation = Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation)  # TODO - needs iids
-    acl_propagation = Conversion(ConvTypes.BART, Full(), extra_acl_propagation)
-    dep_propagation = Conversion(ConvTypes.BART, Full(), extra_dep_propagation)  # TODO - needs iids
-    conj_propagation_of_nmods = Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods)
-    conj_propagation_of_poss = Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss)
-    advmod_propagation = Conversion(ConvTypes.BART, Full(), extra_advmod_propagation)
-    appos_propagation = Conversion(ConvTypes.BART, Full(), extra_appos_propagation)
-    subj_obj_nmod_propagation_of_nmods = Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods)
-    passive_alteration = Conversion(ConvTypes.BART, Full(), extra_passive_alteration)
-    # TODO: after refactoring, if the match and replace system is more concise
-    #   maybe it would be better to simply check that the subject didnt cpme from an amod.
-    amod_propagation = Conversion(ConvTypes.BART, Full(), extra_amod_propagation)
-
-    return {correct_subj_pass.name: correct_subj_pass, process_simple_2wp.name: process_simple_2wp,
-            process_complex_2wp.name: process_complex_2wp, process_3wp.name: process_3wp,
-            demote_quantificational_modifiers.name: demote_quantificational_modifiers,
-            nmod_advmod_reconstruction.name: nmod_advmod_reconstruction, copula_reconstruction.name: copula_reconstruction,
-            evidential_reconstruction.name: evidential_reconstruction, aspectual_reconstruction.name: aspectual_reconstruction,
-            reported_evidentiality.name: reported_evidentiality, fix_nmod_npmod.name: fix_nmod_npmod,
-            hyphen_reconstruction.name: hyphen_reconstruction, expand_pp_or_prep_conjunctions.name: expand_pp_or_prep_conjunctions,
-            passive_agent.name: passive_agent, heads_of_conjuncts.name: heads_of_conjuncts, prep_patterns.name: prep_patterns,
-            conj_info.name: conj_info, add_ref_and_collapse_bart_version.name: add_ref_and_collapse_bart_version,
-            add_ref_and_collapse.name: add_ref_and_collapse, subj_of_conjoined_verbs.name: subj_of_conjoined_verbs,
-            xcomp_propagation.name: xcomp_propagation, of_prep_alteration.name: of_prep_alteration,
-            compound_propagation.name: compound_propagation, xcomp_propagation_no_to.name: xcomp_propagation_no_to,
-            advcl_propagation.name: advcl_propagation, advcl_ambiguous_propagation.name: advcl_ambiguous_propagation,
-            acl_propagation.name: acl_propagation, dep_propagation.name: dep_propagation,
-            conj_propagation_of_nmods.name: conj_propagation_of_nmods, conj_propagation_of_poss.name: conj_propagation_of_poss,
-            advmod_propagation.name: advmod_propagation, appos_propagation.name: appos_propagation,
-            subj_obj_nmod_propagation_of_nmods.name: subj_obj_nmod_propagation_of_nmods,
-            passive_alteration.name: passive_alteration, amod_propagation.name: amod_propagation}
+    return {conversion.name: conversion for conversion in conversion_list}
 
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
