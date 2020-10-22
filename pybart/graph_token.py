@@ -1,4 +1,33 @@
-import re
+from dataclasses import dataclass
+from .pybart_globals import *
+
+
+@dataclass
+class Label:
+    base: str
+    eud: str = None
+    src: str = None
+    src_type: str = None
+    phrase: str = None
+    uncertain: bool = False
+    iid: int = None
+
+    def to_str(self, no_bart=False):
+        eud = ""
+        if self.eud is not None and not g_remove_enhanced_extra_info:
+            eud = ":" + self.eud
+
+        bart = ""
+        if not no_bart:
+            if self.src is not None and not g_remove_bart_extra_info:
+                iid_str = "" if self.iid is None else "#" + str(self.iid)
+                dep_args = ", ".join(x for x in filter(None, [self.src_type, self.phrase, "UNC" if self.uncertain else None]))
+                bart = "@" + self.src + "(" + dep_args + ")" + iid_str
+
+        return self.base + eud + bart
+
+    def with_no_bart(self):
+        return self.to_str(no_bart=True)
 
 
 class Token:
@@ -119,4 +148,4 @@ def add_basic_edges(sentence):
         # add the relation
         head = token.get_conllu_field('head')
         if head != "_":
-            sentence[cur_id].add_edge(token.get_conllu_field('deprel'), sentence[token.get_conllu_field('head')])
+            sentence[cur_id].add_edge(Label(token.get_conllu_field('deprel')), sentence[token.get_conllu_field('head')])

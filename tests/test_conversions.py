@@ -4,7 +4,7 @@ import math
 
 import pybart
 from pybart.conllu_wrapper import parse_conllu, serialize_conllu
-from pybart import converter
+from pybart import converter, pybart_globals
 from pybart import api
 from pybart.graph_token import add_basic_edges
 from pybart.converter import convert
@@ -58,8 +58,8 @@ class TestConversions:
     
     @staticmethod
     def setup_method():
-        pybart.converter.g_remove_enhanced_extra_info = False
-        pybart.converter.g_remove_bart_extra_info = False
+        pybart_globals.g_remove_enhanced_extra_info = False
+        pybart_globals.g_remove_bart_extra_info = False
         pybart.converter.g_remove_node_adding_conversions = False
     
     @classmethod

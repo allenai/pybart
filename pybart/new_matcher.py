@@ -19,7 +19,40 @@ from collections import defaultdict
 from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple, Generator, Dict, Optional
 from spacy.vocab import Vocab
 from spacy.matcher import Matcher as SpacyMatcher
+from spacy.tokens import Doc as SpacyDoc
+from spacy.attrs import *
+from numpy import uint64, array as nparray
 from .constraints import *
+from .graph_token import Token as BartToken
+
+
+# returns a spacy doc representing the sentence
+def get_spacy_doc(sentence: Mapping[int, BartToken], vocab: Vocab) -> SpacyDoc:
+    # TODO - add ENT_TYPE when we add entity to graph-token, as we can get it from the spacy doc on the spacy pipeline
+    words = [t.get_conllu_field("form") for i, t in sentence.items() if i != 0]
+    doc = SpacyDoc(vocab, words=words)
+    ar = nparray([[
+        vocab.strings[t.get_conllu_field("lemma")],
+        vocab.strings[t.get_conllu_field("upos")],
+        vocab.strings[t.get_conllu_field("xpos")],
+        i == 1] for i, t in sentence.items() if i != 0], dtype=uint64)
+    return doc.from_array([LEMMA, POS, TAG, SENT_START], ar)
+
+
+# gets the verbatim of a token in position i in the sentence
+def get_text(sentence: Mapping[int, BartToken], i: int) -> str:
+    return sentence[i].get_conllu_field("form")
+
+
+# returns a string list of labels connecting child to parent (or incoming/outgoing to/from child/parent respectively
+def get_labels(sentence: Mapping[int, BartToken], child: int = None, parent: int = None) -> List[str]:
+    labels = []
+    if child:
+        labels = [rel.to_str() for _, rel in sentence[child].get_new_relations(given_head=parent)]
+    elif parent:
+        labels = [rel.to_str() for _, rel in sentence[parent].get_children_with_rels()]
+
+    return labels
 
 
 # function that checks that a sequence of Label constraints is satisfied
@@ -74,7 +107,7 @@ class GlobalMatcher:
         return True
 
     # filter a single match group according to concat constraints
-    def _filter_concat_constraints(self, match: Mapping[str, int], sentence) -> bool:
+    def _filter_concat_constraints(self, match: Mapping[str, int], sentence: Mapping[int, BartToken]) -> bool:
         # check for a two-word or three-word phrase match in a given phrases list
         for concat in self.constraint.concats:
             token_names = concat.get_token_names()
@@ -83,7 +116,7 @@ class GlobalMatcher:
             if len(set(concat.get_token_names()).difference(match)) > 0:
                 continue
             word_indices = [match[token_name] for token_name in token_names]
-            if not concat.satisfied("_".join(sentence.get_text(w) for w in word_indices)):
+            if not concat.satisfied("_".join(get_text(sentence, w) for w in word_indices)):
                 return False
         return True
 
@@ -95,7 +128,8 @@ class GlobalMatcher:
                 return {}
         return {**base_assignment, **new_assignment}
 
-    def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence) -> List[List[Dict[str, int]]]:
+    def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
+            -> List[List[Dict[str, int]]]:
         edges_assignments = list()
         # pick possible assignments according to the edge constraint
         for edge in self.constraint.edges:
@@ -109,7 +143,7 @@ class GlobalMatcher:
                 for parent in matches.get(edge.parent, []):
                     # check if edge constraint is satisfied
                     captured_labels = \
-                        get_matched_labels(edge.label, sentence.get_labels(child=child, parent=parent))
+                        get_matched_labels(edge.label, get_labels(sentence, child=child, parent=parent))
                     if captured_labels is None:
                         continue
                     # TODO - compare the speed of non-edge filtering here to the current post-merging location:
@@ -142,7 +176,8 @@ class GlobalMatcher:
 
         return merges
 
-    def apply(self, matches: Mapping[str, List[int]], sentence) -> Generator[MatchingResult, None, None]:
+    def apply(self, matches: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
+            -> Generator[MatchingResult, None, None]:
         filtered = self._filter_edge_constraints(matches, sentence)
         merges = self._merge_edges_assignments(filtered)
 
@@ -198,26 +233,26 @@ class TokenMatcher:
             patterns.append((constraint.id, not constraint.optional, pattern))
         return patterns
     
-    def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence) -> Mapping[str, List[int]]:
+    def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
+            -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
         checked_tokens = defaultdict(list)
         for name, token_indices in matched_tokens.items():
             for token in token_indices:
-                if self.no_children[name] and (len(sentence.get_labels(parent=token)) != 0):
+                if self.no_children[name] and (len(get_labels(sentence, parent=token)) != 0):
                     continue
-                out_matched = get_matched_labels(self.outgoing_constraints[name], sentence.get_labels(parent=token))
-                in_matched = get_matched_labels(self.incoming_constraints[name], sentence.get_labels(child=token))
+                out_matched = get_matched_labels(self.outgoing_constraints[name], get_labels(sentence, parent=token))
+                in_matched = get_matched_labels(self.incoming_constraints[name], get_labels(sentence, child=token))
                 if in_matched is None or out_matched is None:
                     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
                     continue
                 checked_tokens[name].append(token)
         return checked_tokens
     
-    def apply(self, sentence) -> Optional[Mapping[str, List[int]]]:
+    def apply(self, sentence: Mapping[int, BartToken], doc: SpacyDoc) -> Optional[Mapping[str, List[int]]]:
         matched_tokens = defaultdict(list)
         
         # apply spacy's token-level match
-        doc = sentence.doc()
         matches = self.matcher(doc)
         # validate the span and store each matched token
         for match_id, start, end in matches:
@@ -240,11 +275,12 @@ class TokenMatcher:
 
 class Match:
     def __init__(self, token_matchers: Mapping[str, TokenMatcher],
-                 global_matchers: Mapping[str, GlobalMatcher], sentence):
+                 global_matchers: Mapping[str, GlobalMatcher], sentence: Mapping[int, BartToken], vocab: Vocab):
         assert token_matchers.keys() == global_matchers.keys()
         self.token_matchers = token_matchers
         self.global_matchers = global_matchers
         self.sentence = sentence
+        self.doc = get_spacy_doc(sentence, vocab)
     
     def names(self) -> List[str]:
         # return constraint-name list
@@ -252,7 +288,7 @@ class Match:
     
     def matches_for(self, name: str) -> Generator[MatchingResult, None, None]:
         # token match
-        matches = self.token_matchers[name].apply(self.sentence)
+        matches = self.token_matchers[name].apply(self.sentence, self.doc)
         if matches is None:
             return
         
@@ -311,6 +347,7 @@ class Matcher:
     def __init__(self, constraints: Sequence[NamedConstraint], vocab: Vocab):
         self.token_matchers = dict()
         self.global_matchers = dict()
+        self.vocab = vocab
         for constraint in constraints:
             # preprocess the constraints (optimizations)
             preprocessed_constraint = preprocess_constraint(constraint.constraint)
@@ -320,5 +357,5 @@ class Matcher:
             self.global_matchers[constraint.name] = GlobalMatcher(preprocessed_constraint)
     
     # apply the matching process on a given sentence
-    def __call__(self, sentence) -> Match:
-        return Match(self.token_matchers, self.global_matchers, sentence)
+    def __call__(self, sentence: Mapping[int, BartToken]) -> Match:
+        return Match(self.token_matchers, self.global_matchers, sentence, self.vocab)

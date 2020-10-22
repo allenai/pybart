@@ -12,11 +12,13 @@ from typing import List, Dict, Callable, Any
 
 from .constraints import *
 from .matcher import *
+from .graph_token import Label
+from . import pybart_globals
 
-# constants
 from .new_matcher import Matcher, NamedConstraint
 from dataclasses import dataclass
 
+# constants
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
 two_word_preps_regular = {"across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"}
 two_word_preps_complex = {"apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"}
@@ -34,8 +36,6 @@ evidential_list = "^(seem|appear|be|sound)$"
 aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
 reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
 EXTRA_INFO_STUB = 1
-g_remove_enhanced_extra_info = False
-g_remove_bart_extra_info = False
 g_remove_node_adding_conversions = False
 
 
@@ -56,34 +56,6 @@ class Conversion:
 
     def __post_init__(self):
         self.name = self.transformation.__name__
-
-
-@dataclass
-class Label:
-    base: str
-    eud: str = None
-    src: str = None
-    src_type: str = None
-    phrase: str = None
-    uncertain: bool = False
-    iid: int = None
-
-    def to_str(self, no_bart=False):
-        eud = ""
-        if self.eud is not None and not g_remove_enhanced_extra_info:
-            eud = ":" + self.eud
-
-        bart = ""
-        if not no_bart:
-            if self.src is not None and not g_remove_bart_extra_info:
-                iid_str = "" if self.iid is None else "#" + str(self.iid)
-                dep_args = ", ".join(x for x in filter(None, [self.src_type, self.phrase, "UNC" if self.uncertain else None]))
-                bart = "@" + self.src + "(" + dep_args + ")" + iid_str
-
-        return self.base + eud + bart
-
-    def with_no_bart(self):
-        return self.to_str(no_bart=True)
 
 
 def get_conversion_names():
@@ -1672,11 +1644,11 @@ def get_rel_set(converted_sentence):
 
 def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, conv_iterations: int, iids: Dict):
     # TODO - get rid of the iids param
-    last_converted_sentences = None
+    last_converted_sentence = None
     i = 0
     # we iterate till convergence or till user defined maximum is reached - the first to come.
-    while (i < conv_iterations) and (get_rel_set(sentence) != last_converted_sentences):
-        last_converted_sentences = get_rel_set(sentence)
+    while (i < conv_iterations) and (get_rel_set(sentence) != last_converted_sentence):
+        last_converted_sentence = get_rel_set(sentence)
         m = matcher(sentence)
         for conv_name in m.names():
             # TODO: try to check that the subject didnt came from an amod for extra_amod_propagation,
@@ -1737,9 +1709,9 @@ def init_conversions():
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
             remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, context=None):
-    global g_remove_enhanced_extra_info, g_remove_bart_extra_info, g_remove_node_adding_conversions
-    g_remove_enhanced_extra_info = remove_enhanced_extra_info
-    g_remove_bart_extra_info = remove_bart_extra_info
+    global g_remove_node_adding_conversions
+    pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
+    pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
     iids = dict()
     
