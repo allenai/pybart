@@ -1673,7 +1673,7 @@ def get_rel_set(converted_sentence):
     return set([(head.get_conllu_field("id"), rel, tok.get_conllu_field("id")) for tok in converted_sentence.values() for (head, rel) in tok.get_new_relations()])
 
 
-def convert_sentence(sentence: Dict[Token], conversions, matcher: Matcher, conv_iterations: int, iids: Dict):
+def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, conv_iterations: int, iids: Dict):
     # TODO - get rid of the iids param
     last_converted_sentences = None
     i = 0
@@ -1749,7 +1749,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     conversions = init_conversions()
     remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
                    remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
-    matcher = Matcher([NamedConstraint(conversion.name, conversion.constraint) for conversion in conversions], context)
+    matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint) for conversion_name, conversion in conversions.items()], context)
 
     i = 0
     for sentence in parsed:
