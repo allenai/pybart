@@ -1638,8 +1638,7 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
 
 
 def get_rel_set(converted_sentence):
-    # TODO: rel (LabelInfo change)
-    return set([(head.get_conllu_field("id"), rel, tok.get_conllu_field("id")) for tok in converted_sentence.values() for (head, rel) in tok.get_new_relations()])
+    return set([(head.get_conllu_field("id"), rel.to_str(), tok.get_conllu_field("id")) for tok in converted_sentence.values() for (head, rel) in tok.get_new_relations()])
 
 
 def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, conv_iterations: int, iids: Dict):
