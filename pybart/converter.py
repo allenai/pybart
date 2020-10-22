@@ -91,34 +91,31 @@ def get_conversion_names():
             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
 
 
-# correctDependencies - correctSubjPass
+eud_correct_subj_pass_constraint = Full(
+    tokens=[
+        Token(id="aux"),
+        Token(id="pred"),
+        Token(id="subj"),
+    ],
+    edges=[
+        Edge(child="aux", parent="pred", label=[HasLabelFromList(["auxpass"])]),
+        Edge(child="subj", parent="pred", label=[HasLabelFromList(["nsubj", "csubj"])]),
+    ],
+    distances=[UptoDistance("subj", "aux", inf)]
+)
+
+
 # This method corrects subjects of verbs for which we identified an auxpass,
 # but didn't identify the subject as passive.
-# (includes nsubj/csubj/nsubj:xsubj/csubj:xsubj)
-# correctDependencies - processNames and removeExactDuplicates: have been skipped.
-# processNames for future treatment, removeExactDuplicates for redundancy.
-def eud_correct_subj_pass(sentence):
-    restriction = Restriction(name="root", nested=[[
-        Restriction(gov='auxpass', name="aux"),
-        # the SC regex (which was "^(nsubj|csubj).*$") was changed here
-        # to avoid the need to filter .subjpass relations in the graph-rewriting part
-        Restriction(gov="^(.subj|.subj(?!pass).*)$", name="subj")
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    # rewrite graph: for every subject add a 'pass' and replace in graph node
-    for name_space in ret:
-        subj, subj_head, subj_rel = name_space['subj']
-        aux, _, _ = name_space['aux']
-        root, _, _ = name_space['root']
-        if aux.get_conllu_field("id") < root.get_conllu_field("id") < subj.get_conllu_field("id"):
-            continue
-        substitute_rel = re.sub("(?<!x)subj", "subjpass", subj_rel)
-        # in SC they add it to the 'deprel' even if the edge was found in the 'deps' :O
-        subj.replace_edge(subj_rel, substitute_rel, subj_head, subj_head)
+def eud_correct_subj_pass(sentence, matches, iids):
+    # for every located subject add a 'pass' and replace in graph node
+    for cur_match in matches:
+        subj = cur_match.token("subj")
+        pred = cur_match.token("pred")
+        for subj_rel in cur_match.edge(subj, pred):
+            new_rel = Label(subj_rel)
+            new_rel.base.replace("subj", "subjpass")
+            sentence[subj].replace_edge(subj_rel, new_rel, sentence[pred], sentence[pred])
 
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
@@ -1696,7 +1693,7 @@ def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, 
 def init_conversions():
     # TODO - update Full to each constraint
     conversion_list = [
-        Conversion(ConvTypes.EUD, Full(), eud_correct_subj_pass),
+        Conversion(ConvTypes.EUD, eud_correct_subj_pass_constraint, eud_correct_subj_pass),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_process_simple_2wp),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_process_complex_2wp),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_process_3wp),

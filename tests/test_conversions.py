@@ -8,6 +8,9 @@ from pybart import converter
 from pybart import api
 from pybart.graph_token import add_basic_edges
 from pybart.converter import convert
+import spacy
+
+nlp = spacy.load("en_ud_model_sm")
 
 
 class TestConversions:
@@ -66,7 +69,8 @@ class TestConversions:
             sent = {k: v.copy() for k, v in sent_.items()}
             add_basic_edges(sent)
             converted, _ = convert([sent], True, True, True, math.inf, False, False, False, False, False,
-                                   funcs_to_cancel=list(set(api.get_conversion_names()).difference({name})))
+                                   funcs_to_cancel=list(set(api.get_conversion_names()).difference({name, "extra_inner_weak_modifier_verb_reconstruction"})),
+                                   context=nlp.vocab)
             serialized_conllu = serialize_conllu([sent], [None], False)
             for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
                 assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
@@ -78,7 +82,7 @@ class TestConversions:
             sent = {k: v.copy() for k, v in sent_.items()}
             add_basic_edges(sent)
             converted, _ = \
-                convert([sent], True, True, True, math.inf, False, False, rnac, False, False, funcs_to_cancel=[])
+                convert([sent], True, True, True, math.inf, False, False, rnac, False, False, funcs_to_cancel=[], context=nlp.vocab)
             serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold_combined[name][spec], serialized_conllu.split("\n")):
                 assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
