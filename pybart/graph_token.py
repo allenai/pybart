@@ -29,6 +29,10 @@ class Label:
     def with_no_bart(self):
         return self.to_str(no_bart=True)
 
+    # operator overloading: less than
+    def __lt__(self, other):
+        return self.to_str() < other.to_str()
+
 
 class Token:
     def __init__(self, new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc):
@@ -107,8 +111,8 @@ class Token:
         else:
             self._new_deps[head] = [rel]
             head.add_child(self)
-        if extra_info:
-            self._extra_info_edges[(head, rel)] = extra_info
+        # if extra_info:
+        #     self._extra_info_edges[(head, rel)] = extra_info
     
     def remove_edge(self, rel, head):
         if head in self._new_deps and rel in self._new_deps[head]:
@@ -116,8 +120,8 @@ class Token:
             if not self._new_deps[head]:
                 self._new_deps.pop(head)
                 head.remove_child(self)
-            if (head, rel) in self._extra_info_edges:
-                self._extra_info_edges.pop((head, rel))
+            # if (head, rel) in self._extra_info_edges:
+            #     self._extra_info_edges.pop((head, rel))
     
     def remove_all_edges(self):
         for head, edge in self.get_new_relations():

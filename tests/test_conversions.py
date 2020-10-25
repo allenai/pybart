@@ -73,7 +73,7 @@ class TestConversions:
                                    context=nlp.vocab)
             serialized_conllu = serialize_conllu([sent], [None], False)
             for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
-                assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
+                assert out_line.split() == gold_line, spec + str([print(s) for s in serialized_conllu.split("\n")])
     
     @classmethod
     def common_logic_combined(cls, cur_name, rnac=False):

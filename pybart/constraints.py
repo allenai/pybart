@@ -26,14 +26,14 @@ class Field:
 
 
 @dataclass(frozen=True)
-class Label(ABC):
+class LabelPresence(ABC):
     @abstractmethod
     def satisfied(self, actual_labels: List[str]) -> Set[str]:
         pass
 
 
 @dataclass(frozen=True)
-class HasLabelFromList(Label):
+class HasLabelFromList(LabelPresence):
     # has at least one edge with value
     value: Sequence[str]
     is_regex: Sequence[bool] = field(init=False)
@@ -64,7 +64,7 @@ class HasLabelFromList(Label):
 
 
 @dataclass(frozen=True)
-class HasNoLabel(Label):
+class HasNoLabel(LabelPresence):
     # does not have edge with value
     value: str
     is_regex: bool = field(init=False, default=False)
@@ -90,8 +90,8 @@ class Token:
     capture: bool = True
     spec: Sequence[Field] = field(default_factory=list)
     optional: bool = False  # is this an optional constraint or required
-    incoming_edges: Sequence[Label] = field(default_factory=list)
-    outgoing_edges: Sequence[Label] = field(default_factory=list)
+    incoming_edges: Sequence[LabelPresence] = field(default_factory=list)
+    outgoing_edges: Sequence[LabelPresence] = field(default_factory=list)
     no_children: bool = False  # should this token have no children or can it
     is_root: bool = False  # should this token have no parents (i.e. it is the root) or can it
 
@@ -100,7 +100,7 @@ class Token:
 class Edge:
     child: str
     parent: str
-    label: Sequence[Label]
+    label: Sequence[LabelPresence]
 
 
 @dataclass(frozen=True)

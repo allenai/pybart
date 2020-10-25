@@ -26,6 +26,15 @@ from .constraints import *
 from .graph_token import Token as BartToken
 
 
+# BartSentence functionality:
+
+# fixes the given words-in-sentence indices to BartToken-in-BartSentence indices
+def fix_indices(name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]) \
+        -> (Mapping[str, int], Mapping[Tuple[int, int], Set[str]]):
+    return {name: i + 1 for name, i in name2index.items()}, \
+           {(i + 1, j + 1): label for (i, j), label in indices2label.items()}
+
+
 # returns a spacy doc representing the sentence
 def get_spacy_doc(sentence: Mapping[int, BartToken], vocab: Vocab) -> SpacyDoc:
     # TODO - add ENT_TYPE when we add entity to graph-token, as we can get it from the spacy doc on the spacy pipeline
@@ -41,22 +50,24 @@ def get_spacy_doc(sentence: Mapping[int, BartToken], vocab: Vocab) -> SpacyDoc:
 
 # gets the verbatim of a token in position i in the sentence
 def get_text(sentence: Mapping[int, BartToken], i: int) -> str:
-    return sentence[i].get_conllu_field("form")
+    return sentence[i + 1].get_conllu_field("form")
 
 
 # returns a string list of labels connecting child to parent (or incoming/outgoing to/from child/parent respectively
 def get_labels(sentence: Mapping[int, BartToken], child: int = None, parent: int = None) -> List[str]:
     labels = []
-    if child:
-        labels = [rel.to_str() for _, rel in sentence[child].get_new_relations(given_head=parent)]
-    elif parent:
-        labels = [rel.to_str() for _, rel in sentence[parent].get_children_with_rels()]
+    if child is not None:
+        if parent is not None:
+            parent = sentence[parent + 1]
+        labels = [rel.to_str() for _, rel in sentence[child + 1].get_new_relations(given_head=parent)]
+    elif parent is not None:
+        labels = [rel.to_str() for _, rel in sentence[parent + 1].get_children_with_rels()]
 
     return labels
 
 
 # function that checks that a sequence of Label constraints is satisfied
-def get_matched_labels(label_constraints: Sequence[Label], actual_labels: List[str]) -> Optional[Set[str]]:
+def get_matched_labels(label_constraints: Sequence[LabelPresence], actual_labels: List[str]) -> Optional[Set[str]]:
     successfully_matched = set()
     # we need to satisfy all constraints in the sequence, so if one fails, return None
     # TODO - optional optimization step:
@@ -69,17 +80,19 @@ def get_matched_labels(label_constraints: Sequence[Label], actual_labels: List[s
     return successfully_matched
 
 
+# Matcher:
+
 class MatchingResult:
     def __init__(self, name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]):
         self.name2index = name2index
         self.indices2label = indices2label
-    
+
     # return the index of the specific matched token in the sentence according to its name
     def token(self, name: str) -> int:
         # since optional tokens can have no match, thus should be legitimate to get here their names
         # so we return -1 to inform this
         return self.name2index.get(name, -1)
-    
+
     # return the set of captured labels between the two tokens, given their indices
     def edge(self, t1: int, t2: int) -> Set[str]:
         return self.indices2label.get((t1, t2), None)
@@ -91,7 +104,7 @@ class GlobalMatcher:
         self.captured_labels = defaultdict(set)
         # list of token ids that don't require a capture
         self.dont_capture_names = [token.id for token in constraint.tokens if not token.capture]
-    
+
     # filter a single match group according to distance constraints
     def _filter_distance_constraints(self, match: Mapping[str, int]) -> bool:
         # check that the distance between the tokens is not more than or exactly as required
@@ -190,7 +203,7 @@ class GlobalMatcher:
                 captured_labels = {(v1, v2): labels for (k1, v1, k2, v2), labels in self.captured_labels.items()
                                    if merged_assignment[k1] == v1 and merged_assignment[k2] == v2}
                 # append assignment to output
-                yield MatchingResult(merged_assignment, captured_labels)
+                yield MatchingResult(*fix_indices(merged_assignment, captured_labels))
 
 
 class TokenMatcher:
@@ -201,7 +214,7 @@ class TokenMatcher:
         self.no_children = {constraint.id: constraint.no_children for constraint in constraints}
         self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
         self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
-        
+
         # convert the constraint to a list of matchable token patterns
         self.required_tokens = set()
         for token_name, is_required, matchable_pattern in self._make_patterns(constraints):
@@ -209,7 +222,7 @@ class TokenMatcher:
             self.matcher.add(token_name, None, [matchable_pattern])
             if is_required:
                 self.required_tokens.add(token_name)
-    
+
     # convert the constraint to a spacy pattern
     @staticmethod
     def _make_patterns(constraints: Sequence[Token]) -> List[Tuple[str, bool, Dict[str, Dict[str, Sequence[str]]]]]:
@@ -229,10 +242,10 @@ class TokenMatcher:
                     pattern["TAG"] = {in_or_not_in: spec.value}
                 elif spec.field == FieldNames.ENTITY:
                     pattern["ENT_TYPE"] = {in_or_not_in: spec.value}
-            
+
             patterns.append((constraint.id, not constraint.optional, pattern))
         return patterns
-    
+
     def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
             -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
@@ -248,10 +261,10 @@ class TokenMatcher:
                     continue
                 checked_tokens[name].append(token)
         return checked_tokens
-    
+
     def apply(self, sentence: Mapping[int, BartToken], doc: SpacyDoc) -> Optional[Mapping[str, List[int]]]:
         matched_tokens = defaultdict(list)
-        
+
         # apply spacy's token-level match
         matches = self.matcher(doc)
         # validate the span and store each matched token
@@ -269,7 +282,7 @@ class TokenMatcher:
         # reverse validate the 'optional' constraint
         if len(self.required_tokens.difference(set(matched_tokens.keys()))) != 0:
             return None
-        
+
         return matched_tokens
 
 
@@ -281,17 +294,17 @@ class Match:
         self.global_matchers = global_matchers
         self.sentence = sentence
         self.doc = get_spacy_doc(sentence, vocab)
-    
+
     def names(self) -> List[str]:
         # return constraint-name list
         return list(self.token_matchers.keys())
-    
+
     def matches_for(self, name: str) -> Generator[MatchingResult, None, None]:
         # token match
         matches = self.token_matchers[name].apply(self.sentence, self.doc)
         if matches is None:
             return
-        
+
         # filter
         yield from self.global_matchers[name].apply(matches, self.sentence)
 
@@ -351,11 +364,11 @@ class Matcher:
         for constraint in constraints:
             # preprocess the constraints (optimizations)
             preprocessed_constraint = preprocess_constraint(constraint.constraint)
-            
+
             # initialize internal matchers
             self.token_matchers[constraint.name] = TokenMatcher(preprocessed_constraint.tokens, vocab)
             self.global_matchers[constraint.name] = GlobalMatcher(preprocessed_constraint)
-    
+
     # apply the matching process on a given sentence
     def __call__(self, sentence: Mapping[int, BartToken]) -> Match:
         return Match(self.token_matchers, self.global_matchers, sentence, self.vocab)

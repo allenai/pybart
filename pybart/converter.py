@@ -85,9 +85,8 @@ def eud_correct_subj_pass(sentence, matches, iids):
         subj = cur_match.token("subj")
         pred = cur_match.token("pred")
         for subj_rel in cur_match.edge(subj, pred):
-            new_rel = Label(subj_rel)
-            new_rel.base.replace("subj", "subjpass")
-            sentence[subj].replace_edge(subj_rel, new_rel, sentence[pred], sentence[pred])
+            new_rel = Label(subj_rel.replace("subj", "subjpass"))
+            sentence[subj].replace_edge(Label(subj_rel), new_rel, sentence[pred], sentence[pred])
 
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
