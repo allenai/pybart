@@ -91,23 +91,26 @@ def eud_correct_subj_pass(sentence, matches):
 
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
-def eud_passive_agent(sentence):
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(gov='auxpass'),
-        Restriction(name="mod", gov="^(nmod)$", nested=[[
-            Restriction(gov='case', form="^(?i:by)$")
-        ]])
-    ]])
+eud_passive_agent_constraint = Full(
+    tokens=[
+        Token(id="gov", outgoing_edges=[HasLabelFromList(["auxpass"])]),
+        Token(id="mod"),
+        Token(id="case", spec=[Field(field=FieldNames.WORD, value=["by"])]),  # TODO: english-specific
+    ],
+    edges=[
+        Edge(child="mod", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO - UDv1-specific
+        Edge(child="case", parent="mod", label=[HasLabelFromList(["case"])]),
+    ]
+)
 
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
 
-    # rewrite graph: for every nmod add ':agent' to the graph node relation
-    for name_space in ret:
-        gov, _, _ = name_space['gov']
-        mod, _, mod_rel = name_space['mod']
-        mod.replace_edge(mod_rel, Label(mod_rel, eud="agent"), gov, gov)
+def eud_passive_agent(sentence, matches):
+    # rewrite graph: for every nmod add 'agent' to the graph node relation
+    for cur_match in matches:
+        mod = cur_match.token("mod")
+        gov = cur_match.token("gov")
+        for rel in cur_match.edge(mod, gov):
+            sentence[mod].replace_edge(Label(rel), Label(rel, eud="agent"), sentence[gov], sentence[gov])
 
 
 # we need to create a concat string for every marker neighbor chain
@@ -1678,7 +1681,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_fix_nmod_npmod),
         Conversion(ConvTypes.BART, Full(), extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
-        Conversion(ConvTypes.EUD, Full(), eud_passive_agent),
+        Conversion(ConvTypes.EUD, eud_passive_agent_constraint, eud_passive_agent),
         Conversion(ConvTypes.EUD, Full(), eud_heads_of_conjuncts),
         Conversion(ConvTypes.EUD, Full(), eud_prep_patterns),
         Conversion(ConvTypes.EUD, Full(), eud_conj_info),
