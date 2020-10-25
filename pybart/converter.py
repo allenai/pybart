@@ -113,85 +113,39 @@ def eud_passive_agent(sentence, matches):
             sentence[mod].replace_edge(Label(rel), Label(rel, eud="agent"), sentence[gov], sentence[gov])
 
 
-# we need to create a concat string for every marker neighbor chain
-# actually it should never happen that they are separate, but nonetheless we add relation if so,
-# this might result in multi-graph
-# e.g 'in front of' should be [in_front_of] if they are all sequential, but [in, front_of],
-# if only 'front' and 'of' are sequential (and 'in' is separated).
-def concat_sequential_tokens(c1, c2, c3):
-    # add the first word
-    sequences = [c1.get_conllu_field('form')]
-    prev = c1
-    if not c2:
-        # we return here because if c2 is None, c3 must be as well
-        return sequences
-    
-    for ci in ([c2, c3] if c3 else [c2]):
-        if prev.get_conllu_field('id') > ci.get_conllu_field('id'):
-            return
-        # concat every following marker, or start a new string if not
-        elif prev.get_conllu_field('id') == ci.get_conllu_field('id') - 1:
-            sequences[-1] += '_' + ci.get_conllu_field('form')
-        else:
-            sequences.append(ci.get_conllu_field('form'))
-        prev = ci
-    return sequences
+# This conversion adds the case information on the label.
+# Note - Originally we (as done by SC) took care of cases in which the words of a multi-word preposition were not adjacent,
+#   but this is too rigorous as it should never happen, so we ignore this case.
+eud_prep_patterns_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="mod"),
+        Token(id="c1"),
+        Token(id="c2", optional=True),
+        Token(id="c3", optional=True),
+    ],
+    edges=[
+        Edge(child="mod", parent="gov", label=[HasLabelFromList(["advcl", "acl", "nmod"])]),  # TODO - UDv1-specific
+        Edge(child="c1", parent="mod", label=[HasLabelFromList(["case", "mark"])]),
+        Edge(child="c2", parent="c1", label=[HasLabelFromList(["mwe"])]),
+        Edge(child="c3", parent="c1", label=[HasLabelFromList(["mwe"])]),
+    ],
+    distances=[
+        ExactDistance("c1", "c2", 0),
+        ExactDistance("c2", "c3", 0)]
+)
 
 
-def prep_patterns_per_type(sentence, restriction):
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        mod, mod_head, mod_rel = name_space['mod']
-        c1, _, _ = name_space['c1']
-        c2, _, _ = name_space['c2'] if 'c2' in name_space else (None, None, None)
-        c3, _, _ = name_space['c3'] if 'c3' in name_space else (None, None, None)
-        
-        sequences = concat_sequential_tokens(c1, c2, c3)
-        if not sequences:
-            continue
-        
-        mod.remove_edge(mod_rel, mod_head)
-        for prep_sequence in sequences:
-            mod.add_edge(Label(mod_rel, prep_sequence.lower()), mod_head)
-
-
-def prep_patterns_inner(sentence, first_gov, second_gov):
-    restriction_3w = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov=first_gov, nested=[[
-            Restriction(name="c1", gov=second_gov, nested=[[
-                Restriction(name="c2", gov="mwe"),
-                Restriction(name="c3", gov="mwe", diff="c2")
-            ]])
-        ]])
-    ]])
-    restriction_2w = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov=first_gov, nested=[[
-            Restriction(name="c1", gov=second_gov, nested=[[
-                Restriction(name="c2", gov="mwe")
-            ]])
-        ]])
-    ]])
-    restriction_1w = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov=first_gov, nested=[[
-            # here we want to find any one word that marks a modifier,
-            # except cases in which 'by' was used for 'agent' identification,
-            # but the 'exact' notation will prevent those from being caught
-            Restriction(name="c1", gov=second_gov)
-        ]])
-    ]])
-    
-    # NOTE: in SC since they replace the modifier (nmod/advcl/acl) it won't come up again in future matches,
-    # as they use the exact (^$) symbols. and so we imitate this behavior.
-    for rest in [restriction_3w, restriction_2w, restriction_1w]:
-        prep_patterns_per_type(sentence, rest)
-
-
-def eud_prep_patterns(sentence):
-    prep_patterns_inner(sentence, '^nmod$', 'case')
-    prep_patterns_inner(sentence, '^(advcl|acl)$', '^(mark|case)$')
+def eud_prep_patterns(sentence, matches):
+    for cur_match in matches:
+        mod = cur_match.token("mod")
+        gov = cur_match.token("gov")
+        c1 = cur_match.token("c1")
+        c2 = cur_match.token("c2")
+        c3 = cur_match.token("c3")
+        for rel in cur_match.edge(mod, gov):
+            prep_sequence = "_".join([sentence[ci].get_conllu_field("form") for ci in [c1, c2, c3] if ci != -1]).lower()
+            sentence[mod].replace_edge(Label(rel), Label(rel, prep_sequence), sentence[gov], sentence[gov])
 
 
 def eud_heads_of_conjuncts(sentence):
@@ -1683,7 +1637,7 @@ def init_conversions():
         Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
         Conversion(ConvTypes.EUD, eud_passive_agent_constraint, eud_passive_agent),
         Conversion(ConvTypes.EUD, Full(), eud_heads_of_conjuncts),
-        Conversion(ConvTypes.EUD, Full(), eud_prep_patterns),
+        Conversion(ConvTypes.EUD, eud_prep_patterns_constraint, eud_prep_patterns),
         Conversion(ConvTypes.EUD, Full(), eud_conj_info),
         Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse),
@@ -1719,8 +1673,9 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
 
     conversions = init_conversions()
     remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
-                   remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
-    matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint) for conversion_name, conversion in conversions.items()], context)
+                 remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
+    matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint)
+                       for conversion_name, conversion in conversions.items()], context)
 
     i = 0
     for sentence in parsed:
