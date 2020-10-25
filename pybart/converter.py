@@ -37,6 +37,7 @@ aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume
 reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
 EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
+iids = dict()
 
 
 class ConvTypes(Enum):
@@ -45,7 +46,7 @@ class ConvTypes(Enum):
     BART = 3
 
 
-ConvFuncSignature = Callable[[Any, Any, Any], None]
+ConvFuncSignature = Callable[[Any, Any], None]
 
 
 @dataclass
@@ -79,7 +80,7 @@ eud_correct_subj_pass_constraint = Full(
 
 # This method corrects subjects of verbs for which we identified an auxpass,
 # but didn't identify the subject as passive.
-def eud_correct_subj_pass(sentence, matches, iids):
+def eud_correct_subj_pass(sentence, matches):
     # for every located subject add a 'pass' and replace in graph node
     for cur_match in matches:
         subj = cur_match.token("subj")
@@ -308,7 +309,9 @@ def extra_xcomp_propagation_no_to(sentence):
     xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
 
 
-def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc, iids):
+def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc):
+    global iids
+
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
@@ -333,7 +336,7 @@ def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc, iids):
         new_subj.add_edge(Label("nsubj", src=type_, phrase=phrase, iid=cur_iid, uncertain=unc), dep)
 
 
-def extra_advcl_propagation(sentence, iids):
+def extra_advcl_propagation(sentence):
     advcl_to_rest = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
             Restriction(name="mark", gov="^(aux|mark)$", form="(^(?i:to)$)")
@@ -353,10 +356,10 @@ def extra_advcl_propagation(sentence, iids):
     ]])
     
     for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark]:
-        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False, iids)
+        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False)
 
 
-def extra_advcl_ambiguous_propagation(sentence, iids):
+def extra_advcl_ambiguous_propagation(sentence):
     ambiguous_advcl_rest = Restriction(name="father", nested=[[
         Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
             Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
@@ -369,7 +372,7 @@ def extra_advcl_ambiguous_propagation(sentence, iids):
     ]])
     
     for advcl_restriction in [ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
-        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False, iids)
+        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False)
 
 
 def extra_of_prep_alteration(sentence):
@@ -477,7 +480,7 @@ def extra_acl_propagation(sentence):
         father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
 
 
-def extra_dep_propagation(sentence, iids):
+def extra_dep_propagation(sentence):
     dep_rest = Restriction(name="father", no_sons_of = ".?obj", nested=[[
         Restriction(name="dep", gov="dep", no_sons_of=".subj.*"),
         Restriction(name="new_subj", gov="(nsubj.*)")
@@ -489,7 +492,7 @@ def extra_dep_propagation(sentence, iids):
     ]])
     
     for rest in [dep_rest, ambiguous_dea_rest]:
-        advcl_or_dep_propagation_per_type(sentence, rest, "dep", True, iids)
+        advcl_or_dep_propagation_per_type(sentence, rest, "dep", True)
 
 
 # TODO - unify with other nmods props
@@ -1640,8 +1643,7 @@ def get_rel_set(converted_sentence):
     return set([(head.get_conllu_field("id"), rel.to_str(), tok.get_conllu_field("id")) for tok in converted_sentence.values() for (head, rel) in tok.get_new_relations()])
 
 
-def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, conv_iterations: int, iids: Dict):
-    # TODO - get rid of the iids param
+def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, conv_iterations: int):
     last_converted_sentence = None
     i = 0
     # we iterate till convergence or till user defined maximum is reached - the first to come.
@@ -1654,7 +1656,7 @@ def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, 
             # if conv_name in on_last_iter:
             #     continue
             matches = m.matches_for(conv_name)
-            conversions[conv_name].transformation(sentence, matches, iids)
+            conversions[conv_name].transformation(sentence, matches)
         i += 1
 
     return i
@@ -1687,10 +1689,10 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_of_prep_alteration),
         Conversion(ConvTypes.BART, Full(), extra_compound_propagation),
         Conversion(ConvTypes.BART, Full(), extra_xcomp_propagation_no_to),
-        Conversion(ConvTypes.BART, Full(), extra_advcl_propagation),  # TODO - needs iids
-        Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation),  # TODO - needs iids
+        Conversion(ConvTypes.BART, Full(), extra_advcl_propagation),
+        Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation),
         Conversion(ConvTypes.BART, Full(), extra_acl_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_dep_propagation),  # TODO - needs iids
+        Conversion(ConvTypes.BART, Full(), extra_dep_propagation),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss),
         Conversion(ConvTypes.BART, Full(), extra_advmod_propagation),
@@ -1698,7 +1700,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_passive_alteration),
         # TODO: after refactoring, if the match and replace system is more concise
-        #   maybe it would be better to simply check that the subject didnt cpme from an amod.
+        #   maybe it would be better to simply check that the subject didnt come from an amod.
         Conversion(ConvTypes.BART, Full(), extra_amod_propagation)
     ]
 
@@ -1707,12 +1709,11 @@ def init_conversions():
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
             remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, context=None):
-    global g_remove_node_adding_conversions
+    global g_remove_node_adding_conversions, iids
     pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
     pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
-    iids = dict()
-    
+
     conversions = init_conversions()
     remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
                    remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
@@ -1720,6 +1721,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
 
     i = 0
     for sentence in parsed:
-        i = max(i, convert_sentence(sentence, conversions, matcher, conv_iterations, iids))
+        iids = dict()
+        i = max(i, convert_sentence(sentence, conversions, matcher, conv_iterations))
 
     return parsed, i

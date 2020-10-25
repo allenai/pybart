@@ -26,7 +26,7 @@ from .constraints import *
 from .graph_token import Token as BartToken
 
 
-# BartSentence functionality:
+# ********************************************* BartSentence functionality *********************************************
 
 # fixes the given words-in-sentence indices to BartToken-in-BartSentence indices
 def fix_indices(name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]) \
@@ -80,7 +80,7 @@ def get_matched_labels(label_constraints: Sequence[LabelPresence], actual_labels
     return successfully_matched
 
 
-# Matcher:
+# ****************************************************** Matcher *******************************************************
 
 class MatchingResult:
     def __init__(self, name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]):
