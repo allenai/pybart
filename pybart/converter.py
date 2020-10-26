@@ -31,10 +31,10 @@ relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
-advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|tonight|earlier|early)"
-evidential_list = "^(seem|appear|be|sound)$"
-aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
-reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
+advmod_list = ['here', 'there', 'now', 'later', 'soon', 'before', 'then', 'today', 'tomorrow', 'yesterday', 'tonight', 'earlier', 'early']
+evidential_list = ['seem', 'appear', 'be', 'sound']
+aspectual_list = ['begin', 'continue', 'delay', 'discontinue', 'finish', 'postpone', 'quit', 'resume', 'start', 'complete']
+reported_list = ['report', 'say', 'declare', 'announce', 'tell', 'state', 'mention', 'proclaim', 'replay', 'point', 'inform', 'explain', 'clarify', 'define', 'expound', 'describe', 'illustrate', 'justify', 'demonstrate', 'interpret', 'elucidate', 'reveal', 'confess', 'admit', 'accept', 'affirm', 'swear', 'agree', 'recognise', 'testify', 'assert', 'think', 'claim', 'allege', 'argue', 'assume', 'feel', 'guess', 'imagine', 'presume', 'suggest', 'argue', 'boast', 'contest', 'deny', 'refute', 'dispute', 'defend', 'warn', 'maintain', 'contradict']
 adj_pos = ["JJ", "JJR", "JJS"]
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
 noun_pos = ["NN", "NNS", "NNP", "NNPS"]
@@ -477,7 +477,6 @@ def extra_dep_propagation(sentence):
         advcl_or_dep_propagation_per_type(sentence, rest, "dep", True)
 
 
-# TODO - unify with other nmods props
 def extra_subj_obj_nmod_propagation_of_nmods(sentence):
     rest = Restriction(name="receiver", nested=[[
         Restriction(name="mediator", gov="(dobj|.subj.*|nmod)", nested=[[
@@ -926,22 +925,23 @@ def extra_aspectual_reconstruction(sentence):
     per_type_weak_modified_verb_reconstruction(sentence, aspect_xcomp_rest, "ASPECTUAL", False)
 
 
-def extra_reported_evidentiality(sentence):
-    reported_rest = Restriction(name="father", nested=[[
-        Restriction(name="ev", lemma=reported_list, nested=[[
-            Restriction(name="new_root", gov="ccomp")
-        ]])
-    ]])
-    
-    ret = match(sentence.values(), [[reported_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        ev, _, _ = name_space['ev']
-        new_root, _, _ = name_space['new_root']
-        
-        ev.add_edge(Label("ev", src="ccomp", src_type="REPORTED"), new_root)
+# TODO: documentation!
+extra_reported_evidentiality_constraint = Full(
+    tokens=[
+        Token(id="ev", spec=[Field(field=FieldNames.LEMMA, value=reported_list)]),
+        Token(id="new_root"),
+    ],
+    edges=[
+        Edge(child="new_root", parent="ev", label=[HasLabelFromList(["ccomp"])]),
+    ],
+)
+
+
+def extra_reported_evidentiality(sentence, matches):
+    for cur_match in matches:
+        ev = cur_match.token("ev")
+        new_root = cur_match.token("new_root")
+        sentence[ev].add_edge(Label("ev", src="ccomp", src_type="REPORTED"), sentence[new_root])
 
 
 def create_mwe(words, head, rel):
@@ -1499,6 +1499,7 @@ def eudpp_expand_pp_or_prep_conjunctions(sentence):
 
 
 # TODO: UDv1 specific
+# TODO: Documentation
 extra_fix_nmod_npmod_constraint = Full(
     tokens=[
         Token(id="npmod"),
@@ -1518,6 +1519,7 @@ def extra_fix_nmod_npmod(sentence, matches):
             sentence[npmod].replace_edge(Label(rel), Label("compound"), sentence[gov], sentence[gov])
 
 
+# TODO - add documentation!
 extra_hyphen_reconstruction_constraint = Full(
     tokens=[
         Token(id="subj"),
@@ -1671,7 +1673,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_copula_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_evidential_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_aspectual_reconstruction),
-        Conversion(ConvTypes.BART, Full(), extra_reported_evidentiality),
+        Conversion(ConvTypes.BART, extra_reported_evidentiality_constraint, extra_reported_evidentiality),
         Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod),
         Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
