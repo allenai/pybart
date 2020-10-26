@@ -1518,25 +1518,29 @@ def extra_fix_nmod_npmod(sentence, matches):
             sentence[npmod].replace_edge(Label(rel), Label("compound"), sentence[gov], sentence[gov])
 
 
-def extra_hyphen_reconstruction(sentence):
-    restriction = Restriction(name="subj", nested=[[
-        Restriction(name="verb", gov="^(amod)$", xpos="VB.", nested=[[
-            Restriction(name="hyphen", form="-", gov="^(punct)$", xpos="HYPH"),
-            Restriction(name="noun", gov="^(compound)$", xpos="NN.?")
-        ]]),
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        subj, _, subj_rel = name_space['subj']
-        verb, _, _ = name_space['verb']
-        noun, _, noun_rel = name_space['noun']
-        
-        subj.add_edge(Label("nsubj", src="compound", src_type="HYPHEN"), verb)
-        noun.add_edge(Label("nmod", src="compound", src_type="HYPHEN"), verb)
+extra_hyphen_reconstruction_constraint = Full(
+    tokens=[
+        Token(id="subj"),
+        Token(id="verb", spec=[Field(field=FieldNames.TAG, value=list(set(verb_pos) - {"VB"}))]),
+        Token(id="hyphen", spec=[
+            Field(field=FieldNames.TAG, value=["HYPH"]), Field(field=FieldNames.WORD, value=["-"])]),
+        Token(id="noun", spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
+    ],
+    edges=[
+        Edge(child="verb", parent="subj", label=[HasLabelFromList(["amod"])]),
+        Edge(child="hyphen", parent="verb", label=[HasLabelFromList(["punct"])]),
+        Edge(child="noun", parent="verb", label=[HasLabelFromList(["compound"])]),
+    ],
+)
+
+
+def extra_hyphen_reconstruction(sentence, matches):
+    for cur_match in matches:
+        subj = cur_match.token("subj")
+        verb = cur_match.token("verb")
+        noun = cur_match.token("noun")
+        sentence[subj].add_edge(Label("nsubj", src="compound", src_type="HYPHEN"), sentence[verb])
+        sentence[noun].add_edge(Label("nmod", src="compound", src_type="HYPHEN"), sentence[verb])  # TODO - UDv1 = nmod
 
 
 # The bottle was broken by me.
@@ -1669,7 +1673,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_aspectual_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_reported_evidentiality),
         Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod),
-        Conversion(ConvTypes.BART, Full(), extra_hyphen_reconstruction),
+        Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
         Conversion(ConvTypes.EUD, eud_passive_agent_constraint, eud_passive_agent),
         Conversion(ConvTypes.EUD, Full(), eud_heads_of_conjuncts),
