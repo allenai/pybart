@@ -250,8 +250,11 @@ class TokenMatcher:
             -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
         checked_tokens = defaultdict(list)
+        registered_tokens = []
         for name, token_indices in matched_tokens.items():
             for token in token_indices:
+                if token in registered_tokens:
+                    continue
                 if self.no_children[name] and (len(get_labels(sentence, parent=token)) != 0):
                     continue
                 out_matched = get_matched_labels(self.outgoing_constraints[name], get_labels(sentence, parent=token))
@@ -260,6 +263,7 @@ class TokenMatcher:
                     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
                     continue
                 checked_tokens[name].append(token)
+                registered_tokens.append(token)
         return checked_tokens
 
     def apply(self, sentence: Mapping[int, BartToken], doc: SpacyDoc) -> Optional[Mapping[str, List[int]]]:
@@ -325,8 +329,12 @@ def preprocess_constraint(constraint: Full) -> Full:
         #   and if we add a token constraint it would be to harsh
         if isinstance(edge.label, HasNoLabel):
             continue
-        outs[edge.parent].extend(list(edge.label))
-        ins[edge.child].extend(list(edge.label))
+        for tok in constraint.tokens:
+            # we dont want to apply a constraint that came from an optional token, on a required token
+            if tok.id == edge.child and not tok.optional:
+                outs[edge.parent].extend(list(edge.label))
+            if tok.id == edge.parent and not tok.optional:
+                ins[edge.child].extend(list(edge.label))
 
     # for each concat store the single words of the concat
     #   with their correspondent token for token level WORD constraint

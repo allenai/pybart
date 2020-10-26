@@ -35,6 +35,9 @@ advmod_list = "(here|there|now|later|soon|before|then|today|tomorrow|yesterday|t
 evidential_list = "^(seem|appear|be|sound)$"
 aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume|start|complete)$"
 reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
+adj_pos = ["JJ", "JJR", "JJS"]
+verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
+subj_options = ["nsubj", "nsubjpass", "csubj", "csubjpass"]  # TODO - UDv1 = pass
 EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
 iids = dict()
@@ -71,7 +74,7 @@ eud_correct_subj_pass_constraint = Full(
         Token(id="subj"),
     ],
     edges=[
-        Edge(child="aux", parent="pred", label=[HasLabelFromList(["auxpass"])]),
+        Edge(child="aux", parent="pred", label=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = pass
         Edge(child="subj", parent="pred", label=[HasLabelFromList(["nsubj", "csubj"])]),
     ],
     distances=[UptoDistance("subj", "aux", inf)]
@@ -86,19 +89,19 @@ def eud_correct_subj_pass(sentence, matches):
         subj = cur_match.token("subj")
         pred = cur_match.token("pred")
         for subj_rel in cur_match.edge(subj, pred):
-            new_rel = Label(subj_rel.replace("subj", "subjpass"))
+            new_rel = Label(subj_rel.replace("subj", "subjpass"))  # TODO - UDv1 = pass
             sentence[subj].replace_edge(Label(subj_rel), new_rel, sentence[pred], sentence[pred])
 
 
 # add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
 eud_passive_agent_constraint = Full(
     tokens=[
-        Token(id="gov", outgoing_edges=[HasLabelFromList(["auxpass"])]),
+        Token(id="gov", outgoing_edges=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = pass
         Token(id="mod"),
-        Token(id="case", spec=[Field(field=FieldNames.WORD, value=["by"])]),  # TODO: english-specific
+        Token(id="case", spec=[Field(field=FieldNames.WORD, value=["by"])]),  # TODO: english = by
     ],
     edges=[
-        Edge(child="mod", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO - UDv1-specific
+        Edge(child="mod", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO - UDv1 = nmod
         Edge(child="case", parent="mod", label=[HasLabelFromList(["case"])]),
     ]
 )
@@ -114,7 +117,7 @@ def eud_passive_agent(sentence, matches):
 
 
 # This conversion adds the case information on the label.
-# Note - Originally we (as done by SC) took care of cases in which the words of a multi-word preposition were not adjacent,
+# Note - Originally  SC took care of cases in which the words of a multi-word preposition were not adjacent,
 #   but this is too rigorous as it should never happen, so we ignore this case.
 eud_prep_patterns_constraint = Full(
     tokens=[
@@ -125,10 +128,10 @@ eud_prep_patterns_constraint = Full(
         Token(id="c3", optional=True),
     ],
     edges=[
-        Edge(child="mod", parent="gov", label=[HasLabelFromList(["advcl", "acl", "nmod"])]),  # TODO - UDv1-specific
+        Edge(child="mod", parent="gov", label=[HasLabelFromList(["advcl", "acl", "nmod"])]),  # TODO - UDv1 = nmod
         Edge(child="c1", parent="mod", label=[HasLabelFromList(["case", "mark"])]),
-        Edge(child="c2", parent="c1", label=[HasLabelFromList(["mwe"])]),
-        Edge(child="c3", parent="c1", label=[HasLabelFromList(["mwe"])]),
+        Edge(child="c2", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
+        Edge(child="c3", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
     ],
     distances=[
         ExactDistance("c1", "c2", 0),
@@ -187,7 +190,7 @@ def eud_heads_of_conjuncts(sentence):
         #   "The boy and the girl, who lived, told the tale."
 
 
-# we propagate only subj (for now) as this is what the original code stated:
+# NOTE -  we propagate only subj (for now) as this is what SC stated:
 #     cdm july 2010: This bit of code would copy a dobj from the first
 #     clause to a later conjoined clause if it didn't
 #     contain its own dobj or prepc. But this is too aggressive and wrong
@@ -195,26 +198,35 @@ def eud_heads_of_conjuncts(sentence):
 #     (including passivized cases) and so I think we have to not have this
 #     done always, and see no good "sometimes" heuristic.
 #     IF WE WERE TO REINSTATE, SHOULD ALSO NOT ADD OBJ IF THERE IS A ccomp (SBAR).
-def eud_subj_of_conjoined_verbs(sentence):
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(name="conj", gov="conj", no_sons_of=".subj", xpos="(VB|JJ)"),
-        Restriction(name="subj", gov=".subj")
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        subj, _, subj_rel = name_space['subj']
-        conj, _, _ = name_space['conj']
-        
-        if subj_rel.endswith("subjpass") and conj.get_conllu_field('xpos') in ["VB", "VBZ", "VBP", "JJ"]:
-            subj_rel = subj_rel[:-4]
-        elif subj_rel.endswith("subj") and "auxpass" in [relation for (child, relation) in conj.get_children_with_rels()]:
-            subj_rel += "pass"
-        
-        subj.add_edge(subj_rel, conj)
+eud_subj_of_conjoined_verbs_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="conj", spec=[Field(field=FieldNames.TAG, value=adj_pos + verb_pos)],
+              outgoing_edges=[HasNoLabel(subj_str) for subj_str in subj_options]),  # TODO - alternatively use regex
+        Token(id="subj"),
+        Token(id="auxpass", optional=True),
+    ],
+    edges=[
+        Edge(child="subj", parent="gov", label=[HasLabelFromList(subj_options)]),
+        Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
+        Edge(child="auxpass", parent="conj", label=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = pass
+    ],
+)
+
+
+def eud_subj_of_conjoined_verbs(sentence, matches):
+    for cur_match in matches:
+        gov = cur_match.token("gov")
+        conj = cur_match.token("conj")
+        subj = cur_match.token("subj")
+        auxpass = cur_match.token("auxpass")
+        for rel in cur_match.edge(subj, gov):
+            subj_rel = rel
+            if subj_rel.endswith("subjpass") and auxpass == -1:
+                subj_rel = subj_rel[:-4]
+            elif subj_rel.endswith("subj") and auxpass != -1:
+                subj_rel += "pass"
+            sentence[subj].add_edge(Label(subj_rel), sentence[conj])
 
 
 def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
@@ -1641,7 +1653,7 @@ def init_conversions():
         Conversion(ConvTypes.EUD, Full(), eud_conj_info),
         Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse),
-        Conversion(ConvTypes.EUD, Full(), eud_subj_of_conjoined_verbs),
+        Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
         Conversion(ConvTypes.EUD, Full(), eud_xcomp_propagation),
         Conversion(ConvTypes.BART, Full(), extra_of_prep_alteration),
         Conversion(ConvTypes.BART, Full(), extra_compound_propagation),
