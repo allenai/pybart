@@ -59,9 +59,9 @@ def get_labels(sentence: Mapping[int, BartToken], child: int = None, parent: int
     if child is not None:
         if parent is not None:
             parent = sentence[parent + 1]
-        labels = [rel.to_str() for _, rel in sentence[child + 1].get_new_relations(given_head=parent)]
+        labels = [rel.base for _, rel in sentence[child + 1].get_new_relations(given_head=parent)]
     elif parent is not None:
-        labels = [rel.to_str() for _, rel in sentence[parent + 1].get_children_with_rels()]
+        labels = [rel.base for _, rel in sentence[parent + 1].get_children_with_rels()]
 
     return labels
 
