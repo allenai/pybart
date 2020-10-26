@@ -42,7 +42,7 @@ subj_options = ["nsubj", "nsubjpass", "csubj", "csubjpass"]  # TODO - UDv1 = pas
 obj_options = ["dobj", "iobj"]  # TODO - UDv1 = pass
 EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
-iids = dict()
+g_iids = dict()
 
 
 class ConvTypes(Enum):
@@ -280,7 +280,7 @@ def extra_xcomp_propagation_no_to(sentence):
 
 
 def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc):
-    global iids
+    global g_iids
 
     ret = match(sentence.values(), [[restriction]])
     if not ret:
@@ -295,9 +295,9 @@ def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc):
             if len([rel for child, rel in name_space['father'][0].get_children_with_rels() if re.match(".subj.*", rel)]) > 1:
                 continue
         else:
-            if dep not in iids:
-                iids[dep] = 0 if len(iids.values()) == 0 else (max(iids.values()) + 1)
-            cur_iid = iids[dep]
+            if dep not in g_iids:
+                g_iids[dep] = 0 if len(g_iids.values()) == 0 else (max(g_iids.values()) + 1)
+            cur_iid = g_iids[dep]
             new_subj_str = 'new_subj_opt'
         
         new_subj, _, rel = name_space[new_subj_str]
@@ -1704,7 +1704,7 @@ def init_conversions():
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
             remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, context=None):
-    global g_remove_node_adding_conversions, iids
+    global g_remove_node_adding_conversions, g_iids
     pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
     pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
@@ -1717,7 +1717,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
 
     i = 0
     for sentence in parsed:
-        iids = dict()
+        g_iids = dict()
         i = max(i, convert_sentence(sentence, conversions, matcher, conv_iterations))
 
     return parsed, i
