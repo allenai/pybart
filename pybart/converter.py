@@ -37,6 +37,7 @@ aspectual_list = "^(begin|continue|delay|discontinue|finish|postpone|quit|resume
 reported_list = "^(report|say|declare|announce|tell|state|mention|proclaim|replay|point|inform|explain|clarify|define|expound|describe|illustrate|justify|demonstrate|interpret|elucidate|reveal|confess|admit|accept|affirm|swear|agree|recognise|testify|assert|think|claim|allege|argue|assume|feel|guess|imagine|presume|suggest|argue|boast|contest|deny|refute|dispute|defend|warn|maintain|contradict)$"
 adj_pos = ["JJ", "JJR", "JJS"]
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
+noun_pos = ["NN", "NNS", "NNP", "NNPS"]
 subj_options = ["nsubj", "nsubjpass", "csubj", "csubjpass"]  # TODO - UDv1 = pass
 EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
@@ -344,23 +345,24 @@ def extra_advcl_ambiguous_propagation(sentence):
         advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False)
 
 
-def extra_of_prep_alteration(sentence):
-    of_prep_rest = Restriction(name="root", nested=[[
-        Restriction(name="father", xpos="NN.*", nested=[[
-            Restriction(name="nmod", xpos="NN.*", gov="nmod", nested=[[
-                Restriction(gov="case", form="(?i:of)")
-            ]])
-        ]])
-    ]])
-    
-    ret = match(sentence.values(), [[of_prep_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        father, _, _ = name_space['father']
-        nmod, _, rel = name_space['nmod']
-        nmod.add_edge(Label("compound", src="nmod", phrase="of"), father)
+extra_of_prep_alteration_constraint = Full(
+    tokens=[
+        Token(id="nmod_of", spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
+        Token(id="gov", spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
+        Token(id="case", spec=[Field(field=FieldNames.WORD, value=["of"])]),  # TODO - english = of
+    ],
+    edges=[
+        Edge(child="case", parent="nmod_of", label=[HasLabelFromList(["case"])]),
+        Edge(child="nmod_of", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO - UDv1 = nmod
+    ],
+)
+
+
+def extra_of_prep_alteration(sentence, matches):
+    for cur_match in matches:
+        gov = cur_match.token("gov")
+        nmod_of = cur_match.token("nmod_of")
+        sentence[nmod_of].add_edge(Label("compound", src="nmod", phrase="of"), sentence[gov])
 
 
 def extra_compound_propagation(sentence):
@@ -1485,19 +1487,24 @@ def eudpp_expand_pp_or_prep_conjunctions(sentence):
         expand_per_type(sentence, rl, is_pp)
 
 
-# TODO: remove when moving to UD-version2
-def extra_fix_nmod_npmod(sentence):
-    restriction = Restriction(nested=[[
-        Restriction(name="npmod", gov="^nmod:npmod$")
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        npmod, npmod_head, npmod_rel = name_space['npmod']
-        npmod.replace_edge(npmod_rel, "compound", npmod_head, npmod_head)
+# TODO: UDv1 specific
+extra_fix_nmod_npmod_constraint = Full(
+    tokens=[
+        Token(id="npmod"),
+        Token(id="gov"),
+    ],
+    edges=[
+        Edge(child="npmod", parent="gov", label=[HasLabelFromList(["nmod:npmod"])]),
+    ],
+)
+
+
+def extra_fix_nmod_npmod(sentence, matches):
+    for cur_match in matches:
+        gov = cur_match.token("gov")
+        npmod = cur_match.token("npmod")
+        for rel in cur_match.edge(npmod, gov):
+            sentence[npmod].replace_edge(Label(rel), Label("compound"), sentence[gov], sentence[gov])
 
 
 def extra_hyphen_reconstruction(sentence):
@@ -1644,7 +1651,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_evidential_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_aspectual_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_reported_evidentiality),
-        Conversion(ConvTypes.BART, Full(), extra_fix_nmod_npmod),
+        Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod),
         Conversion(ConvTypes.BART, Full(), extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
         Conversion(ConvTypes.EUD, eud_passive_agent_constraint, eud_passive_agent),
@@ -1655,7 +1662,7 @@ def init_conversions():
         Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse),
         Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
         Conversion(ConvTypes.EUD, Full(), eud_xcomp_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_of_prep_alteration),
+        Conversion(ConvTypes.BART, extra_of_prep_alteration_constraint, extra_of_prep_alteration),
         Conversion(ConvTypes.BART, Full(), extra_compound_propagation),
         Conversion(ConvTypes.BART, Full(), extra_xcomp_propagation_no_to),
         Conversion(ConvTypes.BART, Full(), extra_advcl_propagation),
