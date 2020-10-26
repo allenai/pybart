@@ -170,9 +170,7 @@ def eud_heads_of_conjuncts(sentence):
         # only if the dependant of the conj is not the head of the head of the conj,
         # and they dont fall under the relcl problem, propagate the relation
         # NOTE: actually SC restrict this more aggressively.
-        if (gov_head, gov_rel) not in gov.get_extra_info_edges() \
-                and gov_head != dep \
-                and (gov_head, gov_rel.base) not in [(h, r.base) for (h, r) in dep.get_new_relations()]:
+        if (gov_head, gov_rel) not in gov.get_extra_info_edges():
             dep.add_edge(gov_rel, gov_head)
         
         # NOTE: this is not part of the original SC.
@@ -559,62 +557,74 @@ def extra_conj_propagation_of_poss(sentence):
     conj_propagation_of_nmods_per_type(sentence, poss_rest, True)
 
 
-# phenomena: indexicals
-def extra_advmod_propagation(sentence):
-    advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(name="middle_man", gov="(nmod.*)", nested=[[
-            Restriction(name="advmod", gov="advmod", form=advmod_list),
-            Restriction(name="case", gov="case")
-        ]])
-    ]])
-    ret = match(sentence.values(), [[advmod_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        advmod, _, advmod_rel = name_space['advmod']
-        _, _, middle_man_rel = name_space['middle_man']
-        gov, _, _ = name_space['gov']
-        case, _, _ = name_space['case']
-        
-        if gov not in advmod.get_parents():
-            advmod.add_edge(Label(advmod_rel.with_no_bart(), src="nmod", src_type="INDEXICAL", phrase=case.get_conllu_field("form"), uncertain=True), gov)
+# Here we connect directly the advmod to a predicate that is mediated by an nmod
+# We do this for the set of advmods the corresponds to the phenomenon known as indexicals
+extra_advmod_propagation_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="middle_man"),
+        Token(id="advmod", spec=[Field(field=FieldNames.WORD, value=advmod_list)]),
+        Token(id="case"),
+    ],
+    edges=[
+        Edge(child="middle_man", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="advmod", parent="middle_man", label=[HasLabelFromList(["advmod"])]),
+        Edge(child="case", parent="middle_man", label=[HasLabelFromList(["case"])]),
+    ],
+)
 
 
+def extra_advmod_propagation(sentence, matches):
+    for cur_match in matches:
+        gov = cur_match.token("gov")
+        case = cur_match.token("case")
+        advmod = cur_match.token("advmod")
+        sentence[advmod].add_edge(Label("advmod", src="nmod", src_type="INDEXICAL", phrase=sentence[case].get_conllu_field("form"), uncertain=True), sentence[gov])
+
+
+# here we connect the nmod to a predicate which is mediated by an advmod,
+# and forming a multi-word preposition from the combination of the advmod and current preposition
 # "I went back to prison"
-def extra_nmod_advmod_reconstruction(sentence):
-    # the reason for the form restriction: we dont want to catch "all in all"
-    nmod_advmod_rest = Restriction(name="gov", nested=[[
-        Restriction(name="advmod", gov="advmod", form="(?!(^(?i:all)$))", nested=[[
-            Restriction(name="nmod", gov="nmod", nested=[[
-                Restriction(name="case", gov="case")
-            ]])
-        ]])
-    ]])
-    ret = match(sentence.values(), [[nmod_advmod_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        advmod, _, advmod_rel = name_space['advmod']
-        nmod, _, nmod_rel = name_space['nmod']
-        case, _, case_rel = name_space['case']
-        gov, _, _ = name_space['gov']
-        
-        # we dont want to catch "as much as" or any "as ADVMOD as-NMOD"
-        if ("as", "advmod") in [(child.get_conllu_field("form").lower(), rel) for child, rel in advmod.get_children_with_rels()]:
-            continue
-        
+extra_nmod_advmod_reconstruction_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="nmod"),
+        # reason for WORD constraint: we dont want to catch the phrase "all in all"
+        # reason for outgoing constraint: we dont want to catch phrases like "as much as" (implemented a bit rigorously)
+        Token(id="advmod", spec=[Field(field=FieldNames.WORD, value=["all"], in_sequence=False)],
+              outgoing_edges=[HasNoLabel("advmod")]),
+        Token(id="case"),
+    ],
+    edges=[
+        Edge(child="advmod", parent="gov", label=[HasLabelFromList(["advmod"])]),
+        Edge(child="nmod", parent="advmod", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="case", parent="nmod", label=[HasLabelFromList(["case"])]),
+    ],
+)
+
+
+def extra_nmod_advmod_reconstruction(sentence, matches):
+    for cur_match in matches:
+        gov = sentence[cur_match.token("gov")]
+        case = sentence[cur_match.token("case")]
+        advmod = sentence[cur_match.token("advmod")]
+        nmod = sentence[cur_match.token("nmod")]
+
+        # validate that nmod and fov are not connected already
         if gov in nmod.get_parents():
             continue
-        
+
+        # here we split the rewrite step to two behviors, depending on the advmod+preposition concatination,
+        # if it's not part of nmod_advmod_complex: we remove the advmod from the governor
+        # and connect it as a multi word case to the nmod, and downgrade the original case to be its mwe son.
+        # in any way we connect the nmod to the governor
         mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
         if mwe in nmod_advmod_complex:
-            nmod.add_edge(Label(nmod_rel.with_no_bart(), eud=case.get_conllu_field("form").lower(), src="advmod_prep"), gov)
+            nmod.add_edge(Label("nmod", eud=case.get_conllu_field("form").lower(), src="advmod_prep"), gov)  # TODO: UDv1 = nmod
         else:
-            advmod.replace_edge(advmod_rel, Label(case_rel.with_no_bart(), src="advmod_prep"), gov, nmod)
-            case.replace_edge(case_rel, Label("mwe", src="advmod_prep"), nmod, advmod)
-            nmod.replace_edge(nmod_rel, Label(nmod_rel.with_no_bart(), eud=mwe, src="advmod_prep"), advmod, gov)
+            advmod.replace_edge(Label("advmod"), Label("case", src="advmod_prep"), gov, nmod)
+            case.replace_edge(Label("case"), Label("mwe", src="advmod_prep"), nmod, advmod)
+            nmod.replace_edge(Label("nmod"), Label("nmod", eud=mwe, src="advmod_prep"), advmod, gov)  # TODO: UDv1 = nmod
 
 
 def extra_appos_propagation(sentence):
@@ -1669,7 +1679,7 @@ def init_conversions():
         Conversion(ConvTypes.EUDPP, Full(), eudpp_process_complex_2wp),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_process_3wp),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_demote_quantificational_modifiers),
-        Conversion(ConvTypes.BART, Full(), extra_nmod_advmod_reconstruction),
+        Conversion(ConvTypes.BART, extra_nmod_advmod_reconstruction_constraint, extra_nmod_advmod_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_copula_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_evidential_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_aspectual_reconstruction),
@@ -1694,7 +1704,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_dep_propagation),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss),
-        Conversion(ConvTypes.BART, Full(), extra_advmod_propagation),
+        Conversion(ConvTypes.BART, extra_advmod_propagation_constraint, extra_advmod_propagation),
         Conversion(ConvTypes.BART, Full(), extra_appos_propagation),
         Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_passive_alteration),

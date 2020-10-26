@@ -104,6 +104,7 @@ class Token:
         return new_deps_pairs
     
     def add_edge(self, rel, head, extra_info=None):
+        assert isinstance(rel, Label)
         if head in self._new_deps:
             if rel in self._new_deps[head]:
                 return
@@ -115,6 +116,7 @@ class Token:
         #     self._extra_info_edges[(head, rel)] = extra_info
     
     def remove_edge(self, rel, head):
+        assert isinstance(rel, Label)
         if head in self._new_deps and rel in self._new_deps[head]:
             self._new_deps[head].remove(rel)
             if not self._new_deps[head]:
