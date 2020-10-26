@@ -39,6 +39,7 @@ adj_pos = ["JJ", "JJR", "JJS"]
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
 noun_pos = ["NN", "NNS", "NNP", "NNPS"]
 subj_options = ["nsubj", "nsubjpass", "csubj", "csubjpass"]  # TODO - UDv1 = pass
+obj_options = ["dobj", "iobj"]  # TODO - UDv1 = pass
 EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
 iids = dict()
@@ -68,6 +69,8 @@ def get_conversion_names():
             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
 
 
+# This method corrects subjects of verbs for which we identified an auxpass,
+# but didn't identify the subject as passive.
 eud_correct_subj_pass_constraint = Full(
     tokens=[
         Token(id="aux"),
@@ -82,8 +85,6 @@ eud_correct_subj_pass_constraint = Full(
 )
 
 
-# This method corrects subjects of verbs for which we identified an auxpass,
-# but didn't identify the subject as passive.
 def eud_correct_subj_pass(sentence, matches):
     # for every located subject add a 'pass' and replace in graph node
     for cur_match in matches:
@@ -109,7 +110,6 @@ eud_passive_agent_constraint = Full(
 
 
 def eud_passive_agent(sentence, matches):
-    # rewrite graph: for every nmod add 'agent' to the graph node relation
     for cur_match in matches:
         mod = cur_match.token("mod")
         gov = cur_match.token("gov")
@@ -345,6 +345,7 @@ def extra_advcl_ambiguous_propagation(sentence):
         advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False)
 
 
+# here we add a compound relation for each nmod:of relation between two nouns
 extra_of_prep_alteration_constraint = Full(
     tokens=[
         Token(id="nmod_of", spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
@@ -365,40 +366,50 @@ def extra_of_prep_alteration(sentence, matches):
         sentence[nmod_of].add_edge(Label("compound", src="nmod", phrase="of"), sentence[gov])
 
 
-def extra_compound_propagation(sentence):
-    compound_rest = Restriction(name="father", nested=[[
-        Restriction(name="middle_man", gov="(.obj|.subj.*)", xpos="NN.*", nested=[[
-            Restriction(name="compound", gov="compound", xpos="NN.*")
-        ]])
-    ]])
-    
-    ret = match(sentence.values(), [[compound_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        father, _, _ = name_space['father']
-        _, _, rel = name_space['middle_man']
-        compound, _, _ = name_space['compound']
-        pure_rel = rel.with_no_bart()
-        if any([re.match("(.obj|.subj.*)", rel) for head, rel in compound.get_new_relations()]):
-            continue
-        compound.add_edge(Label(pure_rel, src="compound", src_type="NULL", uncertain=True), father)
+# here we propagate subjects and objects from the compounds parent down to the compound, if they both are nouns
+extra_compound_propagation_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="middle_man", spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
+        Token(id="compound", spec=[Field(field=FieldNames.TAG, value=noun_pos)],
+              # TODO: this validates that the compound does not have the propagated relation,
+              #  and since we dont know in advance which relation exactly is going to be propagated,
+              #  we add a rigorous HasNoLabel constraint for each
+              incoming_edges=[HasNoLabel(arg) for arg in subj_options + obj_options]),
+    ],
+    edges=[
+        Edge(child="middle_man", parent="gov", label=[HasLabelFromList(subj_options + obj_options)]),
+        Edge(child="compound", parent="middle_man", label=[HasLabelFromList(["compound"])]),  # TODO - UDv1 = nmod
+    ],
+)
 
 
-def extra_amod_propagation(sentence):
-    amod_rest = Restriction(name="father", nested=[[
-        Restriction(name="amod", gov="amod", no_sons_of="nsubj.*")
-    ]])
-    
-    ret = match(sentence.values(), [[amod_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        father, _, _ = name_space['father']
-        amod, _, rel = name_space['amod']
-        father.add_edge(Label("nsubj", src="amod"), amod)
+def extra_compound_propagation(sentence, matches):
+    for cur_match in matches:
+        gov = cur_match.token("gov")
+        compound = cur_match.token("compound")
+        middle_man = cur_match.token("middle_man")
+        for rel in cur_match.edge(middle_man, gov):
+            sentence[compound].add_edge(Label(rel, src="compound", src_type="NULL", uncertain=True), sentence[gov])
+
+
+# here we add a subject relation for each amod relation (but in the opposite direction)
+extra_amod_propagation_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="amod", incoming_edges=[HasNoLabel(arg) for arg in subj_options]),
+    ],
+    edges=[
+        Edge(child="amod", parent="gov", label=[HasLabelFromList(["amod"])]),
+    ],
+)
+
+
+def extra_amod_propagation(sentence, matches):
+    for cur_match in matches:
+        gov = cur_match.token("gov")
+        amod = cur_match.token("amod")
+        sentence[gov].add_edge(Label("nsubj", src="amod"), sentence[amod])
 
 
 def extra_acl_propagation(sentence):
@@ -1622,18 +1633,24 @@ def get_rel_set(converted_sentence):
 def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, conv_iterations: int):
     last_converted_sentence = None
     i = 0
+    on_last_iter = ["extra_amod_propagation"]
+    do_last_iter = []
     # we iterate till convergence or till user defined maximum is reached - the first to come.
     while (i < conv_iterations) and (get_rel_set(sentence) != last_converted_sentence):
         last_converted_sentence = get_rel_set(sentence)
         m = matcher(sentence)
         for conv_name in m.names():
-            # TODO: try to check that the subject didnt came from an amod for extra_amod_propagation,
-            #  so we wont need this on_last iteration mechanism.
-            # if conv_name in on_last_iter:
-            #     continue
+            if conv_name in on_last_iter:
+                do_last_iter.append(conv_name)
+                continue
             matches = m.matches_for(conv_name)
             conversions[conv_name].transformation(sentence, matches)
         i += 1
+
+    for conv_name in do_last_iter:
+        m = matcher(sentence)
+        matches = m.matches_for(conv_name)
+        conversions[conv_name].transformation(sentence, matches)
 
     return i
 
@@ -1663,7 +1680,7 @@ def init_conversions():
         Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
         Conversion(ConvTypes.EUD, Full(), eud_xcomp_propagation),
         Conversion(ConvTypes.BART, extra_of_prep_alteration_constraint, extra_of_prep_alteration),
-        Conversion(ConvTypes.BART, Full(), extra_compound_propagation),
+        Conversion(ConvTypes.BART, extra_compound_propagation_constraint, extra_compound_propagation),
         Conversion(ConvTypes.BART, Full(), extra_xcomp_propagation_no_to),
         Conversion(ConvTypes.BART, Full(), extra_advcl_propagation),
         Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation),
@@ -1675,9 +1692,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_appos_propagation),
         Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_passive_alteration),
-        # TODO: after refactoring, if the match and replace system is more concise
-        #   maybe it would be better to simply check that the subject didnt come from an amod.
-        Conversion(ConvTypes.BART, Full(), extra_amod_propagation)
+        Conversion(ConvTypes.BART, extra_amod_propagation_constraint, extra_amod_propagation)
     ]
 
     return {conversion.name: conversion for conversion in conversion_list}
