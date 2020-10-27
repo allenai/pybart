@@ -95,7 +95,7 @@ class MatchingResult:
 
     # return the set of captured labels between the two tokens, given their indices
     def edge(self, t1: int, t2: int) -> Set[str]:
-        return self.indices2label.get((t1, t2), None)
+        return self.indices2label.get((t1, t2), [])
 
 
 class GlobalMatcher:
@@ -154,6 +154,8 @@ class GlobalMatcher:
             #   then it is a redundant token-constraint (TODO - validate this assumption)
             for child in matches.get(edge.child, []):
                 for parent in matches.get(edge.parent, []):
+                    if child == parent:
+                        continue
                     # check if edge constraint is satisfied
                     captured_labels = \
                         get_matched_labels(edge.label, get_labels(sentence, child=child, parent=parent))
