@@ -125,18 +125,15 @@ eud_prep_patterns_constraint = Full(
         Token(id="gov"),
         Token(id="mod"),
         Token(id="c1"),
-        Token(id="c2", optional=True),
-        Token(id="c3", optional=True),
+        Token(id="c_nn", optional=True, spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
+        Token(id="c_in", optional=True, spec=[Field(field=FieldNames.TAG, value=["IN"])]),
     ],
     edges=[
         Edge(child="mod", parent="gov", label=[HasLabelFromList(["advcl", "acl", "nmod"])]),  # TODO - UDv1 = nmod
         Edge(child="c1", parent="mod", label=[HasLabelFromList(["case", "mark"])]),
-        Edge(child="c2", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
-        Edge(child="c3", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
+        Edge(child="c_in", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
+        Edge(child="c_nn", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
     ],
-    distances=[
-        ExactDistance("c1", "c2", 0),
-        ExactDistance("c2", "c3", 0)]
 )
 
 
@@ -145,10 +142,10 @@ def eud_prep_patterns(sentence, matches):
         mod = cur_match.token("mod")
         gov = cur_match.token("gov")
         c1 = cur_match.token("c1")
-        c2 = cur_match.token("c2")
-        c3 = cur_match.token("c3")
+        c_in = cur_match.token("c_in")
+        c_nn = cur_match.token("c_nn")
         for rel in cur_match.edge(mod, gov):
-            prep_sequence = "_".join([sentence[ci].get_conllu_field("form") for ci in [c1, c2, c3] if ci != -1]).lower()
+            prep_sequence = "_".join([sentence[ci].get_conllu_field("form") for ci in [c1, c_nn, c_in] if ci != -1]).lower()
             sentence[mod].replace_edge(Label(rel), Label(rel, prep_sequence), sentence[gov], sentence[gov])
 
 
@@ -629,10 +626,10 @@ def extra_nmod_advmod_reconstruction(sentence, matches):
 
 extra_appos_propagation_constraint = Full(
     tokens=[
-        Token(id="gov_parent", optional=True),
-        Token(id="gov_son", optional=True),
         Token(id="gov"),
         Token(id="appos"),
+        Token(id="gov_parent", optional=True),
+        Token(id="gov_son", optional=True),
     ],
     edges=[
         Edge(child="gov", parent="gov_parent", label=[HasLabelFromList(["/.*/"])]),
