@@ -449,6 +449,14 @@
 8       feel    _       VB      VB      _       6       ccomp   6:ccomp             _
 9       bad     _       JJ      JJ      _       8       xcomp   8:xcomp             _
 
+# test:eud_prep_patterns-blackbox4
+1       I       _       PRP     PRP     _       2       nsubj   2:nsubj             _
+2       passed  _       VBP     VBP     _       0       root    0:root              _
+3       in      _       IN      IN      _       6       case    6:case              _
+4       front   _       NN      NN      _       3       mwe     3:mwe               _
+5       of      _       IN      IN      _       3       mwe     3:mwe               _
+6       dogs    _       NNS     NNS     _       2       nmod    2:nmod:in_front_of  _
+
 # test:eud_conj_info-blackbox1
 1       I       _       PRP     PRP     _       2       nsubj   2:nsubj         _
 2       love    _       VBP     VBP     _       0       root    0:root          _

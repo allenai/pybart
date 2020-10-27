@@ -487,6 +487,15 @@
 8       feel    _       VB      VB      _       6       ccomp   _       _
 9       bad     _       JJ      JJ      _       8       xcomp   _       _
 
+# test:eud_prep_patterns-blackbox4
+# purpose: test case of 3 word preposition added to nmod
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       passed  _       VBP     VBP     _       0       root    _       _
+3       in      _       IN      IN      _       6       case    _       _
+4       front   _       NN      NN      _       3       mwe     _       _
+5       of      _       IN      IN      _       3       mwe     _       _
+6       dogs    _       NNS     NNS     _       2       nmod    _       _
+
 # test:eud_conj_info-blackbox1
 # purpose: test cc's added to conj
 1       I       _       PRP     PRP     _       2       nsubj   _       _
