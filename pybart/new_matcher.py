@@ -139,7 +139,11 @@ class GlobalMatcher:
         for k, v in new_assignment.items():
             if v != base_assignment.get(k, v):
                 return {}
-        return {**base_assignment, **new_assignment}
+        merged_assignment = {**base_assignment, **new_assignment}
+        # a merge shouldnt consist of duplicate values, so remove it
+        if len(set(merged_assignment.values())) < len(merged_assignment.values()):
+            return {}
+        return merged_assignment
 
     def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
             -> List[List[Dict[str, int]]]:
