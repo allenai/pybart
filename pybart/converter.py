@@ -627,25 +627,32 @@ def extra_nmod_advmod_reconstruction(sentence, matches):
             nmod.replace_edge(Label("nmod"), Label("nmod", eud=mwe, src="advmod_prep"), advmod, gov)  # TODO: UDv1 = nmod
 
 
-def extra_appos_propagation(sentence):
-    appos_rest = Restriction(name="gov", nested=[[
-        Restriction(name="appos", gov="appos")
-    ]])
-    ret = match(sentence.values(), [[appos_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        appos, _, _ = name_space['appos']
-        gov, _, _ = name_space['gov']
-        
-        for (gov_head, gov_in_rel) in gov.get_new_relations():
-            if (gov_head, gov_in_rel) not in appos.get_new_relations():
-                appos.add_edge(Label(gov_in_rel.with_no_bart(), src="appos"), gov_head)
-        
-        for (gov_son, gov_out_rel) in gov.get_children_with_rels():
-            if re.match("(acl|amod)", gov_out_rel) and (gov_son, gov_out_rel) not in appos.get_children_with_rels():
-                gov_son.add_edge(Label(gov_out_rel.with_no_bart(), src="appos"), appos)
+extra_appos_propagation_constraint = Full(
+    tokens=[
+        Token(id="gov_parent", optional=True),
+        Token(id="gov_son", optional=True),
+        Token(id="gov"),
+        Token(id="appos"),
+    ],
+    edges=[
+        Edge(child="gov", parent="gov_parent", label=[HasLabelFromList(["/.*/"])]),
+        # This is a hand made list of legitimate sons to propagate - so it can be enlarged
+        Edge(child="gov", parent="gov_son", label=[HasLabelFromList(["/acl|amod/"])]),
+        Edge(child="appos", parent="gov", label=[HasLabelFromList(["appos"])]),
+    ],
+)
+
+
+def extra_appos_propagation(sentence, matches):
+    for cur_match in matches:
+        gov_parent = cur_match.token("gov_parent")
+        gov_son = cur_match.token("gov_son")
+        gov = cur_match.token("gov")
+        appos = cur_match.token("appos")
+        for label in cur_match.edge(gov, gov_parent):
+            sentence[appos].add_edge(Label(label, src="appos"), sentence[gov_parent])
+        for label in cur_match.edge(gov_son, gov):
+            sentence[gov_son].add_edge(Label(label, src="appos"), sentence[appos])
 
 
 # find the closest cc to the conj with precedence for left hand ccs
@@ -1705,7 +1712,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss),
         Conversion(ConvTypes.BART, extra_advmod_propagation_constraint, extra_advmod_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_appos_propagation),
+        Conversion(ConvTypes.BART, extra_appos_propagation_constraint, extra_appos_propagation),
         Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_passive_alteration),
         Conversion(ConvTypes.BART, extra_amod_propagation_constraint, extra_amod_propagation)
