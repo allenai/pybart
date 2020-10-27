@@ -6,6 +6,7 @@
 
 import sys
 import re
+from collections import defaultdict
 from math import copysign
 import inspect
 from typing import List, Dict, Callable, Any
@@ -225,23 +226,6 @@ def eud_subj_of_conjoined_verbs(sentence, matches):
             sentence[subj].add_edge(Label(subj_rel), sentence[conj])
 
 
-def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
-    outer_restriction = Restriction(nested=[
-        [restriction, Restriction(name="new_subj", gov=".?obj")],
-        [restriction, Restriction(name="new_subj", gov="nsubj.*")]
-    ])
-    
-    ret = match(sentence.values(), [[outer_restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        new_subj, _, rel = name_space['new_subj']
-        dep, _, _ = name_space['dep']
-        new_subj.add_edge(Label("nsubj", "xcomp(INF)") if not is_extra else
-                          Label("nsubj", src="xcomp", src_type="GERUND"), dep)
-
-
 # Add extra nsubj dependencies when collapsing basic dependencies.
 # Some notes copied from SC:
 # 1. In the general case, we look for an aux modifier under an xcomp
@@ -258,20 +242,53 @@ def xcomp_propagation_per_type(sentence, restriction, is_extra=False):
 #   There is no nsubj of asking, but the dobj, SEC, is the extra nsubj of require.
 #   Similarly, "The law tells them when to do so"
 #   Instead of nsubj(do, law) we want nsubj(do, them)
-def eud_xcomp_propagation(sentence):
-    to_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(nsubj.*|aux|mark)$", xpos="^(TO)$")
-    basic_xcomp_rest = Restriction(name="dep", gov="xcomp", no_sons_of="nsubj.*", xpos="(?!(^(TO)$)).", nested=[[
-        Restriction(gov="^(aux|mark)$", xpos="(^(TO)$)")
-    ]])
+extra_xcomp_propagation_no_to_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="new_subj"),
+        Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos + adj_pos + ["TO"])],
+              outgoing_edges=[HasNoLabel(subj) for subj in subj_options]),
+        Token(id="to_marker", optional=True, spec=[Field(field=FieldNames.TAG, value=["TO"])]),
+    ],
+    edges=[
+        Edge(child="xcomp", parent="gov", label=[HasLabelFromList(["xcomp"])]),
+        Edge(child="to_marker", parent="xcomp", label=[HasLabelFromList(["mark", "aux"])]),
+        Edge(child="new_subj", parent="gov", label=[HasLabelFromList(subj_options + obj_options)]),
+    ],
+)
 
-    for xcomp_restriction in [to_xcomp_rest, basic_xcomp_rest]:
-        xcomp_propagation_per_type(sentence, xcomp_restriction)
+
+def xcomp_propagation_per_type(sentence, matches, is_bart):
+    labels_dict = defaultdict(list)
+    for cur_match in matches:
+        new_subj = cur_match.token("new_subj")
+        xcomp = cur_match.token("xcomp")
+        to_marker = cur_match.token("to_marker")
+        gov = cur_match.token("gov")
+
+        labels = cur_match.edge(new_subj, gov)
+        labels_dict[(gov, xcomp, to_marker)].extend([(new_subj, label) for label in labels])
+
+    for (gov, xcomp, to_marker), labels in labels_dict.items():
+        obj_found = any("obj" in label for _, label in labels)
+        for new_subj, label in labels:
+            if obj_found and "subj" in label:
+                continue
+            is_xcomp_basic = (to_marker != -1) or (sentence[xcomp].get_conllu_field("xpos") == "TO")
+            if is_xcomp_basic and not is_bart:
+                sentence[new_subj].add_edge(Label("nsubj", eud="xcomp(INF)"), sentence[xcomp])
+            elif not is_xcomp_basic and is_bart:
+                sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="GERUND"), sentence[xcomp])
 
 
-def extra_xcomp_propagation_no_to(sentence):
-    xcomp_no_to_rest = Restriction(name="dep", gov="xcomp", no_sons_of="^(aux|mark|nsubj.*)$", xpos="(VB.?)")
-    
-    xcomp_propagation_per_type(sentence, xcomp_no_to_rest, True)
+def eud_xcomp_propagation(sentence, matches):
+
+    xcomp_propagation_per_type(sentence, matches, False)
+
+
+def extra_xcomp_propagation_no_to(sentence, matches):
+
+    xcomp_propagation_per_type(sentence, matches, True)
 
 
 def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc):
@@ -1698,10 +1715,10 @@ def init_conversions():
         Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse),
         Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
-        Conversion(ConvTypes.EUD, Full(), eud_xcomp_propagation),
+        Conversion(ConvTypes.EUD, extra_xcomp_propagation_no_to_constraint, eud_xcomp_propagation),
         Conversion(ConvTypes.BART, extra_of_prep_alteration_constraint, extra_of_prep_alteration),
         Conversion(ConvTypes.BART, extra_compound_propagation_constraint, extra_compound_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_xcomp_propagation_no_to),
+        Conversion(ConvTypes.BART, extra_xcomp_propagation_no_to_constraint, extra_xcomp_propagation_no_to),
         Conversion(ConvTypes.BART, Full(), extra_advcl_propagation),
         Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation),
         Conversion(ConvTypes.BART, Full(), extra_acl_propagation),
