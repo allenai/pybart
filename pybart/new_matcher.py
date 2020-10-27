@@ -252,11 +252,8 @@ class TokenMatcher:
             -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
         checked_tokens = defaultdict(list)
-        registered_tokens = []
         for name, token_indices in matched_tokens.items():
             for token in token_indices:
-                if token in registered_tokens:
-                    continue
                 if self.no_children[name] and (len(get_labels(sentence, parent=token)) != 0):
                     continue
                 out_matched = get_matched_labels(self.outgoing_constraints[name], get_labels(sentence, parent=token))
@@ -265,7 +262,6 @@ class TokenMatcher:
                     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
                     continue
                 checked_tokens[name].append(token)
-                registered_tokens.append(token)
         return checked_tokens
 
     def apply(self, sentence: Mapping[int, BartToken], doc: SpacyDoc) -> Optional[Mapping[str, List[int]]]:
