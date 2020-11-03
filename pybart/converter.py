@@ -695,20 +695,6 @@ def extra_appos_propagation(sentence, matches):
             sentence[gov_son].add_edge(Label(label, src="appos"), sentence[appos])
 
 
-# find the closest cc to the conj with precedence for left hand ccs
-def attach_best_cc(conj, ccs, noun, verb):
-    closest_cc = None
-    closest_dist = None
-    for cur_cc in ccs:
-        cur_dist = conj.dist(cur_cc)
-        if (not closest_cc) or \
-                ((copysign(1, closest_dist) == copysign(1, cur_dist)) and (abs(cur_dist) < abs(closest_dist))) or \
-                ((copysign(1, closest_dist) != copysign(1, cur_dist)) and (copysign(1, cur_dist) == -1)):
-            closest_cc = cur_cc
-            closest_dist = conj.dist(closest_cc)
-    if closest_cc:
-        closest_cc.replace_edge("cc", "cc", noun, verb)
-
 # Purpose: TODO
 # Notes:
 #   1. formerly we did this as long as we find what to change, and each time change only one match, instead of fixing all matches found each time.
@@ -766,6 +752,7 @@ def attach_best_cc(conj, ccs, noun, verb):
 #             conj.replace_edge(rel, rel, old_root, new_root)
 #             # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
 #             attach_best_cc(conj, list(zip(*hit_ns['ccs']))[0], old_root, new_root)
+#             TODO:         g_cc_assignments[conj].replace_edge("cc", "cc", noun, verb)
 #
 #         # only if old_root is an adjective
 #         if re.match("JJ.?", old_root.get_conllu_field("xpos")):
@@ -824,7 +811,6 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
             new_root.add_edge(rel, head)
 
         # transfer all old-root's children that are to be transferred
-        ccs = [cc_child for cc_child, cc_rel in old_root.get_children_with_rels() if cc_rel == "cc"]
         subjs = []
         new_out_rel = "xcomp"
         new_amod = old_root
@@ -861,7 +847,7 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
                 # transfer 'conj' only if it is a verb conjunction, as we want it to be attached to the new (verb/state) root
                 child.replace_edge(rel, rel, old_root, new_root)
                 # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
-                attach_best_cc(child, ccs, old_root, new_root)
+                g_cc_assignments[child].replace_edge("cc", "cc", old_root, new_root)
             elif re.match("nmod(?!:poss)", rel) and evidential:
                 child.replace_edge(rel, rel, old_root, new_root)
             # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
@@ -1393,49 +1379,6 @@ def extra_add_ref_and_collapse(sentence):
     add_ref_and_collapse_general(sentence, False, True)
 
 
-# resolves the following multi word conj phrases:
-#   a. 'but(cc) not', 'if not', 'instead of', 'rather than', 'but(cc) rather'. GO TO negcc
-#   b. 'as(cc) well as', 'but(cc) also', 'not to mention', '&'. GO TO and
-# NOTE: This is bad practice (and sometimes not successful neither for SC or for us) for the following reasons:
-#   1. Not all parsers mark the same words as cc (if at all), so looking for the cc on a specific word is wrong.
-#       as of this reason, for now we and SC both miss: if-not, not-to-mention
-#   2. Some of the multi-words are already treated as multi-word prepositions (and are henceforth missed):
-#       as of this reason, for now we and SC both miss: instead-of, rather-than
-def get_assignment(sentence, cc):
-    cc_cur_id = cc.get_conllu_field('id')
-    prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
-                           if iid != 0 and (cc_cur_id - 1 == iid or cc_cur_id == iid)])
-    next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
-                           if cc_cur_id + 1 == iid or cc_cur_id == iid])
-    if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
-        return "negcc"
-    elif (next_forms in and_conjp_next) or (cc.get_conllu_field('form') == '&'):
-        return "and"
-    else:
-        return cc.get_conllu_field('form')
-
-
-# In case multiple coordination marker depend on the same governor
-# the one that precedes the conjunct is appended to the conjunction relation or the
-# first one if no preceding marker exists.
-def assign_ccs_to_conjs(sentence, ret):
-    cc_assignments = dict()
-    ccs = []
-    conjs = []
-    for name_space in ret:
-        ccs.append((name_space['cc'][0].get_conllu_field('id'), name_space['cc']))
-        conjs.append((name_space['conj'][0].get_conllu_field('id'), name_space['conj']))
-    
-    sorted_ccs_and_conjs = sorted(ccs + conjs)
-    _, cur_cc = sorted(ccs)[0]
-    for _, (cc_or_conj, head, rel) in sorted_ccs_and_conjs:
-        if rel == "cc":
-            cur_cc = (cc_or_conj, head, rel)
-        else:
-            cc_assignments[((cc_or_conj, head, rel), cur_cc)] = get_assignment(sentence, cur_cc[0])
-    return cc_assignments
-
-
 # Adds the type of conjunction to all conjunct relations
 # Some multi-word coordination markers are collapsed to conj:and or conj:negcc
 def eud_conj_info(sentence):
@@ -1448,17 +1391,14 @@ def eud_conj_info(sentence):
     if not ret:
         return
     
-    # assign ccs to conjs according to precedence
-    cc_assignments = assign_ccs_to_conjs(sentence, ret)
-    
     for name_space in ret:
         gov, _, _ = name_space['gov']
         cc, _, cc_rel = name_space['cc']
         conj, _, conj_rel = name_space['conj']
 
-        if ((conj, gov, conj_rel), (cc, gov, cc_rel)) not in cc_assignments:
+        if conj not in g_cc_assignments:
             continue
-        cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
+        cc_assignment = g_cc_assignments[conj]
         
         conj.replace_edge(conj_rel, Label(conj_rel, cc_assignment), gov, gov)
 
@@ -1470,10 +1410,7 @@ def expand_per_type(sentence, restriction, is_pp):
     ret = match(sentence.values(), [[restriction]])
     if not ret:
         return
-    
-    # assign ccs to conjs according to precedence
-    cc_assignments = assign_ccs_to_conjs(sentence, ret)
-    
+        
     nodes_copied = 0
     last_copy_id = -1
     for name_space in ret:
@@ -1482,9 +1419,9 @@ def expand_per_type(sentence, restriction, is_pp):
         cc, cc_head, cc_rel = name_space['cc']
         conj, conj_head, conj_rel = name_space['conj']
         
-        if ((conj, conj_head, conj_rel), (cc, cc_head, cc_rel)) not in cc_assignments:
+        if conj not in g_cc_assignments:
             continue
-        cc_assignment = cc_assignments[((conj, gov, conj_rel), (cc, gov, cc_rel))]
+        cc_assignment = g_cc_assignments[conj]
         
         # Check if we already copied this node in this same match (as it is hard to restrict that).
         # This is relevant only for the prep type.
@@ -1646,6 +1583,49 @@ def extra_passive_alteration(sentence, matches):
 ######################################################################################################################################################
 
 
+# resolves the following multi word conj phrases:
+#   a. 'but(cc) not', 'if not', 'instead of', 'rather than', 'but(cc) rather'. GO TO negcc
+#   b. 'as(cc) well as', 'but(cc) also', 'not to mention', '&'. GO TO and
+# NOTE: This is bad practice (and sometimes not successful neither for SC or for us) for the following reasons:
+#   1. Not all parsers mark the same words as cc (if at all), so looking for the cc on a specific word is wrong.
+#       as of this reason, for now we and SC both miss: if-not, not-to-mention
+#   2. Some of the multi-words are already treated as multi-word prepositions (and are henceforth missed):
+#       as of this reason, for now we and SC both miss: instead-of, rather-than
+def get_assignment(sentence, cc):
+    cc_cur_id = cc.get_conllu_field('id')
+    prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
+                           if iid != 0 and (cc_cur_id - 1 == iid or cc_cur_id == iid)])
+    next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
+                           if cc_cur_id + 1 == iid or cc_cur_id == iid])
+    if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
+        return "negcc"
+    elif (next_forms in and_conjp_next) or (cc.get_conllu_field('form') == '&'):
+        return "and"
+    else:
+        return cc.get_conllu_field('form')
+
+
+# In case multiple coordination marker depend on the same governor
+# the one that precedes the conjunct is appended to the conjunction relation or the
+# first one if no preceding marker exists.
+def assign_ccs_to_conjs(sentence):
+    global g_cc_assignments
+    g_cc_assignments = dict()
+    for token in sentence.values():
+        ccs = []
+        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
+            if 'cc' == rel:
+                ccs.append(child.get_conllu_field("form"))
+        i = 0
+        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
+            if rel.startswith('conj'):
+                if len(ccs) == 0:
+                    g_cc_assignments[child] = 'and'
+                else:
+                    g_cc_assignments[child] = get_assignment(sentence, ccs[i if i < len(ccs) else -1])
+                i += 1
+
+
 def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
     if not enhanced:
         conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.EUD}
@@ -1760,6 +1740,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     i = 0
     for sentence in parsed:
         g_iids = dict()
+        assign_ccs_to_conjs(sentence)
         i = max(i, convert_sentence(sentence, conversions, matcher, conv_iterations))
 
     return parsed, i
