@@ -1567,63 +1567,45 @@ def extra_hyphen_reconstruction(sentence, matches):
 
 
 # The bottle was broken by me.
-def extra_passive_alteration(sentence):
-    restriction = Full(
-        tokens=[
-            Token(id="predicate"),
-            Token(id="subjpass"),
-            Token(id="agent", optional=True),
-            Token(id="by", optional=True, spec=[Field(FieldNames.WORD, ["^(?i:by)$"])])],
-        edges=[
-            Edge(child="subjpass", parent="predicate", label=[HasLabelFromList(["/.subjpass/"])]),
-            Edge(child="agent", parent="predicate", label=[HasLabelFromList(["/^(nmod(:agent)?)$/"])]),
-            Edge(child="by", parent="agent", label=[HasLabelFromList(["case"])]),
-            Edge(child="subjpass", parent="predicate", label=[HasNoLabel(".obj")])
-        ]
-    )
+extra_passive_alteration_constraint = Full(
+    tokens=[
+        Token(id="predicate"),
+        # the no-object lookup will prevent repeatedly converting this conversion
+        Token(id="subjpass", incoming_edges=[HasNoLabel(obj) for obj in obj_options]),
+        Token(id="agent", optional=True),
+        Token(id="by", optional=True, spec=[Field(FieldNames.WORD, ["by"])]),  # TODO - english specific
+        Token(id="predicates_obj", optional=True)],
+    edges=[
+        Edge(child="subjpass", parent="predicate", label=[HasLabelFromList(["nsubjpass", "csubjpass"])]),  # TODO - UDv1 = pass
+        # TODO: maybe nmod:agent is redundant as we always look at the basic label and agent is part of EUD (afaik)
+        Edge(child="agent", parent="predicate", label=[HasLabelFromList(["nmod", "nmod:agent"])]),  # TODO: UDv1 = nmod
+        Edge(child="by", parent="agent", label=[HasLabelFromList(["case"])]),
+        Edge(child="predicates_obj", parent="predicate", label=[HasLabelFromList(obj_options)]),
+    ]
+)
 
-    restriction = Restriction(name="predicate", nested=[
-        [
-            Restriction(name="subjpass", gov=".subjpass"),
-            Restriction(name="agent", gov="^(nmod(:agent)?)$", nested=[[
-                Restriction(form="^(?i:by)$")
-            ]])
-        ],
-        [Restriction(name="subjpass", gov=".subjpass")]
-    ])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        subj, _, subj_rel = name_space['subjpass']
-        predicate, _, _ = name_space['predicate']
-        # if subj.match_rel(".obj", predicate):
-        #     # avoid fixing a fixed passive.
-        #     continue
-        if 'agent' in name_space:
-            # TODO validate 'by' is in the namespace as well
-            agent, _, agent_rel = name_space['agent']
-            agent.add_edge(Label("nsubj", src="passive"), predicate)
+
+def extra_passive_alteration(sentence, matches):
+    for cur_match in matches:
+        subj = sentence[cur_match.token("subjpass")]
+        predicate = sentence[cur_match.token("predicate")]
+        agent = cur_match.token("agent")
+        by = cur_match.token("by")
+        predicates_obj = cur_match.token("by")
         
-        # the special case of csubj (divided into ccomp and xcomp according to 'that' and 'to' subordinates.
-        subj_new_rel = "dobj"
-        # TODO -
-        #   1. this entire part can be refactored using a global reuseable function.
-        #   2. there are also: an advcl option, what in addition to that for ccomp, and the 'obj' condition is weird.
-        #   3. actually I can't reproduce any of these cases using the current model, but they still exists in theory. so IDKWTD
-        if subj_rel.startswith("csubj"):
-            for child, rel in subj.get_children_with_rels():
-                if (rel == "mark") and (child.get_conllu_field("form") == "to"):
-                    subj_new_rel = "xcomp"
-                elif ("obj" in rel) and (child.get_conllu_field("form") == "that") and (child.get_conllu_field("xpos") == "IN"):
-                    subj_new_rel = "ccomp"
-        elif "dobj" in [rel for (_, rel) in predicate.get_children_with_rels()]:
-            subj_new_rel = "iobj"
+        # reverse the agent to be subject
+        if agent != -1 and by != -1:
+            sentence[agent].add_edge(Label("nsubj", src="passive"), predicate)
         
+        # what kind of object to assign
+        # NOTE:
+        #   when there is csubjpass, there are also theoretical cases in which the relation shouldn't be object,
+        #   but xcomp/ccomp/advcl (depending on the markers). but I couldn't reproduce these cases so they have been removed
+        subj_new_rel = "dobj" if predicates_obj == -1 else "iobj"  # TODO: UDv1 = obj
+
+        # reverse the passivised subject
         subj.add_edge(Label(subj_new_rel, src="passive"), predicate)
-    
+
 
 ######################################################################################################################################################
 
@@ -1718,7 +1700,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_advmod_propagation_constraint, extra_advmod_propagation),
         Conversion(ConvTypes.BART, extra_appos_propagation_constraint, extra_appos_propagation),
         Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods),
-        Conversion(ConvTypes.BART, Full(), extra_passive_alteration),
+        Conversion(ConvTypes.BART, extra_passive_alteration_constraint, extra_passive_alteration),
         Conversion(ConvTypes.BART, extra_amod_propagation_constraint, extra_amod_propagation)
     ]
 
