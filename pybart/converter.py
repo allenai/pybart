@@ -152,35 +152,29 @@ def eud_prep_patterns(sentence, matches):
             sentence[mod].replace_edge(Label(rel), Label(rel, prep_sequence), sentence[gov], sentence[gov])
 
 
-def eud_heads_of_conjuncts(sentence):
-    restriction = Restriction(name="new_gov", nested=[[
-        Restriction(name="gov", gov="^((?!root|case).)*$", nested=[[
-             Restriction(name="dep", gov="conj.*")
-        ]])
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        gov, gov_head, gov_rel = name_space['gov']
-        dep, _, _ = name_space['dep']
+eud_heads_of_conjuncts_constraint = Full(
+    tokens=[
+        Token(id="new_gov"),
+        Token(id="gov"),
+        Token(id="dep")],
+    edges=[
+        Edge(child="gov", parent="new_gov", label=[HasNoLabel("case")]),
+        Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
+    ],
+)
+
+
+def eud_heads_of_conjuncts(sentence, matches):
+    for cur_match in matches:
+        new_gov = cur_match.token("new_gov")
+        gov = cur_match.token("gov")
+        dep = cur_match.token("dep")
         
-        # only if the dependant of the conj is not the head of the head of the conj,
-        # and they dont fall under the relcl problem, propagate the relation
-        # NOTE: actually SC restrict this more aggressively.
-        if (gov_head, gov_rel) not in gov.get_extra_info_edges():
-            dep.add_edge(gov_rel, gov_head)
-        
-        # NOTE: this is not part of the original SC.
-        # if the shared head is an nmod/acl/advcl, then propagate the case/marker also between the conjuncts.
-        if \
-                (gov_rel.startswith("nmod") and all([not r.startswith("case") for (c, r) in dep.get_children_with_rels()])) or \
-                (re.match("acl|advcl", gov_rel) and all([not re.match("case|mark", r) for (c, r) in dep.get_children_with_rels()])):
-            for c, r in gov.get_children_with_rels():
-                if re.match("case|mark", r):
-                    c.add_edge(r, dep)
+        for rel in cur_match.edge(gov, new_gov):
+            # TODO: check if we can safelly get rid of this:
+            # # only if they dont fall under the relcl problem, propagate the relation
+            # if (new_gov, rel) not in gov.get_extra_info_edges():
+            sentence[dep].add_edge(Label(rel), sentence[new_gov])
         
         # TODO:
         #   for the trees of ambiguous "The boy and the girl who lived told the tale."
@@ -188,6 +182,28 @@ def eud_heads_of_conjuncts(sentence):
         #   P.S. one of the trees could be obtained by the Stanford parser by adding commas:
         #   "The boy and the girl, who lived, told the tale."
 
+
+eud_case_sons_of_conjuncts_constraint = Full(
+    tokens=[
+        Token(id="modifier"),
+        Token(id="new_son"),
+        Token(id="gov"),
+        Token(id="dep", outgoing_edges=[HasNoLabel("case"), HasNoLabel("mark")])],
+    edges=[
+        Edge(child="gov", parent="modifier", label=[HasLabelFromList(["acl", "acl:relcl", "advcl", "nmod"])]),  # TODO: english = relcl, UDv1 = nmod
+        Edge(child="new_son", parent="gov", label=[HasLabelFromList(["case"])]),
+        Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
+    ],
+)
+
+
+def eud_case_sons_of_conjuncts(sentence, matches):
+    for cur_match in matches:
+        new_son = sentence[cur_match.token("new_son")]
+        dep = sentence[cur_match.token("dep")]
+
+        new_son.add_edge(Label("case"), dep)
+        
 
 # NOTE -  we propagate only subj (for now) as this is what SC stated:
 #     cdm july 2010: This bit of code would copy a dobj from the first
@@ -1380,27 +1396,26 @@ def extra_add_ref_and_collapse(sentence):
 
 
 # Adds the type of conjunction to all conjunct relations
-# Some multi-word coordination markers are collapsed to conj:and or conj:negcc
-def eud_conj_info(sentence):
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(name="cc", gov="^(cc)$"),
-        Restriction(name="conj", gov="^(conj)$")
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        gov, _, _ = name_space['gov']
-        cc, _, cc_rel = name_space['cc']
-        conj, _, conj_rel = name_space['conj']
+eud_conj_info_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="conj"),],
+    edges=[
+        Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
+    ],
+)
+
+
+def eud_conj_info(sentence, matches):
+    for cur_match in matches:
+        gov = sentence[cur_match.token("gov")]
+        conj = sentence[cur_match.token("conj")]
 
         if conj not in g_cc_assignments:
             continue
-        cc_assignment = g_cc_assignments[conj]
         
-        conj.replace_edge(conj_rel, Label(conj_rel, cc_assignment), gov, gov)
+        for rel in cur_match.edge(cur_match.token("conj"), cur_match.token("gov")):
+            conj.replace_edge(Label(rel), Label(rel, g_cc_assignments[conj]), gov, gov)
 
 
 # The label of the conjunct relation includes the conjunction type
@@ -1583,6 +1598,7 @@ def extra_passive_alteration(sentence, matches):
 ######################################################################################################################################################
 
 
+# TODO: english = this entire function
 # resolves the following multi word conj phrases:
 #   a. 'but(cc) not', 'if not', 'instead of', 'rather than', 'but(cc) rather'. GO TO negcc
 #   b. 'as(cc) well as', 'but(cc) also', 'not to mention', '&'. GO TO and
@@ -1600,7 +1616,7 @@ def get_assignment(sentence, cc):
     if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
         return "negcc"
     elif (next_forms in and_conjp_next) or (cc.get_conllu_field('form') == '&'):
-        return "and"
+        return "and"  # TODO: english = and
     else:
         return cc.get_conllu_field('form')
 
@@ -1639,7 +1655,7 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
     if remove_node_adding_conversions:
         conversions.pop('eudpp_expand_pp_or_prep_conjunctions')  # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
     if remove_unc:
-        for func_name in ['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation']:
+        for func_name in ['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods_forward', 'extra_conj_propagation_of_nmods_backwards', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation']:
             conversions.pop(func_name)
     if query_mode:
         for func_name in conversions.keys():
@@ -1697,9 +1713,10 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
         Conversion(ConvTypes.EUD, eud_passive_agent_constraint, eud_passive_agent),
-        Conversion(ConvTypes.EUD, Full(), eud_heads_of_conjuncts),
+        Conversion(ConvTypes.EUD, eud_heads_of_conjuncts_constraint, eud_heads_of_conjuncts),
+        Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
         Conversion(ConvTypes.EUD, eud_prep_patterns_constraint, eud_prep_patterns),
-        Conversion(ConvTypes.EUD, Full(), eud_conj_info),
+        Conversion(ConvTypes.EUD, eud_conj_info_constraint, eud_conj_info),
         Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse),
         Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
