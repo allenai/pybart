@@ -19,7 +19,7 @@ from . import pybart_globals
 from .new_matcher import Matcher, NamedConstraint
 from dataclasses import dataclass
 
-# constants
+# constants   # TODO - english specific
 nmod_advmod_complex = ["back_to", "back_in", "back_at", "early_in", "late_in", "earlier_in"]
 two_word_preps_regular = {"across_from", "along_with", "alongside_of", "apart_from", "as_for", "as_from", "as_of", "as_per", "as_to", "aside_from", "based_on", "close_by", "close_to", "contrary_to", "compared_to", "compared_with", " depending_on", "except_for", "exclusive_of", "far_from", "followed_by", "inside_of", "irrespective_of", "next_to", "near_to", "off_of", "out_of", "outside_of", "owing_to", "preliminary_to", "preparatory_to", "previous_to", "prior_to", "pursuant_to", "regardless_of", "subsequent_to", "thanks_to", "together_with"}
 two_word_preps_complex = {"apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"}
@@ -36,6 +36,7 @@ advmod_list = ['here', 'there', 'now', 'later', 'soon', 'before', 'then', 'today
 evidential_list = ['seem', 'appear', 'be', 'sound']
 aspectual_list = ['begin', 'continue', 'delay', 'discontinue', 'finish', 'postpone', 'quit', 'resume', 'start', 'complete']
 reported_list = ['report', 'say', 'declare', 'announce', 'tell', 'state', 'mention', 'proclaim', 'replay', 'point', 'inform', 'explain', 'clarify', 'define', 'expound', 'describe', 'illustrate', 'justify', 'demonstrate', 'interpret', 'elucidate', 'reveal', 'confess', 'admit', 'accept', 'affirm', 'swear', 'agree', 'recognise', 'testify', 'assert', 'think', 'claim', 'allege', 'argue', 'assume', 'feel', 'guess', 'imagine', 'presume', 'suggest', 'argue', 'boast', 'contest', 'deny', 'refute', 'dispute', 'defend', 'warn', 'maintain', 'contradict']
+advcl_non_legit_markers = ["as", "so", "when", "if"]  # TODO - english specific
 adj_pos = ["JJ", "JJR", "JJS"]
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
 noun_pos = ["NN", "NNS", "NNP", "NNPS"]
@@ -282,79 +283,84 @@ def xcomp_propagation_per_type(sentence, matches, is_bart):
 
 
 def eud_xcomp_propagation(sentence, matches):
-
     xcomp_propagation_per_type(sentence, matches, False)
 
 
 def extra_xcomp_propagation_no_to(sentence, matches):
-
     xcomp_propagation_per_type(sentence, matches, True)
 
 
-def advcl_or_dep_propagation_per_type(sentence, restriction, type_, unc):
-    global g_iids
+# propagate subject and(/or) object as (possible) subject(s) for the son of the `advcl` relation if it has no subject of his own
+extra_advcl_propagation_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="dep", outgoing_edges=[HasNoLabel(value=subj_cur) for subj_cur in subj_options]),
+        Token(id="subj"),
+        Token(id="obj", optional=True),
+        # we allow only a specified list of markers (or no marker at all) - according to research
+        Token(id="mark", optional=True, spec=[Field(field=FieldNames.WORD, value=advcl_non_legit_markers, in_sequence=False)]),
+    ],
+    edges=[
+        Edge(child="subj", parent="gov", label=[HasLabelFromList(subj_options)]),
+        Edge(child="obj", parent="gov", label=[HasLabelFromList(obj_options)]),
+        Edge(child="dep", parent="gov", label=[HasLabelFromList(["advcl"])]),
+        Edge(child="mark", parent="dep", label=[HasLabelFromList(["mark", "aux"])]),
+    ],
+)
 
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        dep, _, _ = name_space['dep']
-        if 'new_subj' in name_space:
-            new_subj_str = 'new_subj'
+
+# propagate subject and(/or) object as (possible) subject(s) for the son of the `dep` relation if it has no subject of his own
+extra_dep_propagation_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="dep", outgoing_edges=[HasNoLabel(value=subj_cur) for subj_cur in subj_options]),
+        Token(id="subj"),
+        Token(id="obj", optional=True),
+        Token(id="mark", optional=True),
+    ],
+    edges=[
+        Edge(child="subj", parent="gov", label=[HasLabelFromList(subj_options)]),
+        Edge(child="obj", parent="gov", label=[HasLabelFromList(obj_options)]),
+        Edge(child="dep", parent="gov", label=[HasLabelFromList(["dep"])]),
+        Edge(child="mark", parent="dep", label=[HasLabelFromList(["mark", "aux"])]),
+    ],
+)
+
+
+def advcl_or_dep_propagation_per_type(sentence, matches, type_, unc):
+    global g_iids
+    for cur_match in matches:
+        dep = sentence[cur_match.token("dep")]
+        subj = sentence[cur_match.token("subj")]
+        obj = cur_match.token("obj")
+        mark = cur_match.token("mark")
+
+        # extract the phrase of the marker, if there is one
+        phrase = sentence[mark].get_conllu_field("form") if mark != -1 else "NULL"
+        
+        # decide if we need ALTERNATIVES for the propagation. That is, if we have both subject and object to propagate we give them ALT=some_id,
+        # unless marker was `to`, in which we propagate only the object as we do in the xcomp case.
+        if obj == -1 or phrase == "to":  # TODO - english = to
             cur_iid = None
-            # in case the father has more than one subject, we dont want to take care now, but later.
-            if len([rel for child, rel in name_space['father'][0].get_children_with_rels() if re.match(".subj.*", rel)]) > 1:
-                continue
         else:
+            # get the id for this token or update the global ids for this new one.
             if dep not in g_iids:
                 g_iids[dep] = 0 if len(g_iids.values()) == 0 else (max(g_iids.values()) + 1)
             cur_iid = g_iids[dep]
-            new_subj_str = 'new_subj_opt'
-        
-        new_subj, _, rel = name_space[new_subj_str]
-        mark, _, _ = name_space['mark'] if 'mark' in name_space else (None, _, _)
-        phrase = mark.get_conllu_field("form") if mark else "NULL"
-        new_subj.add_edge(Label("nsubj", src=type_, phrase=phrase, iid=cur_iid, uncertain=unc), dep)
+
+        # decide wether to propagte both the subject or object or both according to the criteria mentioned before
+        if phrase != "to" or obj == -1:
+            subj.add_edge(Label("nsubj", src=type_, phrase=phrase, iid=cur_iid, uncertain=unc), dep)
+        if obj != -1:
+            sentence[obj].add_edge(Label("nsubj", src=type_, phrase=phrase, iid=cur_iid, uncertain=unc), dep)
 
 
-def extra_advcl_propagation(sentence):
-    advcl_to_rest = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
-            Restriction(name="mark", gov="^(aux|mark)$", form="(^(?i:to)$)")
-        ]]),
-        Restriction(name="new_subj", gov=".?obj")
-    ]])
-    
-    basic_advcl_rest = Restriction(name="father", no_sons_of=".?obj", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
-            Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
-        ]]),
-        Restriction(name="new_subj", gov="nsubj.*")
-    ]])
-    basic_advcl_rest_no_mark = Restriction(name="father", no_sons_of=".?obj", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of="(.subj.*|aux|mark)"),
-        Restriction(name="new_subj", gov="nsubj.*")
-    ]])
-    
-    for advcl_restriction in [advcl_to_rest, basic_advcl_rest, basic_advcl_rest_no_mark]:
-        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False)
+def extra_advcl_propagation(sentence, matches):
+    advcl_or_dep_propagation_per_type(sentence, matches, "advcl", False)
 
 
-def extra_advcl_ambiguous_propagation(sentence):
-    ambiguous_advcl_rest = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of=".subj.*", nested=[[
-            Restriction(name="mark", gov="^(aux|mark)$", form="(?!(^(?i:as|so|when|if)$)).")
-        ]]),
-        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
-    ]])
-    ambiguous_advcl_rest_no_mark = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="advcl", no_sons_of="(.subj.*|aux|mark)"),
-        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
-    ]])
-    
-    for advcl_restriction in [ambiguous_advcl_rest, ambiguous_advcl_rest_no_mark]:
-        advcl_or_dep_propagation_per_type(sentence, advcl_restriction, "advcl", False)
+def extra_dep_propagation(sentence, matches):
+    advcl_or_dep_propagation_per_type(sentence, matches, "dep", True)
 
 
 # here we add a compound relation for each nmod:of relation between two nouns
@@ -375,7 +381,7 @@ def extra_of_prep_alteration(sentence, matches):
     for cur_match in matches:
         gov = cur_match.token("gov")
         nmod_of = cur_match.token("nmod_of")
-        sentence[nmod_of].add_edge(Label("compound", src="nmod", phrase="of"), sentence[gov])
+        sentence[nmod_of].add_edge(Label("compound", src="nmod", phrase="of"), sentence[gov])  # TODO - english = of
 
 
 # here we propagate subjects and objects from the compounds parent down to the compound, if they both are nouns
@@ -472,21 +478,6 @@ def extra_acl_propagation(sentence):
         father, _, _ = name_space['father']
         acl, _, rel = name_space['acl']
         father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
-
-
-def extra_dep_propagation(sentence):
-    dep_rest = Restriction(name="father", no_sons_of = ".?obj", nested=[[
-        Restriction(name="dep", gov="dep", no_sons_of=".subj.*"),
-        Restriction(name="new_subj", gov="(nsubj.*)")
-    ]])
-
-    ambiguous_dea_rest = Restriction(name="father", nested=[[
-        Restriction(name="dep", gov="dep", no_sons_of=".subj.*"),
-        Restriction(name="new_subj_opt", gov="(.?obj|nsubj.*)")
-    ]])
-    
-    for rest in [dep_rest, ambiguous_dea_rest]:
-        advcl_or_dep_propagation_per_type(sentence, rest, "dep", True)
 
 
 def extra_subj_obj_nmod_propagation_of_nmods(sentence):
@@ -1719,10 +1710,9 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_of_prep_alteration_constraint, extra_of_prep_alteration),
         Conversion(ConvTypes.BART, extra_compound_propagation_constraint, extra_compound_propagation),
         Conversion(ConvTypes.BART, extra_xcomp_propagation_no_to_constraint, extra_xcomp_propagation_no_to),
-        Conversion(ConvTypes.BART, Full(), extra_advcl_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_advcl_ambiguous_propagation),
+        Conversion(ConvTypes.BART, extra_advcl_propagation_constraint, extra_advcl_propagation),
         Conversion(ConvTypes.BART, Full(), extra_acl_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_dep_propagation),
+        Conversion(ConvTypes.BART, extra_dep_propagation_constraint, extra_dep_propagation),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss),
         Conversion(ConvTypes.BART, extra_advmod_propagation_constraint, extra_advmod_propagation),
