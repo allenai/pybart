@@ -479,86 +479,122 @@ def extra_acl_propagation(sentence, matches):
         father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
 
 
-def extra_subj_obj_nmod_propagation_of_nmods(sentence):
-    rest = Restriction(name="receiver", nested=[[
-        Restriction(name="mediator", gov="(dobj|.subj.*|nmod)", nested=[[
-            Restriction(name="nmod", gov="nmod", nested=[
-                [Restriction(name="like", gov="case", form="like")],
-                [Restriction(name="such_as", gov="case", form="such", nested= [[
-                    Restriction(gov="mwe", form="as")
-                ]])],
-                [Restriction(name="including", gov="case", form="including")]
-            ])
-        ]])
-    ]])
+extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
+    tokens=[
+        Token(id="receiver"),
+        Token(id="mediator", spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
+        Token(id="modifier"),
+        Token(id="specifier", optional=True, spec=[Field(FieldNames.WORD, ["like", "such", "including"])]),  # TODO: english = like/such/including
+        # this is needed for the `such as` case, as it is a multi word preposition
+        Token(id="as", optional=True, spec=[Field(FieldNames.WORD, "as")]),  # TODO: english = as
+        Token(id="case", optional=True, spec=[Field(FieldNames.TAG, ["IN", "TO"])]),
+    ],
+    edges=[
+        Edge(child="mediator", parent="receiver", label=[HasLabelFromList(subj_options + obj_options + ["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="modifier", parent="mediator", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="specifier", parent="modifier", label=[HasLabelFromList(["case"])]),
+        Edge(child="as", parent="specifier", label=[HasLabelFromList(["mwe"])]),  # TODO: UDv1 = mwe
+        Edge(child="case", parent="mediator", label=[HasLabelFromList(["case"])]),
+    ],
+)
 
-    ret = match(sentence.values(), [[rest]])
-    if not ret:
-        return
 
-    for name_space in ret:
-        nmod, _, nmod_rel = name_space['nmod']
-        receiver, _, _ = name_space['receiver']
-        mediator_rel = name_space['mediator'][2]
+def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches):
+    for cur_match in matches:
+        modifier = cur_match.token("modifier")
+        receiver = cur_match.token("nmod")
+        mediator = cur_match.token("mediator")
+        specifier = cur_match.token("specifier")
+        case = cur_match.token("case")
         
-        phrase = [prep for prep in ["like", "such_as", "including"] if prep in name_space][0]
-        nmod.add_edge(Label(mediator_rel.with_no_bart(), src="nmod", phrase=phrase), receiver)
-
-
-def conj_propagation_of_nmods_per_type(sentence, rest, dont_check_precedence=False):
-    ret = match(sentence.values(), [[rest]])
-    if not ret:
-        return
-
-    # TODO: move this code to a global func, and share code with other cc-assignments
-    cc_assignments = dict()
-    for token in sentence.values():
-        ccs = []
-        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
-            if 'cc' == rel:
-                ccs.append(child.get_conllu_field("form"))
-        i = 0
-        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
-            if rel.startswith('conj'):
-                if len(ccs) == 0:
-                    cc_assignments[child] = 'and'
-                else:
-                    cc_assignments[child] = ccs[i if i < len(ccs) else -1]
-                i += 1
+        # build the phrase according to the specific specifier
+        phrase = sentence[specifier].get_conllu_field("form")
+        if phrase == "such":
+            as_ = cur_match.token("as")
+            # if no `as` case, then this is not really `such as`
+            if as_ == -1:
+                return
+            phrase = phrase + "_" + as_.get_conllu_field("form")
         
-    for name_space in ret:
-        nmod, _, nmod_rel = name_space['nmod']
-        receiver, _, _ = name_space['receiver']
-        conj, _, _ = name_space['conj'] if 'conj' in name_space else name_space['receiver']
+        # we loop just in case there are more than one of object/subject/modifier relations between the receiver and mediator
+        for label in cur_match.edge(mediator, receiver):
+            sentence[modifier].add_edge(Label(label, src="nmod", phrase=phrase), sentence[receiver])
+            # also propagate the attached case in case of modifier relation between the receiver and mediator
+            if label == "nmod" and case != -1:  # TODO: UDv1 = nmod
+                sentence[case].add_edge(
+                    Label("case", eud=sentence[case].get_conllu_info("form").lower(), src="nmod", phrase=phrase), sentence[modifier])
+
+
+def conj_propagation_of_nmods_per_type(sentence, matches):
+    for cur_match in matches:
+        nmod = sentence[cur_match.token("nmod")]
+        receiver = sentence[cur_match.token("receiver")]
+        conj = cur_match.token("conj")
         
-        if '.' not in str(receiver.get_conllu_field("id")) and \
-                (dont_check_precedence or nmod.get_conllu_field("id") > receiver.get_conllu_field("id")):
-            nmod.add_edge(Label(nmod_rel.with_no_bart(), src="conj", uncertain=True, phrase=cc_assignments[conj]), receiver)
+        # this prevents propagating modifiers to added nodes
+        if '.' not in str(receiver.get_conllu_field("id")):
+            conj_per_type = sentence[conj] if conj != -1 else receiver
+            nmod.add_edge(Label("nmod", src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type]), receiver)  # TODO: UDv1 = nmod
 
 
-def extra_conj_propagation_of_nmods(sentence):
-    son_rest = Restriction(name="receiver", no_sons_of="nmod", nested=[[
-        Restriction(name="conj", gov="conj", nested=[[
-            Restriction(name="nmod", gov="nmod(?!(.*@|:poss.*))")
-        ]])
-    ]])
-
-    father_rest = Restriction(nested=[[
-        Restriction(name="receiver", gov="conj"),  # TODO: validate no_sons_of="nmod" isn't needed.
-        Restriction(name="nmod", gov="nmod(?!(.*@|:poss.*))")
-    ]])
-    
-    for conj_restriction in [son_rest, father_rest]:
-        conj_propagation_of_nmods_per_type(sentence, conj_restriction)
+extra_conj_propagation_of_nmods_backwards_constraint = Full(
+    tokens=[
+        Token(id="receiver", outgoing_edges=[HasNoLabel("nmod")]),  # TODO: UDv1 = nmod
+        Token(id="conj"),
+        Token(id="nmod"),
+    ],
+    edges=[
+        Edge(child="conj", parent="receiver", label=[HasLabelFromList(["conj"])]),
+        Edge(child="nmod", parent="conj", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+    ],
+)
 
 
-def extra_conj_propagation_of_poss(sentence):
-    poss_rest = Restriction(nested=[[
-        Restriction(name="receiver", no_sons_of="(nmod:poss.*|det)", gov="conj", xpos="(?!(PRP|NNP.?|WP))"),
-        Restriction(name="nmod", gov="nmod:poss(?!.*@)")
-    ]])
-    
-    conj_propagation_of_nmods_per_type(sentence, poss_rest, True)
+def extra_conj_propagation_of_nmods_backwards(sentence, matches):
+    conj_propagation_of_nmods_per_type(sentence, matches)
+
+
+extra_conj_propagation_of_nmods_forward_constraint = Full(
+    tokens=[
+        Token(id="father"),
+        # TODO: validate if HasNoLabel("nmod") is really needed.
+        Token(id="receiver", outgoing_edges=[HasNoLabel("nmod")]),  # TODO: UDv1 = nmod
+        Token(id="nmod"),
+    ],
+    edges=[
+        Edge(child="receiver", parent="father", label=[HasLabelFromList(["conj"])]),
+        Edge(child="nmod", parent="father", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+    ],
+    distances=[
+        # this will prevent the propagation to create a backward modifier relation
+        UptoDistance("receiver", "nmod", inf)
+    ]
+)
+
+
+def extra_conj_propagation_of_nmods_forward(sentence, matches):
+    conj_propagation_of_nmods_per_type(sentence, matches)
+
+
+
+extra_conj_propagation_of_poss_constraint = Full(
+    tokens=[
+        Token(id="father"),
+        # we need the spec, to prevent propagation of possessive modifiers to pronouns ("my her"), and to proper nouns ("his U.S.A"),
+        # and the `det` restriction to prevent propagation of possessive modifiers to definite phrases ("my the man")
+        Token(id="receiver", spec=[Field(field=FieldNames.TAG, value=pron_pos + ["NNP", "NNPS"], in_sequence=False)],
+              outgoing_edges=[HasNoLabel("nmod:poss"), HasNoLabel("det")]),  # TODO: UDv1 = nmod
+        Token(id="nmod"),
+    ],
+    edges=[
+        Edge(child="receiver", parent="father", label=[HasLabelFromList(["conj"])]),
+        Edge(child="nmod", parent="father", label=[HasLabelFromList(["nmod:poss"])]),  # TODO: UDv1 = nmod
+    ],
+)
+
+
+def extra_conj_propagation_of_poss(sentence, matches):
+    conj_propagation_of_nmods_per_type(sentence, matches)
 
 
 # Here we connect directly the advmod to a predicate that is mediated by an nmod
@@ -1695,11 +1731,12 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_acl_to_propagation_constraint, extra_acl_to_propagation),
         Conversion(ConvTypes.BART, extra_acl_propagation_constraint, extra_acl_propagation),
         Conversion(ConvTypes.BART, extra_dep_propagation_constraint, extra_dep_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods),
-        Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss),
+        Conversion(ConvTypes.BART, extra_conj_propagation_of_nmods_backwards_constraint, extra_conj_propagation_of_nmods_backwards),
+        Conversion(ConvTypes.BART, extra_conj_propagation_of_nmods_forward_constraint, extra_conj_propagation_of_nmods_forward),
+        Conversion(ConvTypes.BART, extra_conj_propagation_of_poss_constraint, extra_conj_propagation_of_poss),
         Conversion(ConvTypes.BART, extra_advmod_propagation_constraint, extra_advmod_propagation),
         Conversion(ConvTypes.BART, extra_appos_propagation_constraint, extra_appos_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_subj_obj_nmod_propagation_of_nmods),
+        Conversion(ConvTypes.BART, extra_subj_obj_nmod_propagation_of_nmods_constraint, extra_subj_obj_nmod_propagation_of_nmods),
         Conversion(ConvTypes.BART, extra_passive_alteration_constraint, extra_passive_alteration),
         Conversion(ConvTypes.BART, extra_amod_propagation_constraint, extra_amod_propagation)
     ]
