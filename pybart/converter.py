@@ -40,6 +40,7 @@ advcl_non_legit_markers = ["as", "so", "when", "if"]  # TODO - english specific
 adj_pos = ["JJ", "JJR", "JJS"]
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
 noun_pos = ["NN", "NNS", "NNP", "NNPS"]
+pron_pos = ["PRP", "PRP$", "WP", "WP$"]
 subj_options = ["nsubj", "nsubjpass", "csubj", "csubjpass"]  # TODO - UDv1 = pass
 obj_options = ["dobj", "iobj"]  # TODO - UDv1 = pass
 EXTRA_INFO_STUB = 1
@@ -430,53 +431,51 @@ def extra_amod_propagation(sentence, matches):
         sentence[gov].add_edge(Label("nsubj", src="amod"), sentence[amod])
 
 
-def extra_acl_propagation(sentence):
-    restriction = Full(
-        tokens=[
-            Token(id="verb", spec=[Field(FieldNames.TAG, ["/(VB.?)/"])]),
-            Token(id="subj"),
-            Token(id="proxy"),
-            Token(id="acl", outgoing_edges=[HasNoLabel("/.subj.*/")]),
-            Token(id="to", spec=[Field(FieldNames.TAG, ["TO"])])],
-        edges=[
-            Edge(child="subj", parent="verb", label=[HasLabelFromList(["/.subj.*/"])]),
-            Edge(child="proxy", parent="verb", label=[HasLabelFromList(["/.*/"])]),
-            Edge(child="acl", parent="proxy", label=[HasLabelFromList(["/acl(?!:relcl)/"])]),
-            Edge(child="to", parent="acl", label=[HasLabelFromList(["mark"])])
-        ],
-    )
+# acl part1: take care of all acl's (not acl:relcl) that are marked by 'to'
+# this case is pretty specific. it means that if we have a verb with subject and object and the object has an acl relation,
+# the new subject connection would be between the verb's subject and the acl subordinate, and not from the acl head relation (the object).
+extra_acl_to_propagation_constraint = Full(
+    tokens=[
+        Token(id="verb", spec=[Field(FieldNames.TAG, verb_pos)]),
+        Token(id="subj", spec=[Field(FieldNames.TAG, pron_pos + noun_pos)]),
+        # we dont want the object/proxy to be the same as `subj` itself
+        Token(id="proxy", spec=[Field(FieldNames.TAG, pron_pos + noun_pos)], incoming_edges=[HasNoLabel(subj_cur) for subj_cur in subj_options]),
+        Token(id="acl", spec=[Field(FieldNames.TAG, verb_pos)], outgoing_edges=[HasNoLabel(subj_cur) for subj_cur in subj_options]),
+        Token(id="to", spec=[Field(FieldNames.TAG, ["TO"])])],
+    edges=[
+        Edge(child="subj", parent="verb", label=[HasLabelFromList(subj_options)]),
+        Edge(child="proxy", parent="verb", label=[HasLabelFromList(obj_options)]),  # TODO - originally it was `.*` regex, what else could be here?
+        Edge(child="acl", parent="proxy", label=[HasLabelFromList(["acl"])]),
+        Edge(child="to", parent="acl", label=[HasLabelFromList(["mark"])])
+    ],
+)
 
-    # part1: take care of all acl's that are marked by 'to'
-    acl_to_rest = Restriction(name="root_or_so", nested=[[
-        Restriction(name="verb", xpos="(VB.?)", nested=[[
-            Restriction(name="subj", gov=".subj.*"),
-            Restriction(name="father", diff="subj", nested=[[
-                Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="nsubj.*", nested=[[
-                    Restriction(name="to", gov="mark", xpos="TO")
-                ]])
-            ]])
-        ]])
-    ]])
-    
-    ret = match(sentence.values(), [[acl_to_rest]])
-    if ret:
-        for name_space in ret:
-            subj, _, _ = name_space['subj']
-            acl, _, rel = name_space['acl']
-            subj.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase='to'), acl)
-    
-    # part2: take care of all acl's that are not marked by 'to'
-    acl_rest = Restriction(name="father", nested=[[
-        Restriction(name="acl", gov="acl(?!:relcl)", no_sons_of="(nsubj.*|mark)")  # TODO: validate that mark can be here only 'to'.
-    ]])
-    
-    ret = match(sentence.values(), [[acl_rest]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        father, _, _ = name_space['father']
-        acl, _, rel = name_space['acl']
+
+def extra_acl_to_propagation(sentence, matches):
+    for cur_match in matches:
+        subj = sentence[cur_match.token("subj")]
+        acl = sentence[cur_match.token("acl")]
+        to = sentence[cur_match.token("to")]
+        subj.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase=to.get_conllu_field("form")), acl)
+
+
+# acl part2: take care of all acl's (not acl:relcl) that are not marked by 'to'
+extra_acl_propagation_constraint = Full(
+    tokens=[
+        Token(id="father", spec=[Field(FieldNames.TAG, pron_pos + noun_pos)],
+              incoming_edges=[HasNoLabel(subj_cur) for subj_cur in subj_options + ["mark"]]),
+        Token(id="acl", spec=[Field(FieldNames.TAG, verb_pos)], outgoing_edges=[HasNoLabel(subj_cur) for subj_cur in subj_options]),
+    ],
+    edges=[
+        Edge(child="acl", parent="father", label=[HasLabelFromList(["acl"])]),
+    ],
+)
+
+
+def extra_acl_propagation(sentence, matches):
+    for cur_match in matches:
+        father = sentence[cur_match.token("father")]
+        acl = sentence[cur_match.token("acl")]
         father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
 
 
@@ -1711,7 +1710,8 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_compound_propagation_constraint, extra_compound_propagation),
         Conversion(ConvTypes.BART, extra_xcomp_propagation_no_to_constraint, extra_xcomp_propagation_no_to),
         Conversion(ConvTypes.BART, extra_advcl_propagation_constraint, extra_advcl_propagation),
-        Conversion(ConvTypes.BART, Full(), extra_acl_propagation),
+        Conversion(ConvTypes.BART, extra_acl_to_propagation_constraint, extra_acl_to_propagation),
+        Conversion(ConvTypes.BART, extra_acl_propagation_constraint, extra_acl_propagation),
         Conversion(ConvTypes.BART, extra_dep_propagation_constraint, extra_dep_propagation),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_nmods),
         Conversion(ConvTypes.BART, Full(), extra_conj_propagation_of_poss),
