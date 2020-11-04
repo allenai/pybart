@@ -158,7 +158,7 @@ eud_heads_of_conjuncts_constraint = Full(
         Token(id="gov"),
         Token(id="dep")],
     edges=[
-        Edge(child="gov", parent="new_gov", label=[HasNoLabel("case")]),
+        Edge(child="gov", parent="new_gov", label=[HasNoLabel("case"), HasNoLabel("mark")]),
         Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
     ],
 )
@@ -171,7 +171,7 @@ def eud_heads_of_conjuncts(sentence, matches):
         dep = cur_match.token("dep")
         
         for rel in cur_match.edge(gov, new_gov):
-            # TODO: check if we can safelly get rid of this:
+            # TODO: check if we can safely get rid of this:
             # # only if they dont fall under the relcl problem, propagate the relation
             # if (new_gov, rel) not in gov.get_extra_info_edges():
             sentence[dep].add_edge(Label(rel), sentence[new_gov])
@@ -191,7 +191,7 @@ eud_case_sons_of_conjuncts_constraint = Full(
         Token(id="dep", outgoing_edges=[HasNoLabel("case"), HasNoLabel("mark")])],
     edges=[
         Edge(child="gov", parent="modifier", label=[HasLabelFromList(["acl", "acl:relcl", "advcl", "nmod"])]),  # TODO: english = relcl, UDv1 = nmod
-        Edge(child="new_son", parent="gov", label=[HasLabelFromList(["case"])]),
+        Edge(child="new_son", parent="gov", label=[HasLabelFromList(["case", "mark"])]),
         Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
     ],
 )
@@ -1418,55 +1418,16 @@ def eud_conj_info(sentence, matches):
             conj.replace_edge(Label(rel), Label(rel, g_cc_assignments[conj]), gov, gov)
 
 
-# The label of the conjunct relation includes the conjunction type
-# because if the verb has multiple cc relations then it can be impossible
-# to infer which coordination marker belongs to which conjuncts.
-def expand_per_type(sentence, restriction, is_pp):
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-        
-    nodes_copied = 0
-    last_copy_id = -1
-    for name_space in ret:
-        gov, _, gov_rel = name_space['gov']
-        to_copy, _, _ = name_space['to_copy']
-        cc, cc_head, cc_rel = name_space['cc']
-        conj, conj_head, conj_rel = name_space['conj']
-        
-        if conj not in g_cc_assignments:
-            continue
-        cc_assignment = g_cc_assignments[conj]
-        
-        # Check if we already copied this node in this same match (as it is hard to restrict that).
-        # This is relevant only for the prep type.
-        if (not is_pp) and any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence.values()):
-            continue
-        
-        # create a copy node,
-        # add conj:cc_info('to_copy', copy_node)
-        nodes_copied = 1 if to_copy.get_conllu_field('id') != last_copy_id else nodes_copied + 1
-        last_copy_id = to_copy.get_conllu_field('id')
-        new_id = to_copy.get_conllu_field('id') + (0.1 * nodes_copied)
-        copy_node = to_copy.copy(
-            new_id=new_id,
-            head="_",
-            deprel="_",
-            misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
-        copy_node.add_edge(Label("conj", cc_assignment), to_copy)
-        sentence[new_id] = copy_node
-        
-        if is_pp:
-            # replace cc('gov', 'cc') with cc('to_copy', 'cc')
-            # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
-            cc.replace_edge(cc_rel, cc_rel, cc_head, to_copy)
-            
-            # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
-            conj.replace_edge(conj_rel, gov_rel, conj_head, copy_node)
-        else:
-            # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
-            modifier, _, modifier_rel = name_space['modifier']
-            modifier.add_edge(Label(modifier_rel, conj.get_conllu_field('form')), copy_node)
+def create_new_node(sentence, to_copy, nodes_copied, last_copy_id):
+    # create a copy node,
+    nodes_copied = 1 if to_copy.get_conllu_field('id') != last_copy_id else nodes_copied + 1
+    last_copy_id = to_copy.get_conllu_field('id')
+    new_id = to_copy.get_conllu_field('id') + (0.1 * nodes_copied)
+    
+    copy_node = to_copy.copy(new_id=new_id, head="_", deprel="_", misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
+    sentence[new_id] = copy_node
+    
+    return copy_node, nodes_copied, last_copy_id
 
 
 # Expands PPs with conjunctions such as in the sentence
@@ -1478,33 +1439,91 @@ def expand_per_type(sentence, restriction, is_pp):
 # while those where removed:
 #   cc(France-4, and-5)
 #   conj(France-4, Serbia-7)
-# After that, expands prepositions with conjunctions such as in the sentence
+eudpp_expand_pp_conjunctions_constraint = Full(
+    tokens=[
+        Token(id="to_copy"),
+        Token(id="gov", outgoing_edges=[HasLabelFromList(["case", "mark"])]),
+        Token(id="cc"),
+        Token(id="conj", outgoing_edges=[HasLabelFromList(["case", "mark"])]),
+    ],
+    edges=[
+        Edge(child="gov", parent="to_copy", label=[HasLabelFromList(["nmod", "acl", "advcl"])]),
+        Edge(child="cc", parent="gov", label=[HasLabelFromList(["cc"])]),
+        Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
+    ],
+)
+
+
+def eudpp_expand_pp_conjunctions(sentence, matches):
+    nodes_copied = 0
+    last_copy_id = -1
+    for cur_match in matches:
+        gov = sentence[cur_match.token('gov')]
+        to_copy = sentence[cur_match.token('to_copy')]
+        cc = sentence[cur_match.token('cc')]
+        conj = sentence[cur_match.token('conj')]
+        
+        if conj not in g_cc_assignments:
+            continue
+        
+        copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
+        copy_node.add_edge(Label("conj", g_cc_assignments[conj]), to_copy)
+        
+        # replace cc('gov', 'cc') with cc('to_copy', 'cc')
+        # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
+        cc.replace_edge("cc", "cc", gov, to_copy)
+        
+        for rel in cur_match.edge(cur_match.token('gov'), cur_match.token('to_copy')):
+            # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
+            conj.replace_edge("conj", rel, gov, copy_node)
+
+
+# expands prepositions with conjunctions such as in the sentence
 # "Bill flies to and from Serbia." by copying the verb resulting
 # in the following new relations:
 #   conj:and(flies, flies')
 #   nmod(flies', Serbia)
-def eudpp_expand_pp_or_prep_conjunctions(sentence):
-    pp_restriction = Restriction(name="to_copy", nested=[[
-        Restriction(name="gov", gov="^(nmod|acl|advcl)$", nested=[[
-            Restriction(gov="case"),
-            Restriction(name="cc", gov="^(cc)$"),
-            Restriction(name="conj", gov="conj", nested=[[
-                Restriction(gov="case")
-            ]])
-        ]])
-    ]])
-    
-    prep_restriction = Restriction(name="to_copy", nested=[[
-        Restriction(name="modifier", nested=[[
-            Restriction(name="gov", gov="case", nested=[[
-                Restriction(name="cc", gov="^(cc)$"),
-                Restriction(name="conj", gov="conj")
-            ]])
-        ]])
-    ]])
-    
-    for rl, is_pp in [(pp_restriction, True), (prep_restriction, False)]:
-        expand_per_type(sentence, rl, is_pp)
+eudpp_expand_prep_conjunctions_constraint = Full(
+    tokens=[
+        Token(id="to_copy"),
+        Token(id="already_copied", optional=True),
+        Token(id="modifier"),
+        Token(id="gov", outgoing_edges=[HasLabelFromList(["cc"])]),
+        Token(id="conj"),
+    ],
+    edges=[
+        Edge(child="modifier", parent="to_copy", label=[HasLabelFromList(["nmod", "acl", "advcl"])]),
+        Edge(child="already_copied", parent="to_copy", label=[HasLabelFromList(["conj"])]),
+        Edge(child="gov", parent="modifier", label=[HasLabelFromList(["case", "mark"])]),
+        Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
+    ],
+)
+
+
+def eudpp_expand_prep_conjunctions(sentence, matches):
+    nodes_copied = 0
+    last_copy_id = -1
+    for cur_match in matches:
+        to_copy = sentence[cur_match.token('to_copy')]
+        conj = sentence[cur_match.token('conj')]
+        modifier = sentence[cur_match.token('modifier')]
+        already_copied = cur_match.token('already_copied')
+
+        if conj not in g_cc_assignments:
+            continue
+        
+        # Check if we already copied this node in this same match (as it is hard to restrict that).
+        # This is relevant only for the prep type.
+        if already_copied != -1 and \
+                any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence.values()):
+            continue
+        
+        copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
+        copy_node.add_edge(Label("conj", g_cc_assignments[conj]), to_copy)
+        
+        # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
+        for rel in cur_match.edge(cur_match.token('modifier'), cur_match.token('to_copy')):
+            modifier.add_edge(Label(rel, conj.get_conllu_field('form')), copy_node)
 
 
 # TODO: UDv1 specific
@@ -1653,7 +1672,9 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
         conversions.pop('eud_passive_agent')
         conversions.pop('eud_conj_info')
     if remove_node_adding_conversions:
-        conversions.pop('eudpp_expand_pp_or_prep_conjunctions')  # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
+        # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
+        conversions.pop('eudpp_expand_prep_conjunctions')
+        conversions.pop('eudpp_expand_pp_conjunctions')
     if remove_unc:
         for func_name in ['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods_forward', 'extra_conj_propagation_of_nmods_backwards', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation']:
             conversions.pop(func_name)
@@ -1711,7 +1732,8 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_reported_evidentiality_constraint, extra_reported_evidentiality),
         Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod),
         Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
-        Conversion(ConvTypes.EUDPP, Full(), eudpp_expand_pp_or_prep_conjunctions),
+        Conversion(ConvTypes.EUDPP, eudpp_expand_pp_conjunctions_constraint, eudpp_expand_pp_conjunctions),
+        Conversion(ConvTypes.EUDPP, eudpp_expand_prep_conjunctions_constraint, eudpp_expand_prep_conjunctions),
         Conversion(ConvTypes.EUD, eud_passive_agent_constraint, eud_passive_agent),
         Conversion(ConvTypes.EUD, eud_heads_of_conjuncts_constraint, eud_heads_of_conjuncts),
         Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
