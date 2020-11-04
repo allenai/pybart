@@ -46,6 +46,7 @@ obj_options = ["dobj", "iobj"]  # TODO - UDv1 = pass
 EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
 g_iids = dict()
+g_cc_assignments = dict()
 
 
 class ConvTypes(Enum):
@@ -158,7 +159,7 @@ eud_heads_of_conjuncts_constraint = Full(
         Token(id="gov"),
         Token(id="dep")],
     edges=[
-        Edge(child="gov", parent="new_gov", label=[HasNoLabel("case"), HasNoLabel("mark")]),
+        Edge(child="gov", parent="new_gov", label=[HasLabelFromList(["/.*/"]), HasNoLabel("case"), HasNoLabel("mark")]),
         Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
     ],
 )
@@ -502,7 +503,7 @@ extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
         Token(id="modifier"),
         Token(id="specifier", optional=True, spec=[Field(FieldNames.WORD, ["like", "such", "including"])]),  # TODO: english = like/such/including
         # this is needed for the `such as` case, as it is a multi word preposition
-        Token(id="as", optional=True, spec=[Field(FieldNames.WORD, "as")]),  # TODO: english = as
+        Token(id="as", optional=True, spec=[Field(FieldNames.WORD, ["as"])]),  # TODO: english = as
         Token(id="case", optional=True, spec=[Field(FieldNames.TAG, ["IN", "TO"])]),
     ],
     edges=[
@@ -518,7 +519,7 @@ extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
 def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches):
     for cur_match in matches:
         modifier = cur_match.token("modifier")
-        receiver = cur_match.token("nmod")
+        receiver = cur_match.token("receiver")
         mediator = cur_match.token("mediator")
         specifier = cur_match.token("specifier")
         case = cur_match.token("case")
@@ -530,7 +531,7 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches):
             # if no `as` case, then this is not really `such as`
             if as_ == -1:
                 return
-            phrase = phrase + "_" + as_.get_conllu_field("form")
+            phrase = phrase + "_" + sentence[as_].get_conllu_field("form")
         
         # we loop just in case there are more than one of object/subject/modifier relations between the receiver and mediator
         for label in cur_match.edge(mediator, receiver):
@@ -541,7 +542,7 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches):
                     Label("case", eud=sentence[case].get_conllu_info("form").lower(), src="nmod", phrase=phrase), sentence[modifier])
 
 
-def conj_propagation_of_nmods_per_type(sentence, matches):
+def conj_propagation_of_nmods_per_type(sentence, matches, specific_nmod_rel):
     for cur_match in matches:
         nmod = sentence[cur_match.token("nmod")]
         receiver = sentence[cur_match.token("receiver")]
@@ -550,7 +551,7 @@ def conj_propagation_of_nmods_per_type(sentence, matches):
         # this prevents propagating modifiers to added nodes
         if '.' not in str(receiver.get_conllu_field("id")):
             conj_per_type = sentence[conj] if conj != -1 else receiver
-            nmod.add_edge(Label("nmod", src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type]), receiver)  # TODO: UDv1 = nmod
+            nmod.add_edge(Label(specific_nmod_rel, src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1]), receiver)
 
 
 extra_conj_propagation_of_nmods_backwards_constraint = Full(
@@ -567,7 +568,7 @@ extra_conj_propagation_of_nmods_backwards_constraint = Full(
 
 
 def extra_conj_propagation_of_nmods_backwards(sentence, matches):
-    conj_propagation_of_nmods_per_type(sentence, matches)
+    conj_propagation_of_nmods_per_type(sentence, matches, "nmod")# TODO: UDv1 = nmod
 
 
 extra_conj_propagation_of_nmods_forward_constraint = Full(
@@ -589,7 +590,7 @@ extra_conj_propagation_of_nmods_forward_constraint = Full(
 
 
 def extra_conj_propagation_of_nmods_forward(sentence, matches):
-    conj_propagation_of_nmods_per_type(sentence, matches)
+    conj_propagation_of_nmods_per_type(sentence, matches, "nmod")# TODO: UDv1 = nmod
 
 
 
@@ -610,7 +611,7 @@ extra_conj_propagation_of_poss_constraint = Full(
 
 
 def extra_conj_propagation_of_poss(sentence, matches):
-    conj_propagation_of_nmods_per_type(sentence, matches)
+    conj_propagation_of_nmods_per_type(sentence, matches, "nmod:poss")# TODO: UDv1 = nmod
 
 
 # Here we connect directly the advmod to a predicate that is mediated by an nmod
@@ -693,7 +694,7 @@ extra_appos_propagation_constraint = Full(
     edges=[
         Edge(child="gov", parent="gov_parent", label=[HasLabelFromList(["/.*/"])]),
         # This is a hand made list of legitimate sons to propagate - so it can be enlarged
-        Edge(child="gov", parent="gov_son", label=[HasLabelFromList(["/acl|amod/"])]),
+        Edge(child="gov", parent="gov_son", label=[HasLabelFromList(["acl", "amod"])]),
         Edge(child="appos", parent="gov", label=[HasLabelFromList(["appos"])]),
     ],
 )
@@ -863,7 +864,7 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, cop_rest, evidential
                 # transfer 'conj' only if it is a verb conjunction, as we want it to be attached to the new (verb/state) root
                 child.replace_edge(rel, rel, old_root, new_root)
                 # find best 'cc' to attach the new root as compliance with the transferred 'conj'.
-                g_cc_assignments[child].replace_edge("cc", "cc", old_root, new_root)
+                g_cc_assignments[child][0].replace_edge("cc", "cc", old_root, new_root)
             elif re.match("nmod(?!:poss)", rel) and evidential:
                 child.replace_edge(rel, rel, old_root, new_root)
             # else: {'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', some: 'cc', 'conj'}
@@ -1399,7 +1400,7 @@ def extra_add_ref_and_collapse(sentence):
 eud_conj_info_constraint = Full(
     tokens=[
         Token(id="gov"),
-        Token(id="conj"),],
+        Token(id="conj")],
     edges=[
         Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
     ],
@@ -1415,7 +1416,7 @@ def eud_conj_info(sentence, matches):
             continue
         
         for rel in cur_match.edge(cur_match.token("conj"), cur_match.token("gov")):
-            conj.replace_edge(Label(rel), Label(rel, g_cc_assignments[conj]), gov, gov)
+            conj.replace_edge(Label(rel), Label(rel, g_cc_assignments[conj][1]), gov, gov)
 
 
 def create_new_node(sentence, to_copy, nodes_copied, last_copy_id):
@@ -1443,12 +1444,10 @@ eudpp_expand_pp_conjunctions_constraint = Full(
     tokens=[
         Token(id="to_copy"),
         Token(id="gov", outgoing_edges=[HasLabelFromList(["case", "mark"])]),
-        Token(id="cc"),
         Token(id="conj", outgoing_edges=[HasLabelFromList(["case", "mark"])]),
     ],
     edges=[
         Edge(child="gov", parent="to_copy", label=[HasLabelFromList(["nmod", "acl", "advcl"])]),
-        Edge(child="cc", parent="gov", label=[HasLabelFromList(["cc"])]),
         Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
     ],
 )
@@ -1460,22 +1459,23 @@ def eudpp_expand_pp_conjunctions(sentence, matches):
     for cur_match in matches:
         gov = sentence[cur_match.token('gov')]
         to_copy = sentence[cur_match.token('to_copy')]
-        cc = sentence[cur_match.token('cc')]
         conj = sentence[cur_match.token('conj')]
-        
+
         if conj not in g_cc_assignments:
             continue
-        
+
+        cc_tok, cc_rel = g_cc_assignments[conj]
+
         copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
-        copy_node.add_edge(Label("conj", g_cc_assignments[conj]), to_copy)
-        
+        copy_node.add_edge(Label("conj", cc_rel), to_copy)
+
         # replace cc('gov', 'cc') with cc('to_copy', 'cc')
         # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
-        cc.replace_edge("cc", "cc", gov, to_copy)
-        
+        cc_tok.replace_edge(Label("cc"), Label("cc"), gov, to_copy)
+
         for rel in cur_match.edge(cur_match.token('gov'), cur_match.token('to_copy')):
             # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
-            conj.replace_edge("conj", rel, gov, copy_node)
+            conj.replace_edge(Label("conj"), Label(rel), gov, copy_node)
 
 
 # expands prepositions with conjunctions such as in the sentence
@@ -1519,7 +1519,7 @@ def eudpp_expand_prep_conjunctions(sentence, matches):
             continue
         
         copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
-        copy_node.add_edge(Label("conj", g_cc_assignments[conj]), to_copy)
+        copy_node.add_edge(Label("conj", g_cc_assignments[conj][1]), to_copy)
         
         # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
         for rel in cur_match.edge(cur_match.token('modifier'), cur_match.token('to_copy')):
@@ -1598,7 +1598,7 @@ def extra_passive_alteration(sentence, matches):
         predicate = sentence[cur_match.token("predicate")]
         agent = cur_match.token("agent")
         by = cur_match.token("by")
-        predicates_obj = cur_match.token("by")
+        predicates_obj = cur_match.token("predicates_obj")
         
         # reverse the agent to be subject
         if agent != -1 and by != -1:
@@ -1649,15 +1649,16 @@ def assign_ccs_to_conjs(sentence):
     for token in sentence.values():
         ccs = []
         for child, rel in sorted(token.get_children_with_rels(), reverse=True):
-            if 'cc' == rel:
-                ccs.append(child.get_conllu_field("form"))
+            if 'cc' == rel.base:
+                ccs.append(child)
         i = 0
         for child, rel in sorted(token.get_children_with_rels(), reverse=True):
-            if rel.startswith('conj'):
+            if rel.base.startswith('conj'):
                 if len(ccs) == 0:
-                    g_cc_assignments[child] = 'and'
+                    g_cc_assignments[child] = (None, 'and')
                 else:
-                    g_cc_assignments[child] = get_assignment(sentence, ccs[i if i < len(ccs) else -1])
+                    cc = ccs[i if i < len(ccs) else -1]
+                    g_cc_assignments[child] = (cc, get_assignment(sentence, cc))
                 i += 1
 
 
@@ -1700,7 +1701,8 @@ def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, 
     # we iterate till convergence or till user defined maximum is reached - the first to come.
     while (i < conv_iterations) and (get_rel_set(sentence) != last_converted_sentence):
         last_converted_sentence = get_rel_set(sentence)
-        m = matcher(sentence)
+        sentence_as_list = [t for i, t in sentence.items() if i != 0]
+        m = matcher(sentence_as_list)
         for conv_name in m.names():
             if conv_name in on_last_iter:
                 do_last_iter.append(conv_name)
@@ -1710,7 +1712,8 @@ def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, 
         i += 1
 
     for conv_name in do_last_iter:
-        m = matcher(sentence)
+        sentence_as_list = [t for i, t in sentence.items() if i != 0]
+        m = matcher(sentence_as_list)
         matches = m.matches_for(conv_name)
         conversions[conv_name].transformation(sentence, matches)
 
