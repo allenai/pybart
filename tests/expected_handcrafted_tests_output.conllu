@@ -166,7 +166,7 @@
 11      are     _       VBP     VBP     _       12      aux     12:aux      	_
 12      reading _       VBG     VBG     _       5       advcl   5:advcl	_
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox1
+# test:eudpp_expand_pp_conjunctions-blackbox1
 1	Bill	Bill	PROPN	NNP	_	2	nsubj	2:nsubj         	_
 2	flies	fly		VERB	VBZ	_	0	root	0:root				_
 2.1	flies	fly		VERB	VBZ	_	_	_		2:conj:and			CopyOf=2
@@ -176,7 +176,7 @@
 6	from	from	ADP		IN	_	7	case	7:case				_
 7	Serbia	Serbia	PROPN	NNP	_	4	conj	2.1:nmod    		_
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox2
+# test:eudpp_expand_pp_conjunctions-blackbox2
 1       Bill    _       NNP     NNP     _       2       nsubj   2:nsubj                                     	_
 2       flies   _       VBZ     VBZ     _       0       root    0:root      									_
 2.1     flies   _       VBZ     VBZ     _       _       _       2:conj:and  						   			CopyOf=2
@@ -200,7 +200,7 @@
 17      from    _       IN      IN      _       18      case    18:case     									_
 18      Israel  _       NNP     NNP     _       4       conj    2.4:nmod	                                    _
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox3
+# test:eudpp_expand_pp_conjunctions-blackbox3
 1       Bill    _       NNP     NNP     _       2       nsubj   2:nsubj              		_
 2       flies   _       VBZ     VBZ     _       0       root    0:root      				_
 2.1     flies   _       VBZ     VBZ     _       _       _       2:conj:and        			CopyOf=2
@@ -219,7 +219,7 @@
 14      from    _       IN      IN      _       15      case    15:case     				_
 15      Italy   _       NNP     NNP     _       12      conj    10.1:nmod         			_
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox4
+# test:eudpp_expand_prep_conjunctions-blackbox1
 1       Bill    _       NNP     NNP     _       2       nsubj   2:nsubj               	_
 2       flies   _       VBZ     VBZ     _       0       root    0:root  				_
 2.1     flies   _       VBZ     VBZ     _       _       _    	2:conj:and      		CopyOf=2
@@ -366,12 +366,23 @@
 1       He      _       PRP     PRP     _       2       nsubj   2:nsubj _
 2       saw     _       VBD     VBD     _       0       root    0:root  _
 3       them    _       PRP     PRP     _       2       dobj    2:dobj  _
-5       in      _       IN      IN      _       7       case    7:case|9:case|11:case   _
-6       the     _       DT      DT      _       7       det     7:det   _
-7       air     _       NN      NN      _       2       nmod    2:nmod  _
-9       ground  _       NN      NN      _       7       conj    2:nmod|7:conj   _
-10      and     _       CC      CC      _       7       cc      7:cc    _
-11      water   _       NN      NN      _       7       conj    2:nmod|7:conj   _
+4       in      _       IN      IN      _       6       case    6:case   _
+5       the     _       DT      DT      _       6       det     6:det   _
+6       air     _       NN      NN      _       2       nmod    2:nmod  _
+7       ground  _       NN      NN      _       6       conj    2:nmod|6:conj   _
+8       and     _       CC      CC      _       6       cc      6:cc    _
+9       water   _       NN      NN      _       6       conj    2:nmod|6:conj   _
+
+# test:eud_case_sons_of_conjuncts-blackbox1
+1       He      _       PRP     PRP     _       2       nsubj   2:nsubj _
+2       saw     _       VBD     VBD     _       0       root    0:root  _
+3       them    _       PRP     PRP     _       2       dobj    2:dobj  _
+4       in      _       IN      IN      _       6       case    6:case|7:case|9:case   _
+5       the     _       DT      DT      _       6       det     6:det   _
+6       air     _       NN      NN      _       2       nmod    2:nmod  _
+7       ground  _       NN      NN      _       6       conj    6:conj  _
+8       and     _       CC      CC      _       6       cc      6:cc    _
+9       water   _       NN      NN      _       6       conj    6:conj  _
 
 # test:eud_xcomp_propagation-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   	2:nsubj|4:nsubj:xcomp(INF)	_
@@ -464,9 +475,9 @@
 4       but     _       CC      CC      _       3       cc      3:cc            _
 5       also    _       RB      RB      _       6       advmod  6:advmod        _
 6       her     _       PRP     PRP     _       3       conj    3:conj:and      _
-8       but     _       CC      CC      _       3       cc      3:cc            _
-9       not     _       RB      RB      _       10      neg     10:neg          _
-10      myself  _       PRP     PRP     _       3       conj    3:conj:negcc    _
+7       but     _       CC      CC      _       3       cc      3:cc            _
+8       not     _       RB      RB      _       9       neg     9:neg           _
+9       myself  _       PRP     PRP     _       3       conj    3:conj:negcc    _
 
 # test:extra_aspectual_reconstruction-blackbox1
 1       FOX     	_           NN      NN      _       2       nsubj   3:nsubj                 _
@@ -516,7 +527,7 @@
 6       a       _       DT      DT      _       7       det     7:det       					_
 7       cake    _       NN      NN      _       5       dobj    5:dobj       					_
 
-# test:extra_acl_propagation-blackbox1
+# test:extra_acl_to_propagation-blackbox1
 1       Putin   _       NNP     NNP     _       3       nsubj   3:nsubj|6:nsubj@acl(NULL, to)   _
 2       has     _       VBZ     VBZ     _       3       aux     3:aux					        _
 3       made    _       VBN     VBN     _       0       root    0:root					        _
@@ -527,7 +538,7 @@
 8       with    _       IN      IN      _       9       case    9:case       					_
 9       Hu      _       NNP     NNP     _       6       nmod    6:nmod	    			        _
 
-# test:extra_acl_propagation-blackbox2
+# test:extra_acl_propagation-blackbox1
 1       soldiers	_       NNS     NNS     _       3       nsubj   3:nsubj	                            _
 2       have    	_       VBP     VBP     _       3       aux     3:aux       					    _
 3       discovered	_       VBN     VBN     _       0       root    0:root					            _
@@ -546,7 +557,7 @@
 6       kidnapped   _       VBN     VBN     _       2       dep     2:dep					            _
 7       nearby  	_       RB      RB      _       6       advmod  6:advmod				            _
 
-# test:extra_conj_propagation_of_nmods-blackbox1
+# test:extra_conj_propagation_of_nmods_forward-blackbox1
 1       he      _       PRP     PRP     _       3       nsubjpass   3:nsubjpass                   	_
 2       was     _       VBD     VBD     _       3       auxpass 	3:auxpass       				_
 3       wounded _       VBN     VBN     _       0       root    	0:root       					_
@@ -555,7 +566,7 @@
 6       in      _       IN      IN      _       7       case    	7:case       					_
 7       Korea   _       NNP     NNP     _       3       nmod    	3:nmod|5:nmod@conj(and, UNC)    _
 
-# test:extra_conj_propagation_of_nmods-blackbox2
+# test:extra_conj_propagation_of_nmods_backwards-blackbox1
 1       he      _       PRP     PRP     _       3       nsubjpass	3:nsubjpass 	            	_
 2       was     _       VBD     VBD     _       3       auxpass 	3:auxpass       				_
 3       wounded _       VBN     VBN     _       0       root    	0:root  						_
@@ -565,7 +576,7 @@
 7       in      _       IN      IN      _       8       case		8:case  						_
 8       Korea   _       NNP     NNP     _       6       nmod		3:nmod@conj(and, UNC)|6:nmod 	_
 
-# test:extra_conj_propagation_of_nmods-blackbox3
+# test:extra_conj_propagation_of_nmods_backwards-blackbox2
 1       he      	_       PRP     PRP     _       3       nsubjpass	3:nsubjpass             _
 2       was     	_       VBD     VBD     _       3       auxpass 	3:auxpass       		_
 3       wounded 	_       VBN     VBN     _       0       root    	0:root  				_
