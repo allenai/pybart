@@ -36,32 +36,32 @@ def fix_indices(name2index: Mapping[str, int], indices2label: Mapping[Tuple[int,
 
 
 # returns a spacy doc representing the sentence
-def get_spacy_doc(sentence: Mapping[int, BartToken], vocab: Vocab) -> SpacyDoc:
+def get_spacy_doc(sentence: Sequence[BartToken], vocab: Vocab) -> SpacyDoc:
     # TODO - add ENT_TYPE when we add entity to graph-token, as we can get it from the spacy doc on the spacy pipeline
-    words = [t.get_conllu_field("form") for i, t in sentence.items() if i != 0]
+    words = [t.get_conllu_field("form") for t in sentence]
     doc = SpacyDoc(vocab, words=words)
     ar = nparray([[
         vocab.strings[t.get_conllu_field("lemma")],
         vocab.strings[t.get_conllu_field("upos")],
         vocab.strings[t.get_conllu_field("xpos")],
-        i == 1] for i, t in sentence.items() if i != 0], dtype=uint64)
+        i == 0] for i, t in enumerate(sentence)], dtype=uint64)
     return doc.from_array([LEMMA, POS, TAG, SENT_START], ar)
 
 
 # gets the verbatim of a token in position i in the sentence
-def get_text(sentence: Mapping[int, BartToken], i: int) -> str:
-    return sentence[i + 1].get_conllu_field("form")
+def get_text(sentence: Sequence[BartToken], i: int) -> str:
+    return sentence[i].get_conllu_field("form")
 
 
 # returns a string list of labels connecting child to parent (or incoming/outgoing to/from child/parent respectively
-def get_labels(sentence: Mapping[int, BartToken], child: int = None, parent: int = None) -> List[str]:
+def get_labels(sentence: Sequence[BartToken], child: int = None, parent: int = None) -> List[str]:
     labels = []
     if child is not None:
         if parent is not None:
-            parent = sentence[parent + 1]
-        labels = [rel.base for _, rel in sentence[child + 1].get_new_relations(given_head=parent)]
+            parent = sentence[parent]
+        labels = [rel.base for _, rel in sentence[child].get_new_relations(given_head=parent)]
     elif parent is not None:
-        labels = [rel.base for _, rel in sentence[parent + 1].get_children_with_rels()]
+        labels = [rel.base for _, rel in sentence[parent].get_children_with_rels()]
 
     return labels
 
@@ -120,7 +120,7 @@ class GlobalMatcher:
         return True
 
     # filter a single match group according to concat constraints
-    def _filter_concat_constraints(self, match: Mapping[str, int], sentence: Mapping[int, BartToken]) -> bool:
+    def _filter_concat_constraints(self, match: Mapping[str, int], sentence: Sequence[BartToken]) -> bool:
         # check for a two-word or three-word phrase match in a given phrases list
         for concat in self.constraint.concats:
             token_names = concat.get_token_names()
@@ -145,7 +145,7 @@ class GlobalMatcher:
             return {}
         return merged_assignment
 
-    def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
+    def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence: Sequence[BartToken]) \
             -> List[List[Dict[str, int]]]:
         edges_assignments = list()
         # pick possible assignments according to the edge constraint
@@ -195,7 +195,7 @@ class GlobalMatcher:
 
         return merges
 
-    def apply(self, matches: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
+    def apply(self, matches: Mapping[str, List[int]], sentence: Sequence[BartToken]) \
             -> Generator[MatchingResult, None, None]:
         filtered = self._filter_edge_constraints(matches, sentence)
         merges = self._merge_edges_assignments(filtered)
@@ -252,7 +252,7 @@ class TokenMatcher:
             patterns.append((constraint.id, not constraint.optional, pattern))
         return patterns
 
-    def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence: Mapping[int, BartToken]) \
+    def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence: Sequence[BartToken]) \
             -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
         checked_tokens = defaultdict(list)
@@ -268,7 +268,7 @@ class TokenMatcher:
                 checked_tokens[name].append(token)
         return checked_tokens
 
-    def apply(self, sentence: Mapping[int, BartToken], doc: SpacyDoc) -> Optional[Mapping[str, List[int]]]:
+    def apply(self, sentence: Sequence[BartToken], doc: SpacyDoc) -> Optional[Mapping[str, List[int]]]:
         matched_tokens = defaultdict(list)
 
         # apply spacy's token-level match
@@ -294,7 +294,7 @@ class TokenMatcher:
 
 class Match:
     def __init__(self, token_matchers: Mapping[str, TokenMatcher],
-                 global_matchers: Mapping[str, GlobalMatcher], sentence: Mapping[int, BartToken], vocab: Vocab):
+                 global_matchers: Mapping[str, GlobalMatcher], sentence: Sequence[BartToken], vocab: Vocab):
         assert token_matchers.keys() == global_matchers.keys()
         self.token_matchers = token_matchers
         self.global_matchers = global_matchers
@@ -380,5 +380,5 @@ class Matcher:
             self.global_matchers[constraint.name] = GlobalMatcher(preprocessed_constraint)
 
     # apply the matching process on a given sentence
-    def __call__(self, sentence: Mapping[int, BartToken]) -> Match:
+    def __call__(self, sentence: Sequence[BartToken]) -> Match:
         return Match(self.token_matchers, self.global_matchers, sentence, self.vocab)
