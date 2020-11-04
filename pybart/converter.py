@@ -47,6 +47,7 @@ EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
 g_iids = dict()
 g_cc_assignments = dict()
+g_ud_version = 1  # default UD version we work with is 1
 
 
 class ConvTypes(Enum):
@@ -71,6 +72,10 @@ class Conversion:
 def get_conversion_names():
     return {func_name for (func_name, _) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
+
+
+def udv(udv1_str: str, udv2_str: str) -> str:
+    return udv1_str if g_ud_version == 1 else udv2_str
 
 
 # This method corrects subjects of verbs for which we identified an auxpass,
@@ -1767,11 +1772,12 @@ def init_conversions():
 
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
-            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, context=None):
-    global g_remove_node_adding_conversions, g_iids
+            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, context=None, ud_version=1):
+    global g_remove_node_adding_conversions, g_iids, g_ud_version
     pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
     pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
+    g_ud_version = ud_version
 
     conversions = init_conversions()
     remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
