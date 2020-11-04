@@ -1015,23 +1015,18 @@ def create_mwe(words, head, rel):
         word.add_edge(rel, head)
         if 0 == i:
             head = word
-            rel = "mwe"
+            rel = Label("mwe")  # TODO: UDv1 = mwe
 
 
-def is_prep_seq(words, preps):
-    return "_".join([word.get_conllu_field('form') for word in words]) in preps
+def reattach_children(old_head, new_head, new_rel=None):
+    [child.replace_edge(child_rel, new_rel if new_rel else child_rel, old_head, new_head) for
+     (child, child_rel) in old_head.get_children_with_rels()]
 
 
-def reattach_children(old_head, new_head):
-    # store them before we make change to the original list
-    [child.replace_edge(child_rel, child_rel, old_head, new_head) for (child, child_rel) in old_head.get_children_with_rels()]
-
-
-def split_concats_by_index(prep_list, prep_len):
-    out = list()
-    for i in range(prep_len):
-        out.append("|".join([prep.split("_")[i] for prep in prep_list]))
-    return out
+def reattach_parents(old_child, new_child, new_rel=None, rel_by_cond=lambda x, y, z: x if x else y):
+    new_child.remove_all_edges()
+    [(old_child.remove_edge(parent_rel, head), new_child.add_edge(rel_by_cond(new_rel, parent_rel, head), head))
+     for (head, parent_rel) in old_child.get_new_relations()]
 
 
 # for example The street is across from you.
@@ -1041,40 +1036,28 @@ def split_concats_by_index(prep_list, prep_len):
 # would be replaced with:
 #   case(you-6, across-4)
 #   mwe(across-4, from-5)
-def eudpp_process_simple_2wp(sentence):
-    restriction = Full(
-        tokens=[
-            Token(id="w1", outgoing_edges=[HasNoLabel("/.*/")]),
-            Token(id="w2", outgoing_edges=[HasNoLabel("/.*/")]),
-            Token(id="common_parent")],
-        edges=[
-            Edge(child="w1", parent="common_parent", label=[HasLabelFromList(["case", "advmod"])]),
-            Edge(child="w2", parent="common_parent", label=[HasLabelFromList(["case"])])
-        ],
-        distances=[ExactDistance("w1", "w2", distance=0)],
-        concats=[TokenPair(two_word_preps_regular, "w1", "w2")]
-    )
-    
-    forms = split_concats_by_index(two_word_preps_regular, 2)
+eudpp_process_simple_2wp_constraint = Full(
+    tokens=[
+        Token(id="w1", no_children=True),
+        Token(id="w2", no_children=True),
+        Token(id="common_parent")],
+    edges=[
+        Edge(child="w1", parent="common_parent", label=[HasLabelFromList(["case", "advmod"])]),
+        Edge(child="w2", parent="common_parent", label=[HasLabelFromList(["case"])])
+    ],
+    distances=[ExactDistance("w1", "w2", distance=0)],
+    concats=[TokenPair(two_word_preps_regular, "w1", "w2")]
+)
 
-    restriction = Restriction(nested=[[
-        Restriction(gov="(case|advmod)", no_sons_of=".*", name="w1", form="^" + forms[0] + "$"),
-        Restriction(gov="case", no_sons_of=".*", follows="w1", name="w2", form="^" + forms[1] + "$")
-    ]])
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        w1, w1_head, w1_rel = name_space['w1']
-        w2, w2_head, w2_rel = name_space['w2']
-        
-        # check if words really form a prepositional phrase
-        if not is_prep_seq([w1, w2], two_word_preps_regular):
-            continue
-        
+
+def eudpp_process_simple_2wp(sentence, matches):
+    for cur_match in matches:
+        common_parent = sentence[cur_match.token("common_parent")]
+        w1 = sentence[cur_match.token("w1")]
+        w2 = sentence[cur_match.token("w2")]
+
         # create multi word expression
-        create_mwe([w1, w2], w1_head, "case")
+        create_mwe([w1, w2], common_parent, Label("case"))
 
 
 # for example: He is close to me.
@@ -1090,45 +1073,39 @@ def eudpp_process_simple_2wp(sentence):
 #   case(me-6, close-3)
 #   mwe(close-3, to-4)
 #   root(ROOT-0, me-6)
-def eudpp_process_complex_2wp(sentence):
-    forms = split_concats_by_index(two_word_preps_complex, 2)
+eudpp_process_complex_2wp_constraint = Full(
+    tokens=[
+        Token(id="w1"),
+        Token(id="w2", no_children=True),
+        Token(id="proxy")],
+    edges=[
+        Edge(child="proxy", parent="w1", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="w2", parent="proxy", label=[HasLabelFromList(["case"])])
+    ],
+    distances=[ExactDistance("w1", "w2", distance=0)],
+    concats=[TokenPair(two_word_preps_complex, "w1", "w2")]
+)
 
-    inner_rest = Restriction(gov="nmod", name="gov2", nested=[[
-        Restriction(name="w2", no_sons_of=".*", form="^" + forms[1] + "$")
-    ]])
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(name="w1", followed_by="w2", form="^" + forms[0] + "$", nested=[
-            [inner_rest, Restriction(name="cop", gov="cop")],  # TODO: after adding the copula reconstuction, maybe this would be redundant
-            [inner_rest]
-        ])
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
 
-    for name_space in ret:
-        w1, _, w1_rel = name_space['w1']
-        w2, _, _ = name_space['w2']
-        gov, _, _ = name_space['gov']
-        gov2, _, gov2_rel = name_space['gov2']
-        cop, _, _ = name_space['cop'] if "cop" in name_space else (None, None, None)
-        
-        # check if words really form a prepositional phrase
-        if not is_prep_seq([w1, w2], two_word_preps_complex):
-            continue
-        
-        # Determine the relation to use for gov2's governor
-        if (w1_rel.lower() == "root") or (cop and (w1_rel in clause_relations)):
-            gov2.replace_edge(gov2_rel, w1_rel, w1, gov)
-        else:
-            gov2.replace_edge(gov2_rel, gov2_rel, w1, gov)
-        
+def eudpp_process_complex_2wp(sentence, matches):
+    for cur_match in matches:
+        w1 = sentence[cur_match.token("w1")]
+        w2 = sentence[cur_match.token("w2")]
+        proxy = sentence[cur_match.token("proxy")]
+
+        # assuming its either and not both
+        proxy_rel = list(cur_match.edge(cur_match.token("proxy"), cur_match.token("w1")))[0]
+
+        # make the proxy the head of the phrase
+        reattach_parents(w1, proxy, new_rel=Label(proxy_rel),
+                         # choose the relation to the new head to be according to a list of labels
+                         rel_by_cond=lambda x, y, z: x if y.base not in (clause_relations + ["root"]) else y)
+
         # reattach w1 sons to gov2.
-        reattach_children(w1, gov2)
+        reattach_children(w1, proxy)
         
         # create multi word expression
-        create_mwe([w1, w2], gov2, "case")
+        create_mwe([w1, w2], proxy, Label("case"))
 
 
 # for example: He is close to me.
@@ -1146,63 +1123,44 @@ def eudpp_process_complex_2wp(sentence):
 #   mwe(in-3, front-4)
 #   mwe(in-3, of-5)
 #   root(ROOT-0, you-6)
-def eudpp_process_3wp(sentence):
-    restriction = Full(
-        tokens=[
-            Token(id="w1", outgoing_edges=[HasNoLabel("/.*/")]),
-            Token(id="w2"),
-            Token(id="w3", outgoing_edges=[HasNoLabel("/.*/")]),
-            Token(id="proxy")],
-        edges=[
-            Edge(child="proxy", parent="w2", label=[HasLabelFromList(["/nmod|acl|advcl).*/"])]),
-            Edge(child="w1", parent="w2", label=[HasLabelFromList(["case"])]),
-            Edge(child="w3", parent="proxy", label=[HasLabelFromList(["case", "mark"])])
-        ],
-        distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "w3", distance=0)],
-        concats=[TokenTriplet(three_word_preps, "w1", "w2", "w3")]
-    )
-    
-    forms = split_concats_by_index(three_word_preps, 3)
-    
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(name="w2", followed_by="w3", follows="w1", form="^" + forms[1] + "$", nested=[[
-            Restriction(name="gov2", gov="(nmod|acl|advcl)", nested=[[
-                Restriction(name="w3", gov="(case|mark)", no_sons_of=".*", form="^" + forms[2] + "$")
-            ]]),
-            Restriction(name="w1", gov="^(case)$", no_sons_of=".*", form="^" + forms[0] + "$")
-        ]])
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        w1, _, _ = name_space['w1']
-        w2, _, w2_rel = name_space['w2']
-        w3, _, _ = name_space['w3']
-        gov, _, _ = name_space['gov']
-        gov2, _, gov2_rel = name_space['gov2']
-        
-        # check if words really form a prepositional phrase
-        if not is_prep_seq([w1, w2, w3], three_word_preps):
-            continue
-        
-        # Determine the relation to use
-        # TODO - replace with reattach_parents, which is something like:
-        #   [(old_child.remove_edge(rel, head) and new_child.add_edge(rel if new_rel is None else new_rel, head)) for (head, rel) in old_head.get_new_relations()]
-        if (w2_rel == "nmod") and (gov2_rel in ["acl", "advcl"]):
-            gov2.replace_edge(gov2_rel, gov2_rel, w2, gov)
-            case = "mark"
-        else:
-            gov2.replace_edge(gov2_rel, w2_rel, w2, gov)
-            case = "case"
+eudpp_process_3wp_constraint = Full(
+    tokens=[
+        Token(id="w1", no_children=True),
+        Token(id="w2"),
+        Token(id="w3", no_children=True),
+        Token(id="proxy")],
+    edges=[
+        Edge(child="proxy", parent="w2", label=[HasLabelFromList(["nmod", "acl", "advcl"])]),  # TODO: UDv1 = nmod
+        Edge(child="w1", parent="w2", label=[HasLabelFromList(["case"])]),
+        Edge(child="w3", parent="proxy", label=[HasLabelFromList(["case", "mark"])])
+    ],
+    distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "w3", distance=0)],
+    concats=[TokenTriplet(three_word_preps, "w1", "w2", "w3")]
+)
+
+
+def eudpp_process_3wp(sentence, matches):
+    for cur_match in matches:
+        w1 = sentence[cur_match.token("w1")]
+        w2 = sentence[cur_match.token("w2")]
+        w3 = sentence[cur_match.token("w3")]
+        proxy = sentence[cur_match.token("proxy")]
+
+        # assuming its either and not both
+        case = list(cur_match.edge(cur_match.token("w3"), cur_match.token("proxy")))[0]
+        proxy_rel = list(cur_match.edge(cur_match.token("proxy"), cur_match.token("w2")))[0]
+
+        # make the proxy the head of the phrase
+        reattach_parents(w2, proxy, new_rel=Label(proxy_rel),
+                         # fix acl to advcl if the new head is a verb, or to root if should be
+                         rel_by_cond=lambda x, y, z: y if x.base not in ["acl", "advcl"] or y.base != "nmod" else
+                         (Label("advcl") if z.get_conllu_field("xpos") in verb_pos and x.base == "acl" else x))
 
         # reattach w2 sons to gov2
-        reattach_children(w2, gov2)
+        reattach_children(w2, proxy)
         
         # create multi word expression
-        create_mwe([w1, w2, w3], gov2, case)
+        create_mwe([w1, w2, w3], proxy, Label(case))
 
 
 # The following two methods corrects Partitives and light noun constructions,
@@ -1729,9 +1687,9 @@ def init_conversions():
     # TODO - update Full to each constraint
     conversion_list = [
         Conversion(ConvTypes.EUD, eud_correct_subj_pass_constraint, eud_correct_subj_pass),
-        Conversion(ConvTypes.EUDPP, Full(), eudpp_process_simple_2wp),
-        Conversion(ConvTypes.EUDPP, Full(), eudpp_process_complex_2wp),
-        Conversion(ConvTypes.EUDPP, Full(), eudpp_process_3wp),
+        Conversion(ConvTypes.EUDPP, eudpp_process_simple_2wp_constraint, eudpp_process_simple_2wp),
+        Conversion(ConvTypes.EUDPP, eudpp_process_complex_2wp_constraint, eudpp_process_complex_2wp),
+        Conversion(ConvTypes.EUDPP, eudpp_process_3wp_constraint, eudpp_process_3wp),
         Conversion(ConvTypes.EUDPP, Full(), eudpp_demote_quantificational_modifiers),
         Conversion(ConvTypes.BART, extra_nmod_advmod_reconstruction_constraint, extra_nmod_advmod_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_copula_reconstruction),
