@@ -25,9 +25,9 @@ two_word_preps_regular = {"across_from", "along_with", "alongside_of", "apart_fr
 two_word_preps_complex = {"apart_from", "as_from", "aside_from", "away_from", "close_by", "close_to", "contrary_to", "far_from", "next_to", "near_to", "out_of", "outside_of", "pursuant_to", "regardless_of", "together_with"}
 three_word_preps = {"by_means_of", "in_accordance_with", "in_addition_to", "in_case_of", "in_front_of", "in_lieu_of", "in_place_of", "in_spite_of", "on_account_of", "on_behalf_of", "on_top_of", "with_regard_to", "with_respect_to"}
 clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "parataxis", "appos", "list"]
-quant_mod_3w = "(?i:lot|assortment|number|couple|bunch|handful|litany|sheaf|slew|dozen|series|variety|multitude|wad|clutch|wave|mountain|array|spate|string|ton|range|plethora|heap|sort|form|kind|type|version|bit|pair|triple|total)"
-quant_mod_2w = "(?i:lots|many|several|plenty|tons|dozens|multitudes|mountains|loads|pairs|tens|hundreds|thousands|millions|billions|trillions|[0-9]+s)"
-quant_mod_2w_det = "(?i:some|all|both|neither|everyone|nobody|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion|trillion|[0-9]+)"
+quant_mod_3w = ['lot', 'assortment', 'number', 'couple', 'bunch', 'handful', 'litany', 'sheaf', 'slew', 'dozen', 'series', 'variety', 'multitude', 'wad', 'clutch', 'wave', 'mountain', 'array', 'spate', 'string', 'ton', 'range', 'plethora', 'heap', 'sort', 'form', 'kind', 'type', 'version', 'bit', 'pair', 'triple', 'total']
+quant_mod_2w = ['lots', 'many', 'several', 'plenty', 'tons', 'dozens', 'multitudes', 'mountains', 'loads', 'pairs', 'tens', 'hundreds', 'thousands', 'millions', 'billions', 'trillions']
+quant_mod_2w_det = ['some', 'all', 'both', 'neither', 'everyone', 'nobody', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'hundred', 'thousand', 'million', 'billion', 'trillion']
 relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
 neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
@@ -1018,9 +1018,9 @@ def create_mwe(words, head, rel):
             rel = Label("mwe")  # TODO: UDv1 = mwe
 
 
-def reattach_children(old_head, new_head, new_rel=None):
+def reattach_children(old_head, new_head, new_rel=None, cond=None):
     [child.replace_edge(child_rel, new_rel if new_rel else child_rel, old_head, new_head) for
-     (child, child_rel) in old_head.get_children_with_rels()]
+     (child, child_rel) in old_head.get_children_with_rels() if not cond or cond(child_rel)]
 
 
 def reattach_parents(old_child, new_child, new_rel=None, rel_by_cond=lambda x, y, z: x if x else y):
@@ -1176,68 +1176,89 @@ def eudpp_process_3wp(sentence, matches):
 #   mwe(A-1, couple-2,)
 #   mwe(A-1, of-3)
 #   root(ROOT-0, people-4)
-def demote_per_type(sentence, restriction):
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    for name_space in ret:
-        old_gov, old_gov_head, old_gov_rel = name_space['w1']
-        w2, w2_head, w2_rel = name_space['w2']
-        gov2, gov2_head, gov2_rel = name_space['gov2']
-        
+def demote_per_type(sentence, matches):
+    for cur_match in matches:
+        gov2 = sentence[cur_match.token("gov2")]
+        old_gov = sentence[cur_match.token("w1")]
+        w2 = sentence[cur_match.token("w2")]
+        w3 = cur_match.token("w3")
+        det = cur_match.token("det")
+        case = cur_match.token("case")
+
         words = [old_gov, w2]
-        if 'w3' in name_space:
-            w3, _, _ = name_space['w3']
-            words += [w3]
+        if w3 != -1:
+            words += [sentence[w3]]
             # run over what we 'though' to be the old_gov, as this is a 3-word mwe
-            old_gov, old_gov_head, old_gov_rel = name_space['w2']
-        elif 'det' in name_space:
+            old_gov = w2
+        elif det != -1:
             # NOTE: this is not done in SC, but should have been by THE PAPER.
             # adding the following determiner to the mwe.
-            det, _, _ = name_space['det']
-            words += [det]
-        
-        [child.replace_edge(rel, rel, old_gov, gov2) for (child, rel) in old_gov.get_children_with_rels() if rel == "case"]
-        gov2.replace_edge(gov2_rel, old_gov_rel, old_gov, old_gov_head)
+            words += [sentence[det]]
+
+        reattach_parents(old_gov, gov2)
         create_mwe(words, gov2, Label("det", "qmod"))
         # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
-        [child.replace_edge(rel, rel, gov2_head, gov2) for (child, rel) in gov2_head.get_children_with_rels() if rel != "mwe"]
+        reattach_children(old_gov, gov2, cond=lambda x: x.base != "mwe")  # TODO: UDv1 = mwe
 
 
-def eudpp_demote_quantificational_modifiers(sentence):
-    quant_3w = Restriction(nested=[[
-        Restriction(name="w2", no_sons_of="amod", form=quant_mod_3w, followed_by="w3", nested=[[
-            Restriction(name="w1", gov="det", form="(?i:an?)"),
-            Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
-                Restriction(name="w3", gov="case", form="(?i:of)")
-            ]])
-        ]])
-    ]])
-    
-    quant_2w = Restriction(nested=[[
-        Restriction(name="w1", form=quant_mod_2w, followed_by="w2", nested=[[
-            Restriction(name="gov2", gov="nmod", xpos="(NN.*|PRP.*)", nested=[[
-                Restriction(name="w2", gov="case", form="(?i:of)")
-            ]])
-        ]])
-    ]])
-    
-    quant_2w_det = Restriction(nested=[[
-        Restriction(name="w1", form=quant_mod_2w_det, followed_by="w2", nested=[[
-            Restriction(name="gov2", gov="nmod", xpos="(NN.*)", nested=[[
-                Restriction(name="det", gov="det"),
-                Restriction(name="w2", gov="case", form="(?i:of)", followed_by="det")
-            ]])
-        ],
-            [Restriction(name="gov2", gov="nmod", xpos="(PRP.*)", nested=[[
-                Restriction(name="w2", gov="case", form="(?i:of)")
-            ]])
-        ]])
-    ]])
-    
-    for rl in [quant_3w, quant_2w, quant_2w_det]:
-        demote_per_type(sentence, rl)
+eudpp_demote_quantificational_modifiers_3w_constraint = Full(
+    tokens=[
+        Token(id="w1", spec=[Field(FieldNames.WORD, ["a", "an"])]),  # TODO: english = a, an
+        Token(id="w2", spec=[Field(FieldNames.WORD, quant_mod_3w)]),
+        Token(id="w3", spec=[Field(FieldNames.WORD, ["of"])]),  # TODO: english = of
+        Token(id="gov2", spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
+    ],
+    edges=[
+        Edge(child="gov2", parent="w2", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="w1", parent="w2", label=[HasLabelFromList(["det"])]),
+        Edge(child="w3", parent="gov2", label=[HasLabelFromList(["case"])]),
+    ],
+    distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "w3", distance=0)],
+)
+
+
+def eudpp_demote_quantificational_modifiers_3w(sentence, matches):
+    demote_per_type(sentence, matches)
+
+
+eudpp_demote_quantificational_modifiers_2w_constraint = Full(
+    tokens=[
+        Token(id="w1", spec=[Field(FieldNames.WORD, quant_mod_2w)]),
+        Token(id="w2", spec=[Field(FieldNames.WORD, ["of"])]),  # TODO: english = of
+        Token(id="gov2", outgoing_edges=[HasNoLabel("det")], spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
+    ],
+    edges=[
+        Edge(child="gov2", parent="w1", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="w2", parent="gov2", label=[HasLabelFromList(["case"])]),
+    ],
+    distances=[ExactDistance("w1", "w2", distance=0)]
+)
+
+
+def eudpp_demote_quantificational_modifiers_2w(sentence, matches):
+    demote_per_type(sentence, matches)
+
+
+eudpp_demote_quantificational_modifiers_det_constraint = Full(
+    tokens=[
+        Token(id="w1", spec=[Field(FieldNames.WORD, quant_mod_2w_det)]),
+        Token(id="w2", spec=[Field(FieldNames.WORD, ["of"])]),  # TODO: english = of
+        Token(id="gov2", spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
+        Token(id="det", optional=True),
+        # Token(id="case", optional=True)
+    ],
+    edges=[
+        Edge(child="gov2", parent="w1", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="w2", parent="gov2", label=[HasLabelFromList(["case"])]),
+        Edge(child="det", parent="gov2", label=[HasLabelFromList(["det"])]),
+        # Edge(child="case", parent="w1", label=[HasLabelFromList(["case"])])
+    ],
+    distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "det", distance=0)]
+)
+
+
+def eudpp_demote_quantificational_modifiers_det(sentence, matches):
+    demote_per_type(sentence, matches)
 
 
 def assign_refs(ret):
@@ -1690,7 +1711,9 @@ def init_conversions():
         Conversion(ConvTypes.EUDPP, eudpp_process_simple_2wp_constraint, eudpp_process_simple_2wp),
         Conversion(ConvTypes.EUDPP, eudpp_process_complex_2wp_constraint, eudpp_process_complex_2wp),
         Conversion(ConvTypes.EUDPP, eudpp_process_3wp_constraint, eudpp_process_3wp),
-        Conversion(ConvTypes.EUDPP, Full(), eudpp_demote_quantificational_modifiers),
+        Conversion(ConvTypes.EUDPP, eudpp_demote_quantificational_modifiers_3w_constraint, eudpp_demote_quantificational_modifiers_3w),
+        Conversion(ConvTypes.EUDPP, eudpp_demote_quantificational_modifiers_2w_constraint, eudpp_demote_quantificational_modifiers_2w),
+        Conversion(ConvTypes.EUDPP, eudpp_demote_quantificational_modifiers_det_constraint, eudpp_demote_quantificational_modifiers_det),
         Conversion(ConvTypes.BART, extra_nmod_advmod_reconstruction_constraint, extra_nmod_advmod_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_copula_reconstruction),
         Conversion(ConvTypes.BART, Full(), extra_evidential_reconstruction),
