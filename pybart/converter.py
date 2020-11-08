@@ -1183,7 +1183,6 @@ def demote_per_type(sentence, matches):
         w2 = sentence[cur_match.token("w2")]
         w3 = cur_match.token("w3")
         det = cur_match.token("det")
-        case = cur_match.token("case")
 
         words = [old_gov, w2]
         if w3 != -1:
@@ -1245,13 +1244,11 @@ eudpp_demote_quantificational_modifiers_det_constraint = Full(
         Token(id="w2", spec=[Field(FieldNames.WORD, ["of"])]),  # TODO: english = of
         Token(id="gov2", spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
         Token(id="det", optional=True),
-        # Token(id="case", optional=True)
     ],
     edges=[
         Edge(child="gov2", parent="w1", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
         Edge(child="w2", parent="gov2", label=[HasLabelFromList(["case"])]),
         Edge(child="det", parent="gov2", label=[HasLabelFromList(["det"])]),
-        # Edge(child="case", parent="w1", label=[HasLabelFromList(["case"])])
     ],
     distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "det", distance=0)]
 )
