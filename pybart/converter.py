@@ -44,7 +44,6 @@ noun_pos = ["NN", "NNS", "NNP", "NNPS"]
 pron_pos = ["PRP", "PRP$", "WP", "WP$"]
 subj_options = ["nsubj", "nsubjpass", "csubj", "csubjpass"]  # TODO - UDv1 = pass
 obj_options = ["dobj", "iobj"]  # TODO - UDv1 = pass
-EXTRA_INFO_STUB = 1
 g_remove_node_adding_conversions = False
 g_iids = dict()
 g_cc_assignments = dict()
@@ -178,9 +177,8 @@ def eud_heads_of_conjuncts(sentence, matches):
         dep = cur_match.token("dep")
         
         for rel in cur_match.edge(gov, new_gov):
-            # TODO: check if we can safely get rid of this:
-            # # only if they dont fall under the relcl problem, propagate the relation
-            # if (new_gov, rel) not in gov.get_extra_info_edges():
+            if sentence[gov].get_conllu_field("id") < sentence[new_gov].get_conllu_field("id") < sentence[dep].get_conllu_field("id"):
+                continue
             sentence[dep].add_edge(Label(rel), sentence[new_gov])
         
         # TODO:

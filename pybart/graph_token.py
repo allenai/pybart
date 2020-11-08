@@ -41,8 +41,7 @@ class Token:
                              "feats": feats, "head": head, "deprel": deprel, "deps": deps, "misc": misc}
         self._children_list = []
         self._new_deps = dict()
-        self._extra_info_edges = dict()
-    
+
     def copy(self, new_id=None, form=None, lemma=None, upos=None, xpos=None, feats=None, head=None, deprel=None, deps=None, misc=None):
         new_id_copy, form_copy, lemma_copy, upos_copy, xpos_copy, feats_copy, head_copy, deprel_copy, deps_copy, misc_copy = self._conllu_info.values()
         return Token(new_id if new_id else new_id_copy,
@@ -90,9 +89,6 @@ class Token:
     def get_parents(self):
         return self._new_deps.keys()
     
-    def get_extra_info_edges(self):
-        return self._extra_info_edges
-    
     def get_new_relations(self, given_head=None):
         new_deps_pairs = []
         for head, edges in self._new_deps.items():
@@ -103,7 +99,7 @@ class Token:
         
         return new_deps_pairs
     
-    def add_edge(self, rel, head, extra_info=None):
+    def add_edge(self, rel, head):
         assert isinstance(rel, Label)
         if head in self._new_deps:
             if rel in self._new_deps[head]:
@@ -112,8 +108,6 @@ class Token:
         else:
             self._new_deps[head] = [rel]
             head.add_child(self)
-        # if extra_info:
-        #     self._extra_info_edges[(head, rel)] = extra_info
     
     def remove_edge(self, rel, head):
         assert isinstance(rel, Label)
@@ -122,8 +116,6 @@ class Token:
             if not self._new_deps[head]:
                 self._new_deps.pop(head)
                 head.remove_child(self)
-            # if (head, rel) in self._extra_info_edges:
-            #     self._extra_info_edges.pop((head, rel))
     
     def remove_all_edges(self):
         for head, edge in self.get_new_relations():
