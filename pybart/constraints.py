@@ -101,6 +101,10 @@ class Edge:
     child: str
     parent: str
     label: Sequence[LabelPresence]
+    optional: bool = field(init=False, default=False)
+
+    def adjust_optionality(self, is_any_opt):
+        object.__setattr__(self, 'optional', is_any_opt)
 
 
 @dataclass(frozen=True)
@@ -223,6 +227,11 @@ class Full:
             if (tok.no_children and tok.outgoing_edges) or (tok.is_root and tok.incoming_edges):
                 raise ValueError(
                     "Found a token with a no_children/is_root constraint and outgoing_edges/incoming_edges constraint")
+
+        for edge in self.edges:
+            is_child_opt = any(tok.optional for tok in self.tokens if tok.id == edge.child)
+            is_parent_opt = any(tok.optional for tok in self.tokens if tok.id == edge.parent)
+            edge.adjust_optionality(is_child_opt or is_parent_opt)
 
 
 # usage examples:
