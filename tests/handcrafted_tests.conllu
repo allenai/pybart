@@ -310,65 +310,17 @@
 12      the     _       DT      DT      _       13      det     	_       _
 13      tale    _       NN      NN      _       11      dobj    	_       _
 
-# test:eudpp_add_ref_and_collapse-whitebox1
-# purpose: child is lefter than grandchild
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	4	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	7	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:eudpp_add_ref_and_collapse-whitebox2
-# purpose: grandchild is lefter than child
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	7	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	6	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox3
-# purpose: two grandchildren to same child
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	4	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	4	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox4
-# purpose: two children to same child
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	7	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	7	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox5
-# purpose: left most relative-word is not descentant of acl-relcl, and grandchild is true leftmost
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	1	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	4	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox6
-# purpose: left most relative-word is not descentant of acl-relcl, and child is true leftmost
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	1	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	7	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
+# test:eudpp_add_ref_and_collapse-blackbox2
+# purpose: test non-reduced case that eud missed
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       understand      _       VBP     VBP     _       0       root    _       _
+3       the     _       DT      DT      _       4       det     _       _
+4       reason  _       NN      NN      _       2       dobj    _       _
+5       why     _       WRB     WRB     _       7       advmod  _       _
+6       they    _       PRP     PRP     _       7       nsubj   _       _
+7       did     _       VBD     VBD     _       4       acl:relcl       _       _
+8       it      _       PRP     PRP     _       7       dobj    _       _
 
 # test:eud_subj_of_conjoined_verbs-blackbox1
 # purpose: test basic functionality, with different voice
@@ -823,17 +775,6 @@
 5       we      _       PRP     PRP     _       6       nsubj   _       _
 6       visited _       VBD     VBD     _       4       acl:relcl       _       _
 7       in      _       RB      RB      _       6       advmod    _     _
-
-# test:extra_add_ref_and_collapse-blackbox3
-# purpose: test non-reduced case that eud missed
-1       I       _       PRP     PRP     _       2       nsubj   _       _
-2       understand      _       VBP     VBP     _       0       root    _       _
-3       the     _       DT      DT      _       4       det     _       _
-4       reason  _       NN      NN      _       2       dobj    _       _
-5       why     _       WRB     WRB     _       7       advmod  _       _
-6       they    _       PRP     PRP     _       7       nsubj   _       _
-7       did     _       VBD     VBD     _       4       acl:relcl       _       _
-8       it      _       PRP     PRP     _       7       dobj    _       _
 
 # test:extra_hyphen_reconstruction-blackbox1
 # purpose: test basic case

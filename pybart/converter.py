@@ -28,7 +28,8 @@ clause_relations = ["conj", "xcomp", "ccomp", "acl", "advcl", "acl:relcl", "para
 quant_mod_3w = ['lot', 'assortment', 'number', 'couple', 'bunch', 'handful', 'litany', 'sheaf', 'slew', 'dozen', 'series', 'variety', 'multitude', 'wad', 'clutch', 'wave', 'mountain', 'array', 'spate', 'string', 'ton', 'range', 'plethora', 'heap', 'sort', 'form', 'kind', 'type', 'version', 'bit', 'pair', 'triple', 'total']
 quant_mod_2w = ['lots', 'many', 'several', 'plenty', 'tons', 'dozens', 'multitudes', 'mountains', 'loads', 'pairs', 'tens', 'hundreds', 'thousands', 'millions', 'billions', 'trillions']
 quant_mod_2w_det = ['some', 'all', 'both', 'neither', 'everyone', 'nobody', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'hundred', 'thousand', 'million', 'billion', 'trillion']
-relativizing_word_regex = "(?i:that|what|which|who|whom|whose)"
+relativizing_words = ["that", "what", "which", "who", "whom", "whose"]
+relativizers_to_rel = {'where': "nmod", "how": "nmod", "when": "nmod:tmod", "why": "nmod"}  # TODO: UDv1 = nmod
 neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
@@ -1258,123 +1259,81 @@ def eudpp_demote_quantificational_modifiers_det(sentence, matches):
     demote_per_type(sentence, matches)
 
 
-def assign_refs(ret):
-    ref_assignments = dict()
-    descendents = dict()
-    for name_space in ret:
-        for level in ['child_ref', 'grand_ref']:
-            if level in name_space:
-                mods_descendent = (name_space[level][0].get_conllu_field('id'), name_space[level])
-                if name_space['mod'] in descendents:
-                    descendents[name_space['mod']].append(mods_descendent)
-                else:
-                    descendents[name_space['mod']] = [mods_descendent]
-    
-    for mod, mods_descendents in descendents.items():
-        leftmost_descendent = sorted(mods_descendents)[0]
-        ref_assignments[mod] = leftmost_descendent[1]
-    
-    return ref_assignments
-
-
-# Look for ref rules for a given word. We look through the
-# children and grandchildren of the acl:relcl dependency, and if any
-# children or grandchildren is a that/what/which/etc word,
-# we take the leftmost that/what/which/etc word as the dependent
-# for the ref TypedDependency.
+# Look for ref rules for a given word.
+# Unlike what was done in SC, we dont look through the grandchildren, but only through the children
+# of the acl:relcl dependency, and assume only one so we dont look for the leftmost. (as this is redundant)
+# If any children is a that/what/which/etc word, we take him as the dependent for the ref TypedDependency.
 # Then we collapse the referent relation such as follows. e.g.:
 # "The man that I love ... " dobj(love, that) -> ref(man, that) dobj(love, man)
-def add_ref_and_collapse_general(sentence, enhanced_plus_plus, enhanced_extra):
-    child_rest = Restriction(name="child_ref", form=relativizing_word_regex)
-    grandchild_rest = Restriction(nested=[[
-        Restriction(name="grand_ref", form=relativizing_word_regex)
-    ]])
-    restriction = Restriction(name="gov", nested=[[
-        Restriction(name="mod", gov='acl:relcl', nested=[
-            [grandchild_rest, child_rest],
-            [grandchild_rest],
-            [child_rest],
-            []
-        ]),
-    ]])
-    
-    ret = match(sentence.values(), [[restriction]])
-    if not ret:
-        return
-    
-    ref_assignments = assign_refs(ret)
-
-    for name_space in ret:
-        gov, gov_head, gov_rel = name_space['gov']
-        if ref_assignments and name_space['mod'] in ref_assignments:
-            if not enhanced_plus_plus:
-                continue
-            leftmost, leftmost_head, leftmost_rel = ref_assignments[name_space['mod']]
-            if gov not in leftmost.get_parents():
-                leftmost.replace_edge(leftmost_rel, "ref", leftmost_head, gov)
-                [child.replace_edge(rel, rel, leftmost, gov) for child, rel in leftmost.get_children_with_rels()]
-                gov.add_edge(leftmost_rel, leftmost_head, extra_info=EXTRA_INFO_STUB)
-        # this is for reduce-relative-clause
-        elif enhanced_extra:
-            leftmost_head, _, prevs_rel = name_space['mod']
-            rels_with_pos = {(relation, child.get_conllu_field('xpos')): child.get_conllu_field('form') for (child, relation) in leftmost_head.get_children_with_rels()}
-            rels_only = [rel for (rel, pos) in rels_with_pos.keys()]
-
-            phrase = "REDUCED"
-            if ("nsubj" not in rels_only) and ("nsubjpass" not in rels_only):
-                leftmost_rel = 'nsubj'
-            # some relativizers that were simply missing on the eUD.
-            elif 'where' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
-                leftmost_rel = 'nmod'
-                phrase = 'where'
-            elif 'how' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
-                leftmost_rel = 'nmod'
-                phrase = 'how'
-            elif 'when' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
-                leftmost_rel = 'nmod:tmod'
-                phrase = 'when'
-            elif 'why' in [child.get_conllu_field('form') for child in leftmost_head.get_children()]:
-                leftmost_rel = Label('nmod', 'because_of')
-                phrase = 'why'
-            
-            # continue with *reduced* relcl, cased of orphan case/marker should become nmod and not obj
-            elif ('nmod', 'RB') in rels_with_pos:
-                leftmost_rel = Label('nmod', rels_with_pos[('nmod', 'RB')])
-            elif ('advmod', 'RB') in rels_with_pos:
-                leftmost_rel = Label('nmod', rels_with_pos[('advmod', 'RB')])
-            elif ('nmod', 'IN') in rels_with_pos:
-                leftmost_rel = Label('nmod', rels_with_pos[('nmod', 'IN')])
-            
-            # NOTE: I couldn't find an example for the following commented out very specific adjusment. TODO - remove in near future.
-            # # this is a special case in which its not the head of the relative clause who get the nmod connection but one of its objects,
-            # # as sometimes the relcl modifies the should-have-been-inner-object's-modifier
-            # elif 'dobj' in rels_only:
-            #     objs = [child for child, rel in leftmost_head.get_children_with_rels() if rel == 'dobj']
-            #     found = False
-            #     for obj in objs:
-            #         rels_with_pos_obj = {(relation, child.get_conllu_field('xpos')): child for
-            #                              (child, relation) in obj.get_children_with_rels()}
-            #         if (('nmod', 'IN') in rels_with_pos_obj) or (('nmod', 'RB') in rels_with_pos_obj):
-            #             case = rels_with_pos_obj[('nmod', 'IN')] if ('nmod', 'IN') in rels_with_pos_obj else rels_with_pos_obj[('nmod', 'RB')]
-            #             gov.add_edge(Label("nmod", eud=case.get_conllu_field('form'), src="reduced-relcl"), obj, extra_info=EXTRA_INFO_STUB)
-            #             case.add_edge(Label("case", src="reduced-relcl"), gov)
-            #             found = True
-            #             break
-            #     if found:
-            #         continue
-            #     # this means we didn't find so rel should be dobj
-            #     leftmost_rel = 'dobj'
-            else:
-                leftmost_rel = 'dobj'
-            gov.add_edge(Label(leftmost_rel, src="acl", src_type="RELCL", phrase=phrase), leftmost_head, extra_info=EXTRA_INFO_STUB)
+eudpp_add_ref_and_collapse_constraint = Full(
+    tokens=[
+        Token(id="relativizer", spec=[Field(FieldNames.WORD, relativizing_words + list(relativizers_to_rel.keys()))]),
+        Token(id="gov"),
+        Token(id="mod")
+    ],
+    edges=[
+        Edge(child="mod", parent="gov", label=[HasLabelFromList(["acl:relcl"])]),  # TODO: english: relcl
+        Edge(child="relativizer", parent="mod", label=[HasLabelFromList(["/.*/"])])
+    ],
+)
 
 
-def eudpp_add_ref_and_collapse(sentence):
-    add_ref_and_collapse_general(sentence, True, False)
+def eudpp_add_ref_and_collapse(sentence, matches):
+    for cur_match in matches:
+        gov = sentence[cur_match.token('gov')]
+        mod = sentence[cur_match.token('mod')]
+        relativizer = sentence[cur_match.token('relativizer')]
+
+        # this is a pretty basic case so we can assume only one label
+        label = list(cur_match.edge(cur_match.token('relativizer'), cur_match.token('mod')))[0]
+        text = relativizer.get_conllu_field("form").lower()
+        # some relativizers that were simply missing on the eUD, we added them as nmods
+        new_label = Label(relativizers_to_rel[text], eud=text) if text in relativizers_to_rel else Label(label)
+
+        reattach_children(relativizer, gov)
+        relativizer.replace_edge(Label(label), Label("ref"), mod, gov)
+        gov.add_edge(new_label, mod)
 
 
-def extra_add_ref_and_collapse(sentence):
-    add_ref_and_collapse_general(sentence, False, True)
+# this is for reduce-relative-clause
+extra_add_ref_and_collapse_constraint = Full(
+    tokens=[
+        # this will prevent changing the non-reduced relcl
+        Token(id="gov", outgoing_edges=[HasNoLabel("ref")]),
+        Token(id="mod"),
+        Token("subj", optional=True),
+        Token("prep", optional=True, spec=[Field(FieldNames.TAG, ["RB", "IN"])])
+    ],
+    edges=[
+        Edge(child="mod", parent="gov", label=[HasLabelFromList(["acl:relcl"])]),  # TODO: english: relcl
+        Edge(child="subj", parent="mod", label=[HasLabelFromList(subj_options)]),
+        Edge(child="prep", parent="mod", label=[HasLabelFromList(["advmod", "nmod", "case", "mark"])]),  # TODO: UDv1: nmod
+    ],
+)
+
+
+def extra_add_ref_and_collapse(sentence, matches):
+    for cur_match in matches:
+        gov = sentence[cur_match.token('gov')]
+        mod = sentence[cur_match.token('mod')]
+        subj = cur_match.token('subj')
+        prep = cur_match.token('prep')
+
+        eud = None
+        if subj == -1:
+            leftmost_rel = "nsubj"
+        # cased of orphan case/marker should become nmod and not obj
+        elif prep != -1:
+            leftmost_rel = 'nmod'  # TODO: UDv1 = nmod
+            eud = sentence[prep].get_conllu_field("form").lower()
+            # replace the orphan prep to ba a case relation
+            # TODO: but actually this is a bit harsh,
+            #   for example "after" and "before" should remain 'advmod', maybe refix it in future
+            old_rel = list(cur_match.edge(prep, cur_match.token('mod')))[0]
+            sentence[prep].replace_edge(Label(old_rel), Label("case"), mod, mod)
+        else:
+            leftmost_rel = 'dobj'  # TODO: UDv1 = dobj
+        gov.add_edge(Label(leftmost_rel, eud=eud, src="acl", src_type="RELCL", phrase="REDUCED"), mod)
 
 
 # Adds the type of conjunction to all conjunct relations
@@ -1725,8 +1684,8 @@ def init_conversions():
         Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
         Conversion(ConvTypes.EUD, eud_prep_patterns_constraint, eud_prep_patterns),
         Conversion(ConvTypes.EUD, eud_conj_info_constraint, eud_conj_info),
-        Conversion(ConvTypes.BART, Full(), extra_add_ref_and_collapse),
-        Conversion(ConvTypes.EUDPP, Full(), eudpp_add_ref_and_collapse),
+        Conversion(ConvTypes.EUDPP, eudpp_add_ref_and_collapse_constraint, eudpp_add_ref_and_collapse),
+        Conversion(ConvTypes.BART, extra_add_ref_and_collapse_constraint, extra_add_ref_and_collapse),
         Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
         Conversion(ConvTypes.EUD, extra_xcomp_propagation_no_to_constraint, eud_xcomp_propagation),
         Conversion(ConvTypes.BART, extra_of_prep_alteration_constraint, extra_of_prep_alteration),

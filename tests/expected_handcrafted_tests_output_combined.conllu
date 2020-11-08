@@ -301,59 +301,15 @@
 12	the	_	DT	DT	_	13	det	13:det	_
 13	tale	_	NN	NN	_	11	dobj	11:dobj	_
 
-# test:eudpp_add_ref_and_collapse-whitebox1
-1	The	the	DET	DT	_	2	det	2:det	_
-2	boy	boy	NOUN	NN	_	0	root	0:root|4:nsubj|7:nsubj	_
-3	who	who	CASE	CASE	_	4	nsubj	2:ref	_
-4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
-5	whom	whom	CASE	CASE	_	7	nsubj	2:ref	_
-6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
-7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
-
-# test:eudpp_add_ref_and_collapse-whitebox2
-1	The	the	DET	DT	_	2	det	2:det	_
-2	boy	boy	NOUN	NN	_	0	root	0:root|7:nsubj	_
-3	who	who	CASE	CASE	_	7	nsubj	2:ref	_
-4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
-5	whom	whom	CASE	CASE	_	6	nsubj	6:nsubj	_
-6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
-7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
-
-# test:eudpp_add_ref_and_collapse-whitebox3
-1	The	the	DET	DT	_	2	det	2:det	_
-2	boy	boy	NOUN	NN	_	0	root	0:root|4:nsubj|7:dobj@acl(RELCL, REDUCED)	_
-3	who	who	CASE	CASE	_	4	nsubj	2:ref	_
-4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
-5	whom	whom	CASE	CASE	_	4	nsubj	2:ref	_
-6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
-7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
-
-# test:eudpp_add_ref_and_collapse-whitebox4
-1	The	the	DET	DT	_	2	det	2:det	_
-2	boy	boy	NOUN	NN	_	0	root	0:root|7:nsubj	_
-3	who	who	CASE	CASE	_	7	nsubj	2:ref	_
-4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
-5	whom	whom	CASE	CASE	_	7	nsubj	7:nsubj	_
-6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
-7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
-
-# test:eudpp_add_ref_and_collapse-whitebox5
-1	The	the	DET	DT	_	2	det	2:det	_
-2	boy	boy	NOUN	NN	_	0	root	0:root|4:nsubj|7:dobj@acl(RELCL, REDUCED)	_
-3	who	who	CASE	CASE	_	1	nsubj	1:nsubj	_
-4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
-5	whom	whom	CASE	CASE	_	4	nsubj	2:ref	_
-6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
-7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
-
-# test:eudpp_add_ref_and_collapse-whitebox6
-1	The	the	DET	DT	_	2	det	2:det	_
-2	boy	boy	NOUN	NN	_	0	root	0:root|7:nsubj	_
-3	who	who	CASE	CASE	_	1	nsubj	1:nsubj	_
-4	bla	bla	NOUN	NN	_	7	nsubj	7:nsubj	_
-5	whom	whom	CASE	CASE	_	7	nsubj	2:ref	_
-6	bla	bla	DET	DT	_	7	nsubj	7:nsubj	_
-7	lived	live	NOUN	NN	_	2	acl:relcl	2:acl:relcl	_
+# test:eudpp_add_ref_and_collapse-blackbox2
+1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
+2	understand	_	VBP	VBP	_	0	root	0:root	_
+3	the	_	DT	DT	_	4	det	4:det	_
+4	reason	_	NN	NN	_	2	dobj	2:dobj|7:nmod:why	_
+5	why	_	WRB	WRB	_	7	advmod	4:ref	_
+6	they	_	PRP	PRP	_	7	nsubj	7:nsubj	_
+7	did	_	VBD	VBD	_	4	acl:relcl	4:acl:relcl	_
+8	it	_	PRP	PRP	_	7	dobj	7:dobj	_
 
 # test:eud_subj_of_conjoined_verbs-blackbox1
 1	The	_	DT	DT	_	2	det	2:det	_
@@ -753,17 +709,7 @@
 4	place	_	NN	NN	_	2	dobj	2:dobj|6:nmod:in@acl(RELCL, REDUCED)	_
 5	we	_	PRP	PRP	_	6	nsubj	6:nsubj	_
 6	visited	_	VBD	VBD	_	4	acl:relcl	4:acl:relcl	_
-7	in	_	RB	RB	_	6	advmod	6:advmod	_
-
-# test:extra_add_ref_and_collapse-blackbox3
-1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
-2	understand	_	VBP	VBP	_	0	root	0:root	_
-3	the	_	DT	DT	_	4	det	4:det	_
-4	reason	_	NN	NN	_	2	dobj	2:dobj|7:nmod:because_of@acl(RELCL, why)	_
-5	why	_	WRB	WRB	_	7	advmod	7:advmod	_
-6	they	_	PRP	PRP	_	7	nsubj	7:nsubj	_
-7	did	_	VBD	VBD	_	4	acl:relcl	4:acl:relcl	_
-8	it	_	PRP	PRP	_	7	dobj	7:dobj	_
+7	in	_	RB	RB	_	6	advmod	6:case	_
 
 # test:extra_hyphen_reconstruction-blackbox1
 1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
