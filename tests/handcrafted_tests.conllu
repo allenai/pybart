@@ -856,38 +856,38 @@
 4       be      _       VB      VB      _       5       cop     _       _
 5       queen   _       NN      NN      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox1
+# test:extra_evidential_basic_reconstruction-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       smart   _       JJ      JJ      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox2
+# test:extra_evidential_basic_reconstruction-blackbox2
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       the     _       DT      DT      _       4       det     _       _
 4       king    _       NN      NN      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox3
+# test:extra_evidential_basic_reconstruction-blackbox3
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       from    _       IN      IN      _       4       case    _       _
 4       Europe  _       NNP     NNP     _       2       nmod    _       _
 
-# test:extra_evidential_reconstruction-blackbox4
+# test:extra_evidential_basic_reconstruction-blackbox4
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       5       mark    _       _
 4       be      _       VB      VB      _       5       cop     _       _
 5       smart   _       JJ      JJ      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox5
+# test:extra_evidential_xcomp_reconstruction-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem    VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       4       mark    _       _
 4       appear  appear  VB      VB      _       2       xcomp   _       _
 5       early   _       RB      RB      _       4       advmod  _       _
 
-# test:extra_evidential_reconstruction-blackbox6
+# test:extra_evidential_xcomp_reconstruction-blackbox2
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem    VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       4       mark    _       _

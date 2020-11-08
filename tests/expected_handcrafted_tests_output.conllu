@@ -791,27 +791,27 @@
 4.1     STATE   _       _       _       _       _       _       2:xcomp _
 5       queen   _       NN      NN      _       2       xcomp   4.1:xcomp       _
 
-# test:extra_evidential_reconstruction-blackbox1
+# test:extra_evidential_basic_reconstruction-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   2.1:nsubj       _
 2       seems   seem    VBZ     VBZ     _       0       root    2.1:ev  _
 2.1     STATE   _       _       _       _       _       _       0:root  _
 3       smart   _       JJ      JJ      _       2       xcomp   1:amod@cop()|2.1:xcomp  _
 
-# test:extra_evidential_reconstruction-blackbox2
+# test:extra_evidential_basic_reconstruction-blackbox2
 1       He      _       PRP     PRP     _       2       nsubj   2.1:nsubj       _
 2       seems   seem    VBZ     VBZ     _       0       root    2.1:ev  _
 2.1     STATE   _       _       _       _       _       _       0:root  _
 3       the     _       DT      DT      _       4       det     4:det   _
 4       king    _       NN      NN      _       2       xcomp   2.1:xcomp       _
 
-# test:extra_evidential_reconstruction-blackbox3
+# test:extra_evidential_basic_reconstruction-blackbox3
 1       He      _       PRP     PRP     _       2       nsubj   2.1:nsubj       _
 2       seems   seem    VBZ     VBZ     _       0       root    2.1:ev  _
 2.1     STATE   _       _       _       _       _       _       0:root  _
 3       from    _       IN      IN      _       4       case    4:case  _
 4       Europe  _       NNP     NNP     _       2       nmod    2.1:nmod        _
 
-# test:extra_evidential_reconstruction-blackbox4
+# test:extra_evidential_basic_reconstruction-blackbox4
 # TODO: unwanted but expected when running without copula reconstruction
 1       He      _       PRP     PRP     _       2       nsubj   2.1:nsubj       _
 2       seems   seem    VBZ     VBZ     _       0       root    2.1:ev  _
@@ -820,17 +820,16 @@
 4       be      _       VB      VB      _       5       cop     5:cop   _
 5       smart   _       JJ      JJ      _       2       xcomp   1:amod@cop()|2.1:xcomp  _
 
-# test:extra_evidential_reconstruction-blackbox5
+# test:extra_evidential_xcomp_reconstruction-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   4:nsubj _
 2       seems   seem    VBZ     VBZ     _       0       root    4:ev@xcomp(EVIDENTIAL)  _
 3       to      _       TO      TO      _       4       mark    4:mark  _
 4       appear  appear  VB      VB      _       2       xcomp   0:root  _
 5       early   _       RB      RB      _       4       advmod  4:advmod        _
 
-# test:extra_evidential_reconstruction-blackbox6
-1       He      _       PRP     PRP     _       2       nsubj   4.1:nsubj       _
+# test:extra_evidential_xcomp_reconstruction-blackbox2
+1       He      _       PRP     PRP     _       2       nsubj   4:nsubj       _
 2       seems   seem    VBZ     VBZ     _       0       root    4:ev@xcomp(EVIDENTIAL)  _
 3       to      _       TO      TO      _       4       mark    4:mark  _
-4       appear  appear  VB      VB      _       2       xcomp   4.1:ev  _
-4.1     STATE   _       _       _       _       _       _       0:root  _
-5       funny   _       JJ      JJ      _       4       xcomp   4.1:xcomp       _
+4       appear  appear  VB      VB      _       2       xcomp   0:root  _
+5       funny   _       JJ      JJ      _       4       xcomp   4:xcomp       _
