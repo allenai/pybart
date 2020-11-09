@@ -505,7 +505,7 @@ def extra_compound_propagation(sentence, matches):
 extra_amod_propagation_constraint = Full(
     tokens=[
         Token(id="gov"),
-        Token(id="amod", incoming_edges=[HasNoLabel(arg) for arg in subj_options]),
+        Token(id="amod", outgoing_edges=[HasNoLabel(arg) for arg in subj_options]),
     ],
     edges=[
         Edge(child="amod", parent="gov", label=[HasLabelFromList(["amod"])]),

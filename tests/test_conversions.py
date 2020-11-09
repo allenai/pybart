@@ -73,7 +73,7 @@ class TestConversions:
                                    context=nlp.vocab)
             serialized_conllu = serialize_conllu([sent], [None], False)
             for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
-                assert out_line.split() == gold_line, spec + str([print(s) for s in serialized_conllu.split("\n")])
+                assert out_line.split() == gold_line, spec + str(print("\n")) + str([print(s) for s in serialized_conllu.split("\n")])
     
     @classmethod
     def common_logic_combined(cls, cur_name, rnac=False):
@@ -85,7 +85,7 @@ class TestConversions:
                 convert([sent], True, True, True, math.inf, False, False, rnac, False, False, funcs_to_cancel=[], context=nlp.vocab)
             serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold_combined[name][spec], serialized_conllu.split("\n")):
-                assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
+                assert out_line.split() == gold_line, spec + str(print("\n")) + str([print(s) for s in serialized_conllu.split("\n")])
 
     def test_no_node_adding(self):
         self.common_logic_combined("test_combined_no_node_adding", rnac=True)

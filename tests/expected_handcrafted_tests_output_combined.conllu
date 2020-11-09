@@ -839,12 +839,12 @@
 5	funny	_	JJ	JJ	_	4	xcomp	4.1:xcomp	_
 
 # test:no_node_adding-blackbox1
-1       He      _       PRP     PRP     _       2       nsubj   2:nsubj       _
+1       He      _       PRP     PRP     _       2       nsubj   2:nsubj|3:nsubj@xcomp(GERUND)       _
 2       seems   _       VBZ     VBZ     _       0       root    0:root        _
 3       smart   _       JJ      JJ      _       2       xcomp   2:xcomp       _
 
 # test:no_node_adding-blackbox2
-1       He      _       PRP     PRP     _       3       nsubj   2:nsubj|3:nsubj@amod()+cop()    _
+1       He      _       PRP     PRP     _       3       nsubj   2:nsubj|3:nsubj@xcomp(GERUND)    _
 2       is      _       VBZ     VBZ     _       3       cop     0:root                          _
 3       smart   _       JJ      JJ      _       0       root    1:amod@cop()|2:xcomp            _
 
