@@ -140,7 +140,7 @@ class GlobalMatcher:
         return merged_assignment
 
     def _filter_edge_constraints(self, matches: Mapping[str, List[int]], sentence: Sequence[BartToken]) \
-            -> List[List[Dict[str, int]]]:
+            -> List[Tuple[bool, List[Dict[str, int]]]]:
         edges_assignments = list()
         # pick possible assignments according to the edge constraint
         for edge in self.constraint.edges:
@@ -165,24 +165,24 @@ class GlobalMatcher:
                     # store all captured labels according to the child-parent token pair
                     self.captured_labels[(edge.child, child, edge.parent, parent)].update(captured_labels)
                     # keep the filtered assignment for further merging
-                    edge_assignments.append((edge.optional, {edge.child: child, edge.parent: parent}))
+                    edge_assignments.append({edge.child: child, edge.parent: parent})
             if edge_assignments:
-                edges_assignments.append(edge_assignments)
+                edges_assignments.append((edge.optional, edge_assignments))
             elif not edge.optional:
                 return []
         return edges_assignments
 
     @staticmethod
-    def _merge_edges_assignments(edges_assignments: List[List[Tuple[bool, Dict[str, int]]]]) -> List[Dict[str, int]]:
+    def _merge_edges_assignments(edges_assignments: List[Tuple[bool, List[Dict[str, int]]]]) -> List[Dict[str, int]]:
         merges = []
         # for each list of possible assignments of an edge
-        for edge_assignments in edges_assignments:
+        for edge_is_optional, edge_assignments in edges_assignments:
             new_merges = []
             # for each merged assignment. (we need an empty dictionary for the first cycle to start with)
             for merged in (merges if merges else [{}]):
                 # for each possible assignment in the current list
                 edge_added = False
-                for edge_is_optional, assignment in edge_assignments:
+                for assignment in edge_assignments:
                     # try to merge (see that there is no contradiction on hashing)
                     just_merged = GlobalMatcher._try_merge(merged, assignment)
                     if just_merged:
