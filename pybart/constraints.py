@@ -140,7 +140,7 @@ class UptoDistance(Distance):
             raise ValueError("'up-to' distance can't be negative")
 
     def satisfied(self, calculated_distance: int) -> bool:
-        return self.distance >= calculated_distance
+        return 0 <= calculated_distance <= self.distance
 
 
 @dataclass(frozen=True)
