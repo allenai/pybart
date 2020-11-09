@@ -31,7 +31,6 @@ from .graph_token import Token as BartToken
 
 # returns a spacy doc representing the sentence
 def get_spacy_doc(sentence: Sequence[BartToken], vocab: Vocab) -> SpacyDoc:
-    # TODO - add ENT_TYPE when we add entity to graph-token, as we can get it from the spacy doc on the spacy pipeline
     words = [t.get_conllu_field("form") for t in sentence]
     doc = SpacyDoc(vocab, words=words)
     ar = nparray([[
@@ -107,7 +106,6 @@ class GlobalMatcher:
             #   and thus we can skip on this distance constraint
             if distance.token1 not in match or distance.token2 not in match:
                 continue
-            # TODO - why would we need sentence.index
             calculated_distance = match[distance.token2] - match[distance.token1] - 1
             if not distance.satisfied(calculated_distance):
                 return False
@@ -149,7 +147,7 @@ class GlobalMatcher:
             # Note - we assume that if a token is not in the matches dict, then it was an optional one,
             #   and thus we can skip on this edge constraint
             # Note2 - we assume that if a node is not mentioned in any edge constraint,
-            #   then it is a redundant token-constraint (TODO - validate this assumption)
+            #   then it is a redundant token-constraint
             for child in matches.get(edge.child, []):
                 for parent in matches.get(edge.parent, []):
                     not_optional = True
@@ -240,11 +238,9 @@ class TokenMatcher:
         for constraint in constraints:
             pattern = dict()
             for spec in constraint.spec:
-                # TODO - the list is comprised of either strings or regexes - so spacy's 'IN' or 'REGEX' won't do
-                #   for now, assuming a list is given (hence the use of "IN"/"NOT_IN")
+                # assuming a list is given (hence the use of "IN"/"NOT_IN", and not REGEX)
                 in_or_not_in = "IN" if spec.in_sequence else "NOT_IN"
                 if spec.field == FieldNames.WORD:
-                    # TODO - check if you need non LOWER case (i.e. TEXT)
                     pattern["LOWER"] = {in_or_not_in: spec.value}
                 elif spec.field == FieldNames.LEMMA:
                     pattern["LEMMA"] = {in_or_not_in: spec.value}
