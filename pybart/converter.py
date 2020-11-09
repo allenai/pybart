@@ -172,35 +172,15 @@ def eud_correct_subj_pass(sentence, matches):
             sentence[subj].replace_edge(Label(subj_rel), new_rel, sentence[pred], sentence[pred])
 
 
-# add 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
-eud_passive_agent_constraint = Full(
-    tokens=[
-        Token(id="gov", outgoing_edges=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = pass
-        Token(id="mod"),
-        Token(id="case", spec=[Field(field=FieldNames.WORD, value=["by"])]),  # TODO: english = by
-    ],
-    edges=[
-        Edge(child="mod", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO - UDv1 = nmod
-        Edge(child="case", parent="mod", label=[HasLabelFromList(["case"])]),
-    ]
-)
-
-
-def eud_passive_agent(sentence, matches):
-    for cur_match in matches:
-        mod = cur_match.token("mod")
-        gov = cur_match.token("gov")
-        for rel in cur_match.edge(mod, gov):
-            sentence[mod].replace_edge(Label(rel), Label(rel, eud="agent"), sentence[gov], sentence[gov])
-
-
 # This conversion adds the case information on the label.
+# and adds 'agent' to nmods if it is cased by 'by', and have an auxpass sibling
 # Note - Originally  SC took care of cases in which the words of a multi-word preposition were not adjacent,
 #   but this is too rigorous as it should never happen, so we ignore this case.
 eud_prep_patterns_constraint = Full(
     tokens=[
         Token(id="gov"),
         Token(id="mod"),
+        Token(id="auxpass", optional=True),
         Token(id="c1"),
         Token(id="c_nn", optional=True, spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
         Token(id="c_in", optional=True, spec=[Field(field=FieldNames.TAG, value=["IN"])]),
@@ -210,6 +190,7 @@ eud_prep_patterns_constraint = Full(
         Edge(child="c1", parent="mod", label=[HasLabelFromList(["case", "mark"])]),
         Edge(child="c_in", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
         Edge(child="c_nn", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
+        Edge(child="auxpass", parent="gov", label=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = auxpass
     ],
 )
 
@@ -221,8 +202,11 @@ def eud_prep_patterns(sentence, matches):
         c1 = cur_match.token("c1")
         c_in = cur_match.token("c_in")
         c_nn = cur_match.token("c_nn")
+        auxpass = cur_match.token("auxpass")
         for rel in cur_match.edge(mod, gov):
             prep_sequence = "_".join([sentence[ci].get_conllu_field("form") for ci in [c1, c_nn, c_in] if ci != -1]).lower()
+            if prep_sequence == "by" and auxpass != -1:  # TODO: english = by
+                prep_sequence = "agent"
             sentence[mod].replace_edge(Label(rel), Label(rel, prep_sequence), sentence[gov], sentence[gov])
 
 
@@ -1537,7 +1521,6 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
     if not enhanced_extra:
         conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.BART}
     if remove_enhanced_extra_info:
-        conversions.pop('eud_passive_agent')
         conversions.pop('eud_conj_info')
     if remove_node_adding_conversions:
         # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
@@ -1548,7 +1531,7 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
             conversions.pop(func_name)
     if query_mode:
         for func_name in conversions.keys():
-            if func_name in ['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_basic_reconstruction', 'extra_evidential_xcomp_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_passive_agent', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers']:
+            if func_name in ['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_basic_reconstruction', 'extra_evidential_xcomp_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers']:
                 conversions.pop(func_name)
     for func_to_cancel in funcs_to_cancel:
         conversions.pop(func_to_cancel)
@@ -1605,7 +1588,6 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUDPP, eudpp_expand_pp_conjunctions_constraint, eudpp_expand_pp_conjunctions),
         Conversion(ConvTypes.EUDPP, eudpp_expand_prep_conjunctions_constraint, eudpp_expand_prep_conjunctions),
-        Conversion(ConvTypes.EUD, eud_passive_agent_constraint, eud_passive_agent),
         Conversion(ConvTypes.EUD, eud_heads_of_conjuncts_constraint, eud_heads_of_conjuncts),
         Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
         Conversion(ConvTypes.EUD, eud_prep_patterns_constraint, eud_prep_patterns),
