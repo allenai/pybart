@@ -86,7 +86,7 @@
 
 # test:eudpp_process_complex_2wp-blackbox3
 # purpose: test for gov2's relation type (nmod)
-1       As      _       IN      IN      _       2       case    _       _
+1       As      _       IN      IN      _       2       advmod    _       _
 2       close   _       NN      NN      _       7       nmod    _       _
 3       to      _       TO      TO      _       4       case    _       _
 4       me      _       PRP     PRP     _       2       nmod    _       _

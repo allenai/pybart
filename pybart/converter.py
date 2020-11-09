@@ -183,7 +183,7 @@ eud_prep_patterns_constraint = Full(
         Token(id="auxpass", optional=True),
         Token(id="c1"),
         Token(id="c_nn", optional=True, spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
-        Token(id="c_in", optional=True, spec=[Field(field=FieldNames.TAG, value=["IN"])]),
+        Token(id="c_in", optional=True, spec=[Field(field=FieldNames.TAG, value=["IN", "TO"])]),
     ],
     edges=[
         Edge(child="mod", parent="gov", label=[HasLabelFromList(["advcl", "acl", "nmod"])]),  # TODO - UDv1 = nmod
@@ -207,6 +207,9 @@ def eud_prep_patterns(sentence, matches):
             prep_sequence = "_".join([sentence[ci].get_conllu_field("form") for ci in [c1, c_nn, c_in] if ci != -1]).lower()
             if prep_sequence == "by" and auxpass != -1:  # TODO: english = by
                 prep_sequence = "agent"
+            # TODO: this is because we constraint only on base string and not on Label or parts of it such as eud
+            if any(r.eud is not None for h, r in sentence[mod].get_new_relations(sentence[gov])):
+                continue
             sentence[mod].replace_edge(Label(rel), Label(rel, prep_sequence), sentence[gov], sentence[gov])
 
 
@@ -231,7 +234,8 @@ def eud_heads_of_conjuncts(sentence, matches):
         for rel in cur_match.edge(gov, new_gov):
             if sentence[gov].get_conllu_field("id") < sentence[new_gov].get_conllu_field("id") < sentence[dep].get_conllu_field("id"):
                 continue
-            sentence[dep].add_edge(Label(rel), sentence[new_gov])
+            if (sentence[new_gov], rel) not in [(h, r.base) for (h, r) in sentence[dep].get_new_relations()]:
+                sentence[dep].add_edge(Label(rel), sentence[new_gov])
         
         # TODO:
         #   for the trees of ambiguous "The boy and the girl who lived told the tale."
@@ -242,13 +246,11 @@ def eud_heads_of_conjuncts(sentence, matches):
 
 eud_case_sons_of_conjuncts_constraint = Full(
     tokens=[
-        Token(id="modifier"),
         Token(id="new_son"),
         Token(id="gov"),
-        Token(id="dep", outgoing_edges=[HasNoLabel("case"), HasNoLabel("mark")])],
+        Token(id="dep", outgoing_edges=[HasNoLabel(child) for child in ["aux", "auxpass", "case", "mark"]])],  # TODO: UDv1 = auxpass
     edges=[
-        Edge(child="gov", parent="modifier", label=[HasLabelFromList(["acl", "acl:relcl", "advcl", "nmod"])]),  # TODO: english = relcl, UDv1 = nmod
-        Edge(child="new_son", parent="gov", label=[HasLabelFromList(["case", "mark"])]),
+        Edge(child="new_son", parent="gov", label=[HasLabelFromList(["aux", "auxpass", "case", "mark"])]),
         Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
     ],
 )
@@ -257,9 +259,11 @@ eud_case_sons_of_conjuncts_constraint = Full(
 def eud_case_sons_of_conjuncts(sentence, matches):
     for cur_match in matches:
         new_son = sentence[cur_match.token("new_son")]
+        gov = cur_match.token("gov")
         dep = sentence[cur_match.token("dep")]
 
-        new_son.add_edge(Label("case"), dep)
+        rel = list(cur_match.edge(cur_match.token("new_son"), gov))[0]
+        new_son.add_edge(Label(rel), dep)
         
 
 # NOTE -  we propagate only subj (for now) as this is what SC stated:
@@ -321,7 +325,7 @@ extra_xcomp_propagation_no_to_constraint = Full(
     tokens=[
         Token(id="gov"),
         Token(id="new_subj"),
-        Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos + adj_pos + ["TO"])],
+        Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos + ["TO"])],
               outgoing_edges=[HasNoLabel(subj) for subj in subj_options]),
         Token(id="to_marker", optional=True, spec=[Field(field=FieldNames.TAG, value=["TO"])]),
     ],
@@ -557,7 +561,7 @@ extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
         Token(id="receiver"),
         Token(id="mediator", spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
         Token(id="modifier"),
-        Token(id="specifier", optional=True, spec=[Field(FieldNames.WORD, ["like", "such", "including"])]),  # TODO: english = like/such/including
+        Token(id="specifier", spec=[Field(FieldNames.WORD, ["like", "such", "including"])]),  # TODO: english = like/such/including
         # this is needed for the `such as` case, as it is a multi word preposition
         Token(id="as", optional=True, spec=[Field(FieldNames.WORD, ["as"])]),  # TODO: english = as
         Token(id="case", optional=True, spec=[Field(FieldNames.TAG, ["IN", "TO"])]),
@@ -603,11 +607,16 @@ def conj_propagation_of_nmods_per_type(sentence, matches, specific_nmod_rel):
         nmod = sentence[cur_match.token("nmod")]
         receiver = sentence[cur_match.token("receiver")]
         conj = cur_match.token("conj")
-        
+        case = cur_match.token("case")
+
         # this prevents propagating modifiers to added nodes
-        if '.' not in str(receiver.get_conllu_field("id")):
-            conj_per_type = sentence[conj] if conj != -1 else receiver
-            nmod.add_edge(Label(specific_nmod_rel, src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1]), receiver)
+        if '.' in str(receiver.get_conllu_field("id")):
+            continue
+
+        conj_per_type = sentence[conj] if conj != -1 else receiver
+        nmod.add_edge(
+            Label(specific_nmod_rel, eud=None if case == -1 else sentence[case].get_conllu_field("form").lower(),
+                  src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1]), receiver)
 
 
 extra_conj_propagation_of_nmods_backwards_constraint = Full(
@@ -615,10 +624,12 @@ extra_conj_propagation_of_nmods_backwards_constraint = Full(
         Token(id="receiver", outgoing_edges=[HasNoLabel("nmod")]),  # TODO: UDv1 = nmod
         Token(id="conj"),
         Token(id="nmod"),
+        Token(id="case")
     ],
     edges=[
         Edge(child="conj", parent="receiver", label=[HasLabelFromList(["conj"])]),
         Edge(child="nmod", parent="conj", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="case", parent="nmod", label=[HasLabelFromList(["case"])])
     ],
 )
 
@@ -633,10 +644,12 @@ extra_conj_propagation_of_nmods_forward_constraint = Full(
         # TODO: validate if HasNoLabel("nmod") is really needed.
         Token(id="receiver", outgoing_edges=[HasNoLabel("nmod")]),  # TODO: UDv1 = nmod
         Token(id="nmod"),
+        Token(id="case")
     ],
     edges=[
         Edge(child="receiver", parent="father", label=[HasLabelFromList(["conj"])]),
         Edge(child="nmod", parent="father", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="case", parent="nmod", label=[HasLabelFromList(["case"])])
     ],
     distances=[
         # this will prevent the propagation to create a backward modifier relation
@@ -713,6 +726,10 @@ extra_nmod_advmod_reconstruction_constraint = Full(
         Edge(child="nmod", parent="advmod", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
         Edge(child="case", parent="nmod", label=[HasLabelFromList(["case"])]),
     ],
+    concats=[
+        TokenPair(two_word_preps_regular, "advmod", "case", in_set=False),
+        TokenPair(two_word_preps_complex, "advmod", "case", in_set=False)
+    ]
 )
 
 
@@ -938,7 +955,7 @@ extra_evidential_xcomp_reconstruction_constraint = Full(
     tokens=[
         Token(id="old_root", spec=[
             Field(field=FieldNames.TAG, value=verb_pos), Field(field=FieldNames.LEMMA, value=evidential_list)]),
-        Token(id="new_root", spec=[Field(field=FieldNames.TAG, value=verb_pos)]),
+        Token(id="new_root", spec=[Field(field=FieldNames.TAG, value=noun_pos + adj_pos, in_sequence=False)]),
     ],
     edges=[
         Edge(child="new_root", parent="old_root", label=[HasLabelFromList(["xcomp", "ccomp"])])
@@ -1309,7 +1326,7 @@ def eud_conj_info(sentence, matches):
 
         if conj not in g_cc_assignments:
             continue
-        
+
         for rel in cur_match.edge(cur_match.token("conj"), cur_match.token("gov")):
             conj.replace_edge(Label(rel), Label(rel, g_cc_assignments[conj][1]), gov, gov)
 
@@ -1339,11 +1356,13 @@ eudpp_expand_pp_conjunctions_constraint = Full(
     tokens=[
         Token(id="to_copy"),
         Token(id="gov", outgoing_edges=[HasLabelFromList(["case", "mark"])]),
-        Token(id="conj", outgoing_edges=[HasLabelFromList(["case", "mark"])]),
+        Token(id="conj"),
+        Token(id="already_copied", optional=True),
     ],
     edges=[
         Edge(child="gov", parent="to_copy", label=[HasLabelFromList(["nmod", "acl", "advcl"])]),
         Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
+        Edge(child="already_copied", parent="to_copy", label=[HasLabelFromList(["conj"])]),
     ],
 )
 
@@ -1355,9 +1374,15 @@ def eudpp_expand_pp_conjunctions(sentence, matches):
         gov = sentence[cur_match.token('gov')]
         to_copy = sentence[cur_match.token('to_copy')]
         conj = sentence[cur_match.token('conj')]
+        already_copied = cur_match.token('already_copied')
 
         if conj not in g_cc_assignments:
             continue
+
+        # Check if we already copied this node in this same match (as it is hard to restrict that).
+        if already_copied != -1 and \
+                any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence):
+            return
 
         cc_tok, cc_rel = g_cc_assignments[conj]
 
@@ -1371,7 +1396,8 @@ def eudpp_expand_pp_conjunctions(sentence, matches):
 
         for rel in cur_match.edge(cur_match.token('gov'), cur_match.token('to_copy')):
             # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
-            conj.replace_edge(Label("conj"), Label(rel), gov, copy_node)
+            conj.remove_all_edges()
+            conj.add_edge(Label(rel), copy_node)
 
 
 # expands prepositions with conjunctions such as in the sentence
@@ -1409,10 +1435,9 @@ def eudpp_expand_prep_conjunctions(sentence, matches):
             continue
         
         # Check if we already copied this node in this same match (as it is hard to restrict that).
-        # This is relevant only for the prep type.
         if already_copied != -1 and \
                 any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence):
-            continue
+            return
         
         copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
         copy_node.add_edge(Label("conj", g_cc_assignments[conj][1]), to_copy)
@@ -1475,7 +1500,7 @@ extra_passive_alteration_constraint = Full(
         Token(id="predicate"),
         # the no-object lookup will prevent repeatedly converting this conversion
         Token(id="subjpass", incoming_edges=[HasNoLabel(obj) for obj in obj_options]),
-        Token(id="agent", optional=True),
+        Token(id="agent", optional=True, spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
         Token(id="by", optional=True, spec=[Field(FieldNames.WORD, ["by"])]),  # TODO - english specific
         Token(id="predicates_obj", optional=True)],
     edges=[
@@ -1570,6 +1595,7 @@ def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, c
 
 def init_conversions():
     # TODO - update Full to each constraint
+
     conversion_list = [
         Conversion(ConvTypes.EUD, eud_correct_subj_pass_constraint, eud_correct_subj_pass),
         Conversion(ConvTypes.EUDPP, eudpp_process_simple_2wp_constraint, eudpp_process_simple_2wp),
@@ -1586,10 +1612,10 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_reported_evidentiality_constraint, extra_reported_evidentiality),
         Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod),
         Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
+        Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
         Conversion(ConvTypes.EUDPP, eudpp_expand_pp_conjunctions_constraint, eudpp_expand_pp_conjunctions),
         Conversion(ConvTypes.EUDPP, eudpp_expand_prep_conjunctions_constraint, eudpp_expand_prep_conjunctions),
         Conversion(ConvTypes.EUD, eud_heads_of_conjuncts_constraint, eud_heads_of_conjuncts),
-        Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
         Conversion(ConvTypes.EUD, eud_prep_patterns_constraint, eud_prep_patterns),
         Conversion(ConvTypes.EUD, eud_conj_info_constraint, eud_conj_info),
         Conversion(ConvTypes.EUDPP, eudpp_add_ref_and_collapse_constraint, eudpp_add_ref_and_collapse),
@@ -1612,7 +1638,6 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_passive_alteration_constraint, extra_passive_alteration),
         Conversion(ConvTypes.BART, extra_amod_propagation_constraint, extra_amod_propagation)
     ]
-
     return {conversion.name: conversion for conversion in conversion_list}
 
 

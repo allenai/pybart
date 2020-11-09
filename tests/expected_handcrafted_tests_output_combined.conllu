@@ -58,7 +58,7 @@
 4	across	_	IN	IN	_	7	advmod	3:advmod	_
 5	ahead	_	IN	IN	_	7	case	7:case	_
 6	from	_	IN	IN	_	7	case	7:case	_
-7	you	_	PRP	PRP	_	0	root	3.1:nmod:ahead|3.1:nmod:from	_
+7	you	_	PRP	PRP	_	0	root	3.1:nmod:ahead	_
 
 # test:eudpp_process_complex_2wp-blackbox1
 1	He	_	PRP	PRP	_	3	nsubj	2.1:nsubj	_
@@ -84,7 +84,7 @@
 11	me	_	PRP	PRP	_	9	nmod	8.1:nmod:close_by	_
 
 # test:eudpp_process_complex_2wp-blackbox3
-1	As	_	IN	IN	_	2	case	4:case	_
+1	As	_	IN	IN	_	2	advmod	4:advmod	_
 2	close	_	NN	NN	_	7	nmod	4:case	_
 3	to	_	TO	TO	_	4	case	2:mwe	_
 4	me	_	PRP	PRP	_	2	nmod	7:nmod:close_to	_
@@ -311,26 +311,30 @@
 5	river	_	NN	NN	_	0	root	0:root|2:nsubj@amod()|4:nsubj@amod()	_
 
 # test:eud_heads_of_conjuncts-blackbox3
-1       He      _       PRP     PRP     _       2       nsubj   2:nsubj _
-2       saw     _       VBD     VBD     _       0       root    0:root  _
-3       them    _       PRP     PRP     _       2       dobj    2:dobj  _
-4       in      _       IN      IN      _       6       case    6:case|7:case|9:case   _
-5       the     _       DT      DT      _       6       det     6:det   _
-6       air     _       NN      NN      _       2       nmod    2:nmod:in       _
-7       ground  _       NN      NN      _       6       conj    2:nmod:in|6:conj:and    _
-8       and     _       CC      CC      _       6       cc      6:cc    _
-9       water   _       NN      NN      _       6       conj    2:nmod:in|6:conj:and    _
+1       He      _       PRP     PRP     _       2       nsubj   2:nsubj|2.1:nsubj|2.2:nsubj _
+2       saw     _       VBD     VBD     _       0       root    0:root                      _
+2.1     saw	    _	    VBD	    VBD	    _	    _	    _	    2:conj:and                  CopyOf=2
+2.2 	saw	    _	    VBD	    VBD	    _	    _	    _	    2:conj:and	                CopyOf=2
+3       them    _       PRP     PRP     _       2       dobj    2:dobj                      _
+4       in      _       IN      IN      _       6       case    6:case|7:case|9:case        _
+5       the     _       DT      DT      _       6       det     6:det                       _
+6       air     _       NN      NN      _       2       nmod    2:nmod:in                   _
+7       ground  _       NN      NN      _       6       conj    2.1:nmod:in                 _
+8       and     _       CC      CC      _       6       cc      2:cc                        _
+9       water   _       NN      NN      _       6       conj    2.2:nmod:in                 _
 
 # test:eud_case_sons_of_conjuncts-blackbox1
-1       He      _       PRP     PRP     _       2       nsubj   2:nsubj _
-2       saw     _       VBD     VBD     _       0       root    0:root  _
-3       them    _       PRP     PRP     _       2       dobj    2:dobj  _
-4       in      _       IN      IN      _       6       case    6:case|7:case|9:case   _
-5       the     _       DT      DT      _       6       det     6:det   _
-6       air     _       NN      NN      _       2       nmod    2:nmod:in       _
-7       ground  _       NN      NN      _       6       conj    2:nmod:in|6:conj:and    _
-8       and     _       CC      CC      _       6       cc      6:cc    _
-9       water   _       NN      NN      _       6       conj    2:nmod:in|6:conj:and    _
+1       He      _       PRP     PRP     _       2       nsubj   2:nsubj|2.1:nsubj|2.2:nsubj _
+2       saw     _       VBD     VBD     _       0       root    0:root                      _
+2.1     saw	    _	    VBD	    VBD	    _	    _	    _	    2:conj:and                  CopyOf=2
+2.2 	saw	    _	    VBD	    VBD	    _	    _	    _	    2:conj:and	                CopyOf=2
+3       them    _       PRP     PRP     _       2       dobj    2:dobj                      _
+4       in      _       IN      IN      _       6       case    6:case|7:case|9:case        _
+5       the     _       DT      DT      _       6       det     6:det                       _
+6       air     _       NN      NN      _       2       nmod    2:nmod:in                   _
+7       ground  _       NN      NN      _       6       conj    2.1:nmod:in                 _
+8       and     _       CC      CC      _       6       cc      2:cc                        _
+9       water   _       NN      NN      _       6       conj    2.2:nmod:in                 _
 
 # test:eud_xcomp_propagation-blackbox1
 1	He	_	PRP	PRP	_	2	nsubj	2:nsubj|4:nsubj:xcomp(INF)	_
@@ -405,7 +409,7 @@
 4	order	_	NN	NN	_	3	mwe	3:mwe	_
 5	to	_	TO	TO	_	6	mark	6:mark	_
 6	make	_	VB	VB	_	2	advcl	2:advcl:in_order	_
-7	you	_	PRP	PRP	_	8	nsubj	8:nsubj|9:nsubj@xcomp(GERUND)	_
+7	you	_	PRP	PRP	_	8	nsubj	8:nsubj	_
 8	feel	_	VB	VB	_	6	ccomp	6:ccomp	_
 9	bad	_	JJ	JJ	_	8	xcomp	8:xcomp	_
 
@@ -541,7 +545,7 @@
 
 # test:extra_conj_propagation_of_nmods_forward-blackbox1
 1	he	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass|5:dobj@passive()|5:nsubjpass	_
-2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass|5:auxpass	_
 3	wounded	_	VBN	VBN	_	0	root	0:root	_
 4	and	_	CC	CC	_	3	cc	3:cc	_
 5	trapped	_	VBN	VBN	_	3	conj	3:conj:and	_
@@ -550,7 +554,7 @@
 
 # test:extra_conj_propagation_of_nmods_backwards-blackbox1
 1	he	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass|6:dobj@passive()|6:nsubjpass	_
-2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
+2	was	_	VBD	VBD	_	3	auxpass	3:auxpass|6:auxpass	_
 3	wounded	_	VBN	VBN	_	0	root	0:root	_
 4	heavily	_	RB	RB	_	3	advmod	3:advmod	_
 5	and	_	CC	CC	_	3	cc	3:cc	_
@@ -559,7 +563,7 @@
 8	Korea	_	NNP	NNP	_	6	nmod	3:nmod:in@conj(and, UNC)|6:nmod:in	_
 
 # test:extra_conj_propagation_of_nmods_backwards-blackbox2
-1	he	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass|8:dobj@passive()|8:nsubjpass	_
+1	he	_	PRP	PRP	_	3	nsubjpass	3:dobj@passive()|3:nsubjpass|8:nsubj	_
 2	was	_	VBD	VBD	_	3	auxpass	3:auxpass	_
 3	wounded	_	VBN	VBN	_	0	root	0:root	_
 4	in	_	IN	IN	_	5	case	5:case	_
@@ -751,7 +755,7 @@
 9	spreading	_	VBG	VBG	_	8	xcomp	8:xcomp	_
 
 # test:extra_copula_reconstruction-blackbox1
-1	She	_	PRP	PRP	_	3	nsubj	2.1:nsubj|3:nsubj@amod()+cop()	_
+1	She	_	PRP	PRP	_	3	nsubj	2.1:nsubj|3:nsubj@amod()	_
 2	is	_	VBZ	VBZ	_	3	cop	2.1:ev	_
 2.1	STATE	_	_	_	_	_	_	0:root	_
 3	smart	_	JJ	JJ	_	0	root	1:amod@cop()|2.1:xcomp	_
@@ -804,7 +808,7 @@
 5	queen	_	NN	NN	_	2	xcomp	4.1:xcomp	_
 
 # test:extra_evidential_basic_reconstruction-blackbox1
-1	He	_	PRP	PRP	_	2	nsubj	2.1:nsubj|3:nsubj@amod()+cop()	_
+1	He	_	PRP	PRP	_	2	nsubj	2.1:nsubj|3:nsubj@amod()	_
 2	seems	seem	VBZ	VBZ	_	0	root	2.1:ev	_
 2.1	STATE	_	_	_	_	_	_	0:root	_
 3	smart	_	JJ	JJ	_	2	xcomp	1:amod@cop()|2.1:xcomp	_
@@ -839,20 +843,20 @@
 5	early	_	RB	RB	_	4	advmod	4:advmod	_
 
 # test:extra_evidential_xcomp_reconstruction-blackbox2
-1	He	_	PRP	PRP	_	2	nsubj	4.1:nsubj	_
+1	He	_	PRP	PRP	_	2	nsubj	4.1:nsubj|5:nsubj@amod()	_
 2	seems	seem	VBZ	VBZ	_	0	root	4:ev@xcomp(EVIDENTIAL)	_
 3	to	_	TO	TO	_	4	mark	4:mark	_
 4	appear	appear	VB	VB	_	2	xcomp	4.1:ev	_
 4.1	STATE	_	_	_	_	_	_	0:root	_
-5	funny	_	JJ	JJ	_	4	xcomp	4.1:xcomp	_
+5	funny	_	JJ	JJ	_	4	xcomp	1:amod@cop()|4.1:xcomp	_
 
 # test:no_node_adding-blackbox1
-1       He      _       PRP     PRP     _       2       nsubj   2:nsubj|3:nsubj@xcomp(GERUND)       _
+1       He      _       PRP     PRP     _       2       nsubj   2:nsubj       _
 2       seems   _       VBZ     VBZ     _       0       root    0:root        _
 3       smart   _       JJ      JJ      _       2       xcomp   2:xcomp       _
 
 # test:no_node_adding-blackbox2
-1       He      _       PRP     PRP     _       3       nsubj   2:nsubj|3:nsubj@xcomp(GERUND)    _
+1       He      _       PRP     PRP     _       3       nsubj   2:nsubj|3:nsubj@amod()    _
 2       is      _       VBZ     VBZ     _       3       cop     0:root                          _
 3       smart   _       JJ      JJ      _       0       root    1:amod@cop()|2:xcomp            _
 
