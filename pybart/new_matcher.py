@@ -165,7 +165,7 @@ class GlobalMatcher:
                     # store all captured labels according to the child-parent token pair
                     self.captured_labels[(edge.child, child, edge.parent, parent)].update(captured_labels)
                     # keep the filtered assignment for further merging
-                    edge_assignments.append({edge.child: child, edge.parent: parent})
+                    edge_assignments.append((edge.optional, {edge.child: child, edge.parent: parent}))
             if edge_assignments:
                 edges_assignments.append(edge_assignments)
             elif not edge.optional:
@@ -173,7 +173,7 @@ class GlobalMatcher:
         return edges_assignments
 
     @staticmethod
-    def _merge_edges_assignments(edges_assignments: List[List[Dict[str, int]]]) -> List[Dict[str, int]]:
+    def _merge_edges_assignments(edges_assignments: List[List[Tuple[bool, Dict[str, int]]]]) -> List[Dict[str, int]]:
         merges = []
         # for each list of possible assignments of an edge
         for edge_assignments in edges_assignments:
@@ -181,11 +181,17 @@ class GlobalMatcher:
             # for each merged assignment. (we need an empty dictionary for the first cycle to start with)
             for merged in (merges if merges else [{}]):
                 # for each possible assignment in the current list
-                for assignment in edge_assignments:
+                edge_added = False
+                for edge_is_optional, assignment in edge_assignments:
                     # try to merge (see that there is no contradiction on hashing)
                     just_merged = GlobalMatcher._try_merge(merged, assignment)
                     if just_merged:
+                        edge_added = True
                         new_merges.append(just_merged)
+                # this is in case we couldnt merge any new assignment of an optional edge to an existing merge,
+                # we simply add the merge as is
+                if not edge_added and edge_is_optional:
+                    new_merges.append(merged)
             if not new_merges:
                 return []
             merges = new_merges
@@ -204,7 +210,8 @@ class GlobalMatcher:
                 # keep only required captures
                 _ = [merged_assignment.pop(name, None) for name in self.dont_capture_names]
                 captured_labels = {(v1, v2): labels for (k1, v1, k2, v2), labels in self.captured_labels.items()
-                                   if merged_assignment[k1] == v1 and merged_assignment[k2] == v2}
+                                   if k1 in merged_assignment and merged_assignment[k1] == v1 and
+                                   k2 in merged_assignment and merged_assignment[k2] == v2}
                 # append assignment to output
                 yield MatchingResult(merged_assignment, captured_labels)
 
