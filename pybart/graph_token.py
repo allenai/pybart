@@ -78,14 +78,7 @@ class Token:
     
     def get_conllu_field(self, field):
         return self._conllu_info[field]
-    
-    def is_root_node(self):
-        return 0 == self.get_conllu_field('id')
-    
-    def is_root_rel(self):
-        # TODO - maybe we want to validate here (or/and somewhere else) that a root is an only parent
-        return 0 in [parent.get_conllu_field('id') for parent in self.get_parents()]
-    
+
     def get_parents(self):
         return self._new_deps.keys()
     
@@ -139,11 +132,8 @@ def add_basic_edges(sentence):
     Args:
         (dict) The parsed sentence.
     """
-    for (cur_id, token) in sentence.items():
-        if cur_id == 0:
-            continue
-        
+    for (cur_id, token) in enumerate(sentence):
         # add the relation
         head = token.get_conllu_field('head')
-        if head != "_":
-            sentence[cur_id].add_edge(Label(token.get_conllu_field('deprel')), sentence[token.get_conllu_field('head')])
+        if head is not None and head != "_":
+            sentence[cur_id].add_edge(Label(token.get_conllu_field('deprel')), sentence[head - 1])

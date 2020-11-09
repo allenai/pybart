@@ -28,12 +28,6 @@ from .graph_token import Token as BartToken
 
 # ********************************************* BartSentence functionality *********************************************
 
-# fixes the given words-in-sentence indices to BartToken-in-BartSentence indices
-def fix_indices(name2index: Mapping[str, int], indices2label: Mapping[Tuple[int, int], Set[str]]) \
-        -> (Mapping[str, int], Mapping[Tuple[int, int], Set[str]]):
-    return {name: i + 1 for name, i in name2index.items()}, \
-           {(i + 1, j + 1): label for (i, j), label in indices2label.items()}
-
 
 # returns a spacy doc representing the sentence
 def get_spacy_doc(sentence: Sequence[BartToken], vocab: Vocab) -> SpacyDoc:
@@ -175,7 +169,7 @@ class GlobalMatcher:
             if edge_assignments:
                 edges_assignments.append(edge_assignments)
             elif not edge.optional:
-                return {}
+                return []
         return edges_assignments
 
     @staticmethod
@@ -212,7 +206,7 @@ class GlobalMatcher:
                 captured_labels = {(v1, v2): labels for (k1, v1, k2, v2), labels in self.captured_labels.items()
                                    if merged_assignment[k1] == v1 and merged_assignment[k2] == v2}
                 # append assignment to output
-                yield MatchingResult(*fix_indices(merged_assignment, captured_labels))
+                yield MatchingResult(merged_assignment, captured_labels)
 
 
 class TokenMatcher:

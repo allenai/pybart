@@ -108,11 +108,11 @@ def reattach_parents(old_child, new_child, new_rel=None, rel_by_cond=lambda x, y
 #   2. Some of the multi-words are already treated as multi-word prepositions (and are henceforth missed):
 #       as of this reason, for now we and SC both miss: instead-of, rather-than
 def get_assignment(sentence, cc):
-    cc_cur_id = cc.get_conllu_field('id')
-    prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
-                           if iid != 0 and (cc_cur_id - 1 == iid or cc_cur_id == iid)])
-    next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in sentence.items()
-                           if cc_cur_id + 1 == iid or cc_cur_id == iid])
+    cc_cur_id = cc.get_conllu_field('id') - 1
+    prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in enumerate(sentence)
+                           if (cc_cur_id - 1 == iid or cc_cur_id == iid)])
+    next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in enumerate(sentence)
+                           if (cc_cur_id + 1 == iid) or (cc_cur_id == iid)])
     if next_forms in neg_conjp_next or prev_forms in neg_conjp_prev:
         return "negcc"
     elif (next_forms in and_conjp_next) or (cc.get_conllu_field('form') == '&'):
@@ -127,7 +127,7 @@ def get_assignment(sentence, cc):
 def assign_ccs_to_conjs(sentence):
     global g_cc_assignments
     g_cc_assignments = dict()
-    for token in sentence.values():
+    for token in sentence:
         ccs = []
         for child, rel in sorted(token.get_children_with_rels(), reverse=True):
             if 'cc' == rel.base:
@@ -851,7 +851,7 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, matches, evidential)
             new_id = predecessor.get_conllu_field('id') + 0.1
             new_root = predecessor.copy(
                 new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
-            sentence[new_id] = new_root
+            sentence.append(new_root)
         else:
             new_root = predecessor
 
@@ -1337,7 +1337,7 @@ def create_new_node(sentence, to_copy, nodes_copied, last_copy_id):
     new_id = to_copy.get_conllu_field('id') + (0.1 * nodes_copied)
     
     copy_node = to_copy.copy(new_id=new_id, head="_", deprel="_", misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
-    sentence[new_id] = copy_node
+    sentence.append(copy_node)
     
     return copy_node, nodes_copied, last_copy_id
 
@@ -1427,7 +1427,7 @@ def eudpp_expand_prep_conjunctions(sentence, matches):
         # Check if we already copied this node in this same match (as it is hard to restrict that).
         # This is relevant only for the prep type.
         if already_copied != -1 and \
-                any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence.values()):
+                any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence):
             continue
         
         copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
@@ -1557,10 +1557,10 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
 
 
 def get_rel_set(converted_sentence):
-    return set([(head.get_conllu_field("id"), rel.to_str(), tok.get_conllu_field("id")) for tok in converted_sentence.values() for (head, rel) in tok.get_new_relations()])
+    return set([(head.get_conllu_field("id"), rel.to_str(), tok.get_conllu_field("id")) for tok in converted_sentence for (head, rel) in tok.get_new_relations()])
 
 
-def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, conv_iterations: int):
+def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, conv_iterations: int):
     last_converted_sentence = None
     i = 0
     on_last_iter = ["extra_amod_propagation"]
@@ -1568,8 +1568,7 @@ def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, 
     # we iterate till convergence or till user defined maximum is reached - the first to come.
     while (i < conv_iterations) and (get_rel_set(sentence) != last_converted_sentence):
         last_converted_sentence = get_rel_set(sentence)
-        sentence_as_list = [t for i, t in sentence.items() if i != 0]
-        m = matcher(sentence_as_list)
+        m = matcher(sentence)
         for conv_name in m.names():
             if conv_name in on_last_iter:
                 do_last_iter.append(conv_name)
@@ -1579,8 +1578,7 @@ def convert_sentence(sentence: Dict[int, Token], conversions, matcher: Matcher, 
         i += 1
 
     for conv_name in do_last_iter:
-        sentence_as_list = [t for i, t in sentence.items() if i != 0]
-        m = matcher(sentence_as_list)
+        m = matcher(sentence)
         matches = m.matches_for(conv_name)
         conversions[conv_name].transformation(sentence, matches)
 
@@ -1651,9 +1649,12 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
                        for conversion_name, conversion in conversions.items()], context)
 
     i = 0
+    updated = []
     for sentence in parsed:
         g_iids = dict()
-        assign_ccs_to_conjs(sentence)
-        i = max(i, convert_sentence(sentence, conversions, matcher, conv_iterations))
+        sentence_as_list = [t for t in sentence if t.get_conllu_field("id") != 0]
+        assign_ccs_to_conjs(sentence_as_list)
+        i = max(i, convert_sentence(sentence_as_list, conversions, matcher, conv_iterations))
+        updated.append(sentence_as_list)
 
-    return parsed, i
+    return updated, i

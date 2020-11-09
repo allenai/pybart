@@ -26,7 +26,7 @@ def parse_conllu(text):
         if not lines:
             continue
         comments = []
-        sentence = dict()
+        sentence = []
         
         # for each line (either comment or token)
         for line in lines:
@@ -54,11 +54,11 @@ def parse_conllu(text):
             xpos = upos if xpos == '_' else xpos
             
             # add current token to current sentence
-            sentence[int(new_id)] = Token(
-                    int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
+            sentence.append(Token(
+                    int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc))
         
         # add root
-        sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
+        sentence.append(Token(0, None, None, None, None, None, None, None, None, None))
         
         # after parsing entire sentence, add basic deprel edges,
         # and add sentence to output list
@@ -86,7 +86,7 @@ def serialize_conllu(converted, all_comments, preserve_comments=False):
             comments = ["\n".join(per_sent_comments)]
         
         # TODO - fix case of more than 9 copy nodes - needs special ordering e.g 1.1 ... 1.9 1.10 and not 1.1 1.10 ... 1.9
-        text.append(comments + [token.get_conllu_string() for (cur_id, token) in sorted(sentence.items()) if cur_id != 0])
+        text.append(comments + [token.get_conllu_string() for token in sorted(sentence, key=lambda tok: tok.get_conllu_field("id")) if token.get_conllu_field("id") != 0])
     
     return "\n".join(["\n".join(sent) + "\n" for sent in text])
 

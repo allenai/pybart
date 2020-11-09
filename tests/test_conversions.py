@@ -66,12 +66,12 @@ class TestConversions:
     def common_logic(cls, cur_name):
         name = cur_name.split("test_")[1]
         for spec, sent_ in cls.out[name].items():
-            sent = {k: v.copy() for k, v in sent_.items()}
+            sent = [v.copy() for v in sent_]
             add_basic_edges(sent)
             converted, _ = convert([sent], True, True, True, math.inf, False, False, False, False, False,
                                    funcs_to_cancel=list(set(api.get_conversion_names()).difference({name, "extra_inner_weak_modifier_verb_reconstruction"})),
                                    context=nlp.vocab)
-            serialized_conllu = serialize_conllu([sent], [None], False)
+            serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
                 assert out_line.split() == gold_line, spec + str(print("\n")) + str([print(s) for s in serialized_conllu.split("\n")])
     
@@ -79,7 +79,7 @@ class TestConversions:
     def common_logic_combined(cls, cur_name, rnac=False):
         name = cur_name.split("test_combined_")[1]
         for spec, sent_ in cls.out[name].items():
-            sent = {k: v.copy() for k, v in sent_.items()}
+            sent = [v.copy() for v in sent_]
             add_basic_edges(sent)
             converted, _ = \
                 convert([sent], True, True, True, math.inf, False, False, rnac, False, False, funcs_to_cancel=[], context=nlp.vocab)
