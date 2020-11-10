@@ -1,4 +1,5 @@
 import math
+import pytest
 from pybart.spacy_wrapper import parse_spacy_sent
 from pybart.new_matcher import *
 import spacy
@@ -27,9 +28,13 @@ keep_get_labels = new_matcher.get_labels
 new_matcher.get_labels = stub_get_labels
 
 
-def pytest_sessionfinish(session, exitstatus):
-    new_matcher.get_text = keep_get_text
-    new_matcher.get_labels = keep_get_labels
+@pytest.fixture(scope="session", autouse=True)
+def cleanup(request):
+    def remove_test_dir():
+        new_matcher.get_text = keep_get_text
+        new_matcher.get_labels = keep_get_labels
+    request.addfinalizer(remove_test_dir)
+
 
 
 nlp = spacy.load("en_ud_model_sm")
