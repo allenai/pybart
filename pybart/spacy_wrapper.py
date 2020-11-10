@@ -13,18 +13,18 @@ SpacyToken.set_extension("parent_list", default=[])
 
 
 def parse_spacy_sent(sent):
-    sentence = dict()
+    sentence = []
 
     offset = min(tok.i for tok in sent)
     
     for i, tok in enumerate(sent):
         # add current token to current sentence
-        sentence[tok.i + 1 - offset] = Token(
+        sentence.append(Token(
             tok.i + 1 - offset, tok.text, tok.lemma_, tok.pos_, tok.tag_, "_", (tok.head.i + 1 - offset) if tok.head.i != tok.i else 0,
-            tok.dep_.lower(), "_", "_")
+            tok.dep_.lower(), "_", "_"))
     
     # add root
-    sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
+    sentence.append(Token(0, None, None, None, None, None, None, None, None, None))
     
     # after parsing entire sentence, add basic deprel edges,
     # and add sentence to output list

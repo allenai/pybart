@@ -1,8 +1,38 @@
 import math
+from pybart.spacy_wrapper import parse_spacy_sent
 from pybart.new_matcher import *
 import spacy
+from pybart import new_matcher
+
+
+def stub_get_text(stub_self, i):
+    return {0: "test1", 1: "test2", 2: "test3"}[i]
+
+
+def stub_get_labels(stub_self, child=0, parent=0):
+    if child == 1:
+        if parent == 2:
+            return ["bad_label"]
+        else:
+            return ["some_label"]
+    elif parent == 3 or parent == 2:
+        return ["some_label"]
+    else:
+        return []
+
+
+new_matcher.get_text = stub_get_text
+new_matcher.get_labels = stub_get_labels
 
 nlp = spacy.load("en_ud_model_sm")
+
+docs = [
+    nlp("He went home today"),
+    nlp("test sentence 1"),
+    nlp("He wanted to go"),
+    nlp("He went home")
+]
+sentences = [[t for t in parse_spacy_sent(doc) if t.get_conllu_field("id") != 0] for doc in docs]
 
 
 def init_full_constraints():
@@ -111,7 +141,6 @@ class TestMatcher:
             edges=[Edge("tok1", "tok2", [HasLabelFromList(["some_label"])])]))]
         matcher = Matcher([NamedConstraint(name, constraint) for name, constraint in conversions], nlp.vocab)
 
-        sentences = [StubSentence("He went home today")]
         for sent in sentences:
             m = matcher(sent)
             for conv_name in m.names():
@@ -142,8 +171,8 @@ class TestMatcher:
         gm = GlobalMatcher(Full(tokens=[Token("tok1"), Token("tok2"), Token("tok3", optional=True)],
                                 concats=[TokenPair({"test1_test2"}, "tok1", "tok2"),
                                          TokenPair({"test1_test3"}, "tok1", "tok3")]))
-        assert gm._filter_concat_constraints({"tok1": 0, "tok2": 1}, StubSentence())
-        assert not gm._filter_concat_constraints({"tok1": 0, "tok2": 2}, StubSentence())
+        assert gm._filter_concat_constraints({"tok1": 0, "tok2": 1}, sentences[0])
+        assert not gm._filter_concat_constraints({"tok1": 0, "tok2": 2}, sentences[0])
 
     def test_try_merge(self):
         assert GlobalMatcher._try_merge({"a": 1, "b": 2, "c": 3}, {"b": 2, "c": 3, "d": 4}) == \
@@ -162,33 +191,33 @@ class TestMatcher:
         # no parents
         assert gm._filter_edge_constraints({"tok1": [2]}, None) == []
         # get_matched_labels returns None (and that's it)
-        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [2]}, StubSentence()) == []
+        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [2]}, sentences[0]) == []
         # get_matched_labels returns None (once, but there are more results)
-        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4]}, StubSentence()) == \
-               [[{"tok1": 1, "tok2": 3}, {"tok1": 1, "tok2": 4}]]
+        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4]}, sentences[0]) == \
+               [(False, [{"tok1": 1, "tok2": 3}, {"tok1": 1, "tok2": 4}])]
 
         # more than one edge_assignments
         gm = GlobalMatcher(Full(tokens=[Token("tok1"), Token("tok2"), Token("tok3")], edges=[
             Edge("tok1", "tok2", [HasLabelFromList(["some_label"])]),
             Edge("tok1", "tok3", [HasLabelFromList(["some_label"])])]))
-        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4], "tok3": [5, 6]}, StubSentence()) == \
-               [[{"tok1": 1, "tok2": 3}, {"tok1": 1, "tok2": 4}], [{"tok1": 1, "tok3": 5}, {"tok1": 1, "tok3": 6}]]
+        assert gm._filter_edge_constraints({"tok1": [1], "tok2": [3, 4], "tok3": [5, 6]}, sentences[0]) == \
+               [(False, [{"tok1": 1, "tok2": 3}, {"tok1": 1, "tok2": 4}]), (False, [{"tok1": 1, "tok3": 5}, {"tok1": 1, "tok3": 6}])]
 
     def test_merge_edges_assignments(self):
         # no edges_assignments
         assert GlobalMatcher._merge_edges_assignments([]) == []
         # big unsuccessful merge
         assert GlobalMatcher._merge_edges_assignments([
-            [{"a": 1, "b": 2}, {"a": 1, "b": 3}, {"a": 4, "b": 5}],
-            [{"b": 3, "c": 6}, {"b": 5, "c": 8}, {"b": 7, "c": 9}],
-            [{"e": 100, "f": 200}],
-            [{"c": 10, "d": 11}, {"c": 10, "d": 12}, {"c": 1, "d": 2}]]) == []
+            (False, [{"a": 1, "b": 2}, {"a": 1, "b": 3}, {"a": 4, "b": 5}]),
+            (False, [{"b": 3, "c": 6}, {"b": 5, "c": 8}, {"b": 7, "c": 9}]),
+            (False, [{"e": 100, "f": 200}]),
+            (False, [{"c": 10, "d": 11}, {"c": 10, "d": 12}, {"c": 1, "d": 2}])]) == []
         # big successful merge
         assert GlobalMatcher._merge_edges_assignments([
-            [{"a": 1, "b": 2}, {"a": 1, "b": 3}, {"a": 4, "b": 5}],
-            [{"b": 3, "c": 6}, {"b": 5, "c": 8}, {"b": 5, "c": 7}, {"b": 7, "c": 9}],
-            [{"e": 100, "f": 200}],
-            [{"c": 6, "d": 11}, {"c": 6, "d": 2}, {"c": 8, "d": 1000}, {"c": 10, "d": 12}, {"c": 1, "d": 2}]]) == \
+            (False, [{"a": 1, "b": 2}, {"a": 1, "b": 3}, {"a": 4, "b": 5}]),
+            (False, [{"b": 3, "c": 6}, {"b": 5, "c": 8}, {"b": 5, "c": 7}, {"b": 7, "c": 9}]),
+            (False, [{"e": 100, "f": 200}]),
+            (False, [{"c": 6, "d": 11}, {"c": 6, "d": 2}, {"c": 8, "d": 1000}, {"c": 10, "d": 12}, {"c": 1, "d": 2}])]) == \
             [{"a": 1, "b": 3, "c": 6, "d": 11, "e": 100, "f": 200},
              {"a": 1, "b": 3, "c": 6, "d": 2, "e": 100, "f": 200},
              {"a": 4, "b": 5, "c": 8, "d": 1000, "e": 100, "f": 200}]
@@ -196,15 +225,15 @@ class TestMatcher:
     def test_gm_apply(self):
         # no merges
         gm = GlobalMatcher(Full())
-        assert len(list(gm.apply({}, StubSentence()))) == 0
+        assert len(list(gm.apply({}, sentences[0]))) == 0
         # only one merge that fails a distance or concat filter
         gm = GlobalMatcher(Full(tokens=[Token("tok1"), Token("tok2"), Token("tok3", capture=False)],
                                 edges=[Edge("tok1", "tok2", [HasLabelFromList(["some_label"])]),
                                        Edge("tok1", "tok3", [HasLabelFromList(["some_label"])])],
                                 distances=[ExactDistance("tok1", "tok2", 10)]))
-        assert len(list(gm.apply({"tok1": [1], "tok2": [3]}, StubSentence()))) == 0
+        assert len(list(gm.apply({"tok1": [1], "tok2": [3]}, sentences[0]))) == 0
         # sanity (but have redundant token names so we can validate they are filtered)
-        for res in gm.apply({"tok1": [1], "tok2": [12], "tok3": [2]}, StubSentence()):
+        for res in gm.apply({"tok1": [1], "tok2": [12], "tok3": [2]}, sentences[0]):
             assert res.edge(1, 12) == {"some_label"}
             assert res.token("tok1") == 1
             assert res.token("tok2") == 12
@@ -225,28 +254,28 @@ class TestMatcher:
     def test_post_spacy_matcher(self):
         # empty matched_tokens
         tm = TokenMatcher([], nlp.vocab)
-        assert {} == tm._post_spacy_matcher({}, StubSentence())
+        assert {} == tm._post_spacy_matcher({}, sentences[0])
 
         # have one no_children with children, have one out_matched/in_matched as None, have one successful token
         tm = TokenMatcher([Token("tok1", no_children=True),
                            Token("tok2", outgoing_edges=[HasNoLabel("some_label")]),
                            Token("tok3")], nlp.vocab)
         assert {"tok2": [5], "tok3": [3, 4]} == \
-               tm._post_spacy_matcher({"tok1": [3], "tok2": [3, 5], "tok3": [3, 4]}, StubSentence())
+               tm._post_spacy_matcher({"tok1": [3], "tok2": [3, 5], "tok3": [3, 4]}, sentences[0])
 
     def test_tm_apply(self):
         # no matches with optional
         tm = TokenMatcher([Token("tok1", optional=True, spec=[Field(FieldNames.WORD, ["by"])])], nlp.vocab)
-        assert {} == tm.apply(StubSentence("test sentence 1"))
+        assert {} == tm.apply(sentences[1], docs[1])
 
         # no matches with no optional
         tm = TokenMatcher([Token("tok1", spec=[Field(FieldNames.WORD, ["by"])])], nlp.vocab)
-        assert tm.apply(StubSentence("test sentence 1")) is None
+        assert tm.apply(sentences[1], docs[1]) is None
 
         # matches
         tm = TokenMatcher([Token("tok1", spec=[Field(FieldNames.WORD, ["he"])]),
                            Token("verb", spec=[Field(FieldNames.TAG, ["VBD", "VB"])])], nlp.vocab)
-        assert {"tok1": [0], "verb": [1, 3]} == tm.apply(StubSentence("He wanted to go"))
+        assert {"tok1": [0], "verb": [1, 3]} == tm.apply(sentences[2], docs[2])
 
 
 class TestMatch:
@@ -263,7 +292,7 @@ class TestMatch:
             {"constraint1": GlobalMatcher(constraint),
              "constraint2": GlobalMatcher(constraint2),
              "constraint3": GlobalMatcher(constraint3)},
-            StubSentence("He went home"))
+            sentences[3], nlp.vocab)
         assert len(list(match.matches_for("constraint1"))) == 0
         assert len(list(match.matches_for("constraint2"))) == 0
         assert len(list(match.matches_for("constraint3"))) == 1
@@ -294,27 +323,3 @@ def test_preprocess_constraint():
     assert ret.tokens[2].spec[0].field == FieldNames.WORD
 
 
-class StubSentence:
-    # TODO - this is temporary until we have real sentence class
-    #   Actually unnecessarily as we dont need to test here sentence, so a decoy is sufficient
-    spec = {0: "test1", 1: "test2", 2: "test3"}
-
-    def __init__(self, sent=""):
-        self.sent = sent
-
-    def get_text(self, i):
-        return self.spec[i]
-
-    def get_labels(self, child=0, parent=0):
-        if child == 1:
-            if parent == 2:
-                return ["bad_label"]
-            else:
-                return ["some_label"]
-        elif parent == 3 or parent == 2:
-            return ["some_label"]
-        else:
-            return []
-
-    def doc(self):
-        return nlp(self.sent)
