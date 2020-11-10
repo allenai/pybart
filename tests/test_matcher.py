@@ -22,14 +22,13 @@ def stub_get_labels(stub_self, child=0, parent=0):
         return []
 
 
-keep_get_text = new_matcher.get_text
-new_matcher.get_text = stub_get_text
-keep_get_labels = new_matcher.get_labels
-new_matcher.get_labels = stub_get_labels
-
-
 @pytest.fixture(scope="session", autouse=True)
 def cleanup(request):
+    keep_get_text = new_matcher.get_text
+    new_matcher.get_text = stub_get_text
+    keep_get_labels = new_matcher.get_labels
+    new_matcher.get_labels = stub_get_labels
+
     def remove_test_dir():
         new_matcher.get_text = keep_get_text
         new_matcher.get_labels = keep_get_labels
