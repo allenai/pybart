@@ -21,8 +21,16 @@ def stub_get_labels(stub_self, child=0, parent=0):
         return []
 
 
+keep_get_text = new_matcher.get_text
 new_matcher.get_text = stub_get_text
+keep_get_labels = new_matcher.get_labels
 new_matcher.get_labels = stub_get_labels
+
+
+def pytest_sessionfinish(session, exitstatus):
+    new_matcher.get_text = keep_get_text
+    new_matcher.get_labels = keep_get_labels
+
 
 nlp = spacy.load("en_ud_model_sm")
 
