@@ -616,7 +616,7 @@ def conj_propagation_of_nmods_per_type(sentence, matches, specific_nmod_rel):
         conj_per_type = sentence[conj] if conj != -1 else receiver
         nmod.add_edge(
             Label(specific_nmod_rel, eud=None if case == -1 else sentence[case].get_conllu_field("form").lower(),
-                  src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1]), receiver)
+                  src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1] if conj_per_type in g_cc_assignments), receiver)
 
 
 extra_conj_propagation_of_nmods_backwards_constraint = Full(
