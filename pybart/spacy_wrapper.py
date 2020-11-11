@@ -96,15 +96,16 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
         # set new info for all tokens per their head lists
         for i, bart_tok in enumerate(converted_sentence):
             spacy_tok = new_doc[i + j]
-            for head, rel in bart_tok.get_new_relations():
-                # extract spacy correspondent head id
-                head_tok = new_doc[spacy_ids[head.get_conllu_field("id")] if head.get_conllu_field("id") != 0 else spacy_tok.i]
-                # parse stringish label
-                is_state_head_node = ((head_tok.text == "STATE") and (head.get_conllu_field("id") != int(head.get_conllu_field("id")))) or \
-                                     (bart_tok.get_conllu_field("id") != int(bart_tok.get_conllu_field("id")))
-                new_rel, src, unc, alt = parse_bart_label(rel, is_state_head_node=is_state_head_node)
-                # add info to token
-                spacy_tok._.parent_list.append({'head': head_tok, 'rel': new_rel, 'src': src, 'alt': alt, 'unc': unc})
+            for head, rels in bart_tok.get_new_relations():
+                for rel in rels:
+                    # extract spacy correspondent head id
+                    head_tok = new_doc[spacy_ids[head.get_conllu_field("id")] if head.get_conllu_field("id") != 0 else spacy_tok.i]
+                    # parse stringish label
+                    is_state_head_node = ((head_tok.text == "STATE") and (head.get_conllu_field("id") != int(head.get_conllu_field("id")))) or \
+                                         (bart_tok.get_conllu_field("id") != int(bart_tok.get_conllu_field("id")))
+                    new_rel, src, unc, alt = parse_bart_label(rel, is_state_head_node=is_state_head_node)
+                    # add info to token
+                    spacy_tok._.parent_list.append({'head': head_tok, 'rel': new_rel, 'src': src, 'alt': alt, 'unc': unc})
             
             # fix sentence boundaries, need to turn off is_parsed bool as it prevents setting the boundaries
             new_doc.is_parsed = False

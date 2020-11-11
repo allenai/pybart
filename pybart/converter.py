@@ -89,13 +89,13 @@ def create_mwe(words, head, rel):
 
 def reattach_children(old_head, new_head, new_rel=None, cond=None):
     [child.replace_edge(child_rel, new_rel if new_rel else child_rel, old_head, new_head) for
-     (child, child_rel) in old_head.get_children_with_rels() if not cond or cond(child_rel)]
+     (child, child_rels) in old_head.get_children_with_rels() for child_rel in child_rels if not cond or cond(child_rel)]
 
 
 def reattach_parents(old_child, new_child, new_rel=None, rel_by_cond=lambda x, y, z: x if x else y):
     new_child.remove_all_edges()
     [(old_child.remove_edge(parent_rel, head), new_child.add_edge(rel_by_cond(new_rel, parent_rel, head), head))
-     for (head, parent_rel) in old_child.get_new_relations()]
+     for (head, parent_rels) in list(old_child.get_new_relations()) for parent_rel in parent_rels]
 
 
 # TODO: english = this entire function
@@ -129,18 +129,20 @@ def assign_ccs_to_conjs(sentence):
     g_cc_assignments = dict()
     for token in sentence:
         ccs = []
-        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
-            if 'cc' == rel.base:
-                ccs.append(child)
+        for child, rels in sorted(token.get_children_with_rels(), reverse=True):
+            for rel in rels:
+                if 'cc' == rel.base:
+                    ccs.append(child)
         i = 0
-        for child, rel in sorted(token.get_children_with_rels(), reverse=True):
-            if rel.base.startswith('conj'):
-                if len(ccs) == 0:
-                    g_cc_assignments[child] = (None, 'and')
-                else:
-                    cc = ccs[i if i < len(ccs) else -1]
-                    g_cc_assignments[child] = (cc, get_assignment(sentence, cc))
-                i += 1
+        for child, rels in sorted(token.get_children_with_rels(), reverse=True):
+            for rel in rels:
+                if rel.base.startswith('conj'):
+                    if len(ccs) == 0:
+                        g_cc_assignments[child] = (None, 'and')
+                    else:
+                        cc = ccs[i if i < len(ccs) else -1]
+                        g_cc_assignments[child] = (cc, get_assignment(sentence, cc))
+                    i += 1
 
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
@@ -208,7 +210,7 @@ def eud_prep_patterns(sentence, matches):
             if prep_sequence == "by" and auxpass != -1:  # TODO: english = by
                 prep_sequence = "agent"
             # TODO: this is because we constraint only on base string and not on Label or parts of it such as eud
-            if any(r.eud is not None for h, r in sentence[mod].get_new_relations(sentence[gov])):
+            if any(r.eud is not None for h, rels in sentence[mod].get_new_relations(sentence[gov]) for r in rels):
                 continue
             sentence[mod].replace_edge(Label(rel), Label(rel, prep_sequence), sentence[gov], sentence[gov])
 
@@ -234,7 +236,7 @@ def eud_heads_of_conjuncts(sentence, matches):
         for rel in cur_match.edge(gov, new_gov):
             if sentence[gov].get_conllu_field("id") < sentence[new_gov].get_conllu_field("id") < sentence[dep].get_conllu_field("id"):
                 continue
-            if (sentence[new_gov], rel) not in [(h, r.base) for (h, r) in sentence[dep].get_new_relations()]:
+            if (sentence[new_gov], rel) not in [(h, r.base) for (h, rels) in sentence[dep].get_new_relations() for r in rels]:
                 sentence[dep].add_edge(Label(rel), sentence[new_gov])
         
         # TODO:
@@ -788,31 +790,32 @@ def extra_appos_propagation(sentence, matches):
 def reattach_children_copula(old_root, new_root, cop):
     subjs = []
     new_out_rel = "xcomp"
-    for child, rel in old_root.get_children_with_rels():
-        # Note - transfer 'conj' only if it is a verb conjunction,
-        #   as we want it to be attached to the new (verb/state) root
-        if rel.base in subj_options + ["discourse", "punct", "advcl", "xcomp", "ccomp", "expl", "parataxis"] \
-                or (rel.base == "mark" and child.get_conllu_field('xpos') != 'TO') \
-                or (("conj" == rel.base) and (child.get_conllu_field("xpos") in verb_pos)):
-            # transfer any of the following children and any non 'to' markers
-            child.replace_edge(rel, rel, old_root, new_root)
-            # attach the best 'cc' to the new root as compliance with the transferred 'conj'
-            if child in g_cc_assignments and g_cc_assignments[child][0]:
-                g_cc_assignments[child][0].replace_edge(Label("cc"), Label("cc"), old_root, new_root)
-            # store subj children for later
-            if rel.base in subj_options:
-                subjs.append(child)
-        elif rel.base in ["mark", "aux", "auxpass", "advmod"]:  # TODO: and not evidential: TODO: UDv1 = auxpass
-            # simply these are to be transferred to the 'cop' itself, as it is in the evidential case.
-            # and make the 'to' be the son of the 'be' evidential (instead the copula old).
-            child.replace_edge(rel, rel, old_root, cop)
-        elif rel.base == "case":
-            new_out_rel = "nmod"  # TODO: UDv1 = nmod
-        elif rel.base == "cop":
-            if not g_remove_node_adding_conversions:
-                # 'cop' becomes 'ev' (for event/evidential) to the new root
-                child.replace_edge(rel, Label("ev"), old_root, new_root)
-        # else: 'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', ('cc', 'conj')
+    for child, rels in old_root.get_children_with_rels():
+        for rel in rels:
+            # Note - transfer 'conj' only if it is a verb conjunction,
+            #   as we want it to be attached to the new (verb/state) root
+            if rel.base in subj_options + ["discourse", "punct", "advcl", "xcomp", "ccomp", "expl", "parataxis"] \
+                    or (rel.base == "mark" and child.get_conllu_field('xpos') != 'TO') \
+                    or (("conj" == rel.base) and (child.get_conllu_field("xpos") in verb_pos)):
+                # transfer any of the following children and any non 'to' markers
+                child.replace_edge(rel, rel, old_root, new_root)
+                # attach the best 'cc' to the new root as compliance with the transferred 'conj'
+                if child in g_cc_assignments and g_cc_assignments[child][0]:
+                    g_cc_assignments[child][0].replace_edge(Label("cc"), Label("cc"), old_root, new_root)
+                # store subj children for later
+                if rel.base in subj_options:
+                    subjs.append(child)
+            elif rel.base in ["mark", "aux", "auxpass", "advmod"]:  # TODO: and not evidential: TODO: UDv1 = auxpass
+                # simply these are to be transferred to the 'cop' itself, as it is in the evidential case.
+                # and make the 'to' be the son of the 'be' evidential (instead the copula old).
+                child.replace_edge(rel, rel, old_root, cop)
+            elif rel.base == "case":
+                new_out_rel = "nmod"  # TODO: UDv1 = nmod
+            elif rel.base == "cop":
+                if not g_remove_node_adding_conversions:
+                    # 'cop' becomes 'ev' (for event/evidential) to the new root
+                    child.replace_edge(rel, Label("ev"), old_root, new_root)
+            # else: 'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', ('cc', 'conj')
 
     return subjs, new_out_rel, old_root
 
@@ -820,21 +823,22 @@ def reattach_children_copula(old_root, new_root, cop):
 def reattach_children_evidential(old_root, new_root, predecessor):
     subjs = []
     new_amod = None
-    for child, rel in old_root.get_children_with_rels():
-        # Note - transfer 'conj' only if it is a verb conjunction,
-        #   as we want it to be attached to the new (verb/state) root
-        if rel.base in subj_options + ["discourse", "punct", "advcl", "xcomp", "ccomp", "expl", "parataxis"] \
-                or (rel.base == "mark" and child.get_conllu_field('xpos') != 'TO'):
-            # transfer any of the following children and any non 'to' markers
-            child.replace_edge(rel, rel, old_root, new_root)
-            # store subj children for later
-            if rel.base in subj_options:
-                subjs.append(child)
-            # since only non verbal xcomps children get here, this child becomes an amod connection candidate
-            elif rel.base == "xcomp":
-                new_amod = child
-        elif rel.base == "nmod":  # TODO: UDv1 = nmod
-            child.replace_edge(rel, rel, old_root, new_root)
+    for child, rels in old_root.get_children_with_rels():
+        for rel in rels:
+            # Note - transfer 'conj' only if it is a verb conjunction,
+            #   as we want it to be attached to the new (verb/state) root
+            if rel.base in subj_options + ["discourse", "punct", "advcl", "xcomp", "ccomp", "expl", "parataxis"] \
+                    or (rel.base == "mark" and child.get_conllu_field('xpos') != 'TO'):
+                # transfer any of the following children and any non 'to' markers
+                child.replace_edge(rel, rel, old_root, new_root)
+                # store subj children for later
+                if rel.base in subj_options:
+                    subjs.append(child)
+                # since only non verbal xcomps children get here, this child becomes an amod connection candidate
+                elif rel.base == "xcomp":
+                    new_amod = child
+            elif rel.base == "nmod":  # TODO: UDv1 = nmod
+                child.replace_edge(rel, rel, old_root, new_root)
     return subjs, 'ev', new_amod
 
 
@@ -926,26 +930,27 @@ def per_type_weak_modified_verb_reconstruction(sentence, matches, type_):
         reattach_parents(old_root, new_root)
 
         # transfer
-        for child, rel in old_root.get_children_with_rels():
-            if rel.base == "mark":
-                # see notes in copula
-                if child.get_conllu_field('xpos') != 'TO':
-                    child.replace_edge(rel, rel, old_root, new_root)
-            elif rel.base in subj_options:
-                # transfer the subj only if it is not the special case of ccomp
-                if ccomp_or_xcomp != "ccomp":
-                    child.replace_edge(rel, rel, old_root, new_root)
-            elif rel.base in ["advmod", "aux", "auxpass", "cc", "conj"]:  # TODO: UDv1 = auxpass
-                child.replace_edge(rel, rel, old_root, new_root)  # TODO4: consult regarding all cases in the world.
+        for child, rels in old_root.get_children_with_rels():
+            for rel in rels:
+                if rel.base == "mark":
+                    # see notes in copula
+                    if child.get_conllu_field('xpos') != 'TO':
+                        child.replace_edge(rel, rel, old_root, new_root)
+                elif rel.base in subj_options:
+                    # transfer the subj only if it is not the special case of ccomp
+                    if ccomp_or_xcomp != "ccomp":
+                        child.replace_edge(rel, rel, old_root, new_root)
+                elif rel.base in ["advmod", "aux", "auxpass", "cc", "conj"]:  # TODO: UDv1 = auxpass
+                    child.replace_edge(rel, rel, old_root, new_root)  # TODO4: consult regarding all cases in the world.
 
         # find lowest 'ev' of the new root, and make us his 'ev' son
         inter_root = new_root
-        ev_sons = [c for c, r in inter_root.get_children_with_rels() if 'ev' == r.base]
+        ev_sons = [c for c, rels in inter_root.get_children_with_rels() for r in rels if 'ev' == r.base]
         while ev_sons:
             inter_root = ev_sons[0]  # TODO2: change to 'ev' son with lowest index?
             if inter_root == new_root:
                 break
-            ev_sons = [c for c, r in inter_root.get_children_with_rels() if 'ev' == r.base]
+            ev_sons = [c for c, rels in inter_root.get_children_with_rels() for r in rels if 'ev' == r.base]
         old_root.add_edge(Label('ev', src=ccomp_or_xcomp, src_type=type_), inter_root)
 
 
@@ -1566,7 +1571,8 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
 
 
 def get_rel_set(converted_sentence):
-    return set([(head.get_conllu_field("id"), rel.to_str(), tok.get_conllu_field("id")) for tok in converted_sentence for (head, rel) in tok.get_new_relations()])
+    return set([(head.get_conllu_field("id"), rel.to_str(), tok.get_conllu_field("id")) for tok in converted_sentence
+                for (head, rels) in tok.get_new_relations() for rel in rels])
 
 
 def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, conv_iterations: int):

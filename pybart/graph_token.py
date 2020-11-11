@@ -65,12 +65,12 @@ class Token:
         return self._children_list
     
     def get_children_with_rels(self):
-        return [(child, relation[1]) for child in self.get_children() for relation in child.get_new_relations(self)]
-    
+        return [(child, list(child.get_new_relations(self))[0][1]) for child in self.get_children()]
+
     def get_conllu_string(self):
         # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
         # as required by the format.
-        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + b.to_str() for (a, b) in sorted(self.get_new_relations())])
+        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + bb.to_str() for (a, b) in sorted(self.get_new_relations()) for bb in b])
         return "\t".join([str(v) for v in self._conllu_info.values()])
     
     def set_conllu_field(self, field, val):
@@ -83,15 +83,14 @@ class Token:
         return self._new_deps.keys()
     
     def get_new_relations(self, given_head=None):
-        new_deps_pairs = []
-        for head, edges in self._new_deps.items():
-            # having more than one edge should really never happen
-            for edge in edges:
-                if not given_head or given_head == head:
-                    new_deps_pairs.append((head, edge))
-        
-        return new_deps_pairs
-    
+        if given_head:
+            if given_head in self._new_deps:
+                return {given_head: self._new_deps[given_head]}.items()
+            else:
+                return dict().items()
+        else:
+            return self._new_deps.items()
+
     def add_edge(self, rel, head):
         assert isinstance(rel, Label)
         if head in self._new_deps:
@@ -111,8 +110,7 @@ class Token:
                 head.remove_child(self)
     
     def remove_all_edges(self):
-        for head, edge in self.get_new_relations():
-            self.remove_edge(edge, head)
+        _ = [self.remove_edge(edge, head) for head, edges in list(self.get_new_relations()) for edge in edges]
     
     def replace_edge(self, old_rel, new_rel, old_head, new_head):
         self.remove_edge(old_rel, old_head)
