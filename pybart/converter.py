@@ -599,7 +599,7 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches):
             # also propagate the attached case in case of modifier relation between the receiver and mediator
             if label == "nmod" and case != -1:  # TODO: UDv1 = nmod
                 sentence[case].add_edge(
-                    Label("case", eud=sentence[case].get_conllu_info("form").lower(), src="nmod", phrase=phrase), sentence[modifier])
+                    Label("case", eud=sentence[case].get_conllu_field("form").lower(), src="nmod", phrase=phrase), sentence[modifier])
 
 
 def conj_propagation_of_nmods_per_type(sentence, matches, specific_nmod_rel):
