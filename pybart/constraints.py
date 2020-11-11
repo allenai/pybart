@@ -49,21 +49,17 @@ class HasLabelFromList(LabelPresence):
             object.__setattr__(self, 'is_regex', True)
 
     def satisfied(self, actual_labels: List[str]) -> Optional[Set[str]]:
-        current_successfully_matched = set()
         # at least one of the constraint strings should match, so return False only if none of them did.
         if self.is_regex:
             return set(actual_labels)
-        for value_option in self.value:
-            # for each edged label, check if the label matches the constraint, and store it if it does,
-            #   because it is a positive search (that is at least one label should match)
-            for actual_label in actual_labels:
-                # if (is_current_regex and re.match(value_option, actual_label)) or \
-                if value_option == actual_label:
-                    # store the matched label
-                    current_successfully_matched.add(actual_label)
+
+        # for each edged label, check if the label matches the constraint, and store it if it does,
+        #   because it is a positive search (that is at least one label should match)
+        current_successfully_matched = [v for v in self.value if v in actual_labels]
+
         if len(current_successfully_matched) == 0:
             return None
-        return current_successfully_matched
+        return set(current_successfully_matched)
 
 
 @dataclass(frozen=True)
