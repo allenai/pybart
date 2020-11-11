@@ -36,26 +36,29 @@ class LabelPresence(ABC):
 class HasLabelFromList(LabelPresence):
     # has at least one edge with value
     value: Sequence[str]
-    is_regex: Sequence[bool] = field(init=False)
+    is_regex: bool = field(default=False, init=False)
 
     def __post_init__(self):
         # validate value's value specifically because str is converted to list and this is hard to debug
         if not isinstance(self.value, list):
             raise ValueError(f"Expected <class 'list'> got {type(self.value)}")
-        new_values = [v[1:-1] if v.startswith('/') and v.endswith('/') else v for v in self.value]
-        new_is_regex = [v.startswith('/') and v.endswith('/') for v in self.value]
-        object.__setattr__(self, 'value', new_values)
-        object.__setattr__(self, 'is_regex', new_is_regex)
+        # new_values = [v[1:-1] if v.startswith('/') and v.endswith('/') else v for v in self.value]
+        # new_is_regex = [v.startswith('/') and v.endswith('/') for v in self.value]
+        # object.__setattr__(self, 'value', new_values)
+        if len(self.value) == 1 and self.value[0].startswith('/') and self.value[0].endswith('/'):
+            object.__setattr__(self, 'is_regex', True)
 
     def satisfied(self, actual_labels: List[str]) -> Optional[Set[str]]:
         current_successfully_matched = set()
         # at least one of the constraint strings should match, so return False only if none of them did.
-        for value_option, is_current_regex in zip(self.value, self.is_regex):
+        if self.is_regex:
+            return set(actual_labels)
+        for value_option in self.value:
             # for each edged label, check if the label matches the constraint, and store it if it does,
             #   because it is a positive search (that is at least one label should match)
             for actual_label in actual_labels:
-                if (is_current_regex and re.match(value_option, actual_label)) or \
-                        (not is_current_regex and value_option == actual_label):
+                # if (is_current_regex and re.match(value_option, actual_label)) or \
+                if value_option == actual_label:
                     # store the matched label
                     current_successfully_matched.add(actual_label)
         if len(current_successfully_matched) == 0:
