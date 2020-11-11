@@ -46,6 +46,10 @@ def get_text(sentence: Sequence[BartToken], i: int) -> str:
     return sentence[i].get_conllu_field("form")
 
 
+def get_children_count(sentence: Sequence[BartToken], parent: int) -> int:
+    return len(sentence[parent].get_children())
+
+
 # returns a string list of labels connecting child to parent (or incoming/outgoing to/from child/parent respectively
 def get_labels(sentence: Sequence[BartToken], child: int = None, parent: int = None) -> List[str]:
     labels = []
@@ -258,13 +262,17 @@ class TokenMatcher:
         checked_tokens = defaultdict(list)
         for name, token_indices in matched_tokens.items():
             for token in token_indices:
-                if self.no_children[name] and (len(get_labels(sentence, parent=token)) != 0):
+                if self.no_children[name] and (get_children_count(sentence, token) != 0):
                     continue
-                out_matched = get_matched_labels(self.outgoing_constraints[name], get_labels(sentence, parent=token))
-                in_matched = get_matched_labels(self.incoming_constraints[name], get_labels(sentence, child=token))
-                if in_matched is None or out_matched is None:
-                    # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
-                    continue
+                if self.outgoing_constraints[name]:
+                    if get_matched_labels(self.outgoing_constraints[name], get_labels(sentence, parent=token)) is None:
+                        continue
+                if self.incoming_constraints[name]:
+                    if get_matched_labels(self.incoming_constraints[name], get_labels(sentence, child=token)) is None:
+                        continue
+                # if in_matched is None or out_matched is None:
+                #     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
+                #     continue
                 checked_tokens[name].append(token)
         return checked_tokens
 
