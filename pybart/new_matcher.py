@@ -1,4 +1,3 @@
-# TODO - define the Graph class we will work with as sentence
 # usage example:
 # conversions = [SomeConversion, SomeConversion1, ...]
 # matcher = Matcher(NamedConstraint(conversion.get_name(), conversion.get_constraint()) for conversion in conversions)
@@ -17,11 +16,6 @@
 from dataclasses import replace
 from collections import defaultdict
 from typing import NamedTuple, Sequence, Mapping, Any, List, Tuple, Generator, Dict, Optional
-from spacy.vocab import Vocab
-from spacy.matcher import Matcher as SpacyMatcher
-from spacy.tokens import Doc as SpacyDoc
-from spacy.attrs import *
-from numpy import uint64, array as nparray
 from .constraints import *
 from .graph_token import Token as BartToken
 
@@ -29,16 +23,27 @@ from .graph_token import Token as BartToken
 # ********************************************* BartSentence functionality *********************************************
 
 
-# returns a spacy doc representing the sentence
-def get_spacy_doc(sentence: Sequence[BartToken], vocab: Vocab) -> SpacyDoc:
-    words = [t.get_conllu_field("form") for t in sentence]
-    doc = SpacyDoc(vocab, words=words)
-    ar = nparray([[
-        vocab.strings[t.get_conllu_field("lemma")],
-        vocab.strings[t.get_conllu_field("upos")],
-        vocab.strings[t.get_conllu_field("xpos")],
-        i == 0] for i, t in enumerate(sentence)], dtype=uint64)
-    return doc.from_array([LEMMA, POS, TAG, SENT_START], ar)
+field_by_field = {FieldNames.WORD: "form", FieldNames.TAG: "xpos", FieldNames.LEMMA: "lemma"}
+
+
+def match_tokens(sentence: Sequence[BartToken], spec_constraints: Mapping[str, Sequence[Field]]) \
+        -> Mapping[str, List[int]]:
+    matched_tokens = defaultdict(list)
+
+    for con_name, field_cons in spec_constraints.items():
+        if not field_cons:
+            matched_tokens[con_name] = list(range(len(sentence)))
+            continue
+        for i, tok in enumerate(sentence):
+            satisfied_tok = True
+            for field_con in field_cons:
+                if (tok.get_conllu_field(field_by_field[field_con.field]) in field_con.value) ^ field_con.in_sequence:
+                    satisfied_tok = False
+                    break
+            if satisfied_tok:
+                matched_tokens[con_name].append(i)
+
+    return matched_tokens
 
 
 # gets the verbatim of a token in position i in the sentence
@@ -221,44 +226,15 @@ class GlobalMatcher:
 
 
 class TokenMatcher:
-    def __init__(self, constraints: Sequence[Token], vocab: Vocab):
-        self.vocab = vocab
-        self.matcher = SpacyMatcher(vocab)
+    def __init__(self, constraints: Sequence[Token]):
         # store the no_children/incoming/outgoing token constraints according to the token id for post spacy matching
         self.no_children = {constraint.id: constraint.no_children for constraint in constraints}
         self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
         self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
+        self.spec_constraints = {constraint.id: constraint.spec for constraint in constraints}
+        self.required_tokens = set(constraint.id for constraint in constraints if not constraint.optional)
 
-        # convert the constraint to a list of matchable token patterns
-        self.required_tokens = set()
-        for token_name, is_required, matchable_pattern in self._make_patterns(constraints):
-            # add it to the matchable list
-            self.matcher.add(token_name, None, [matchable_pattern])
-            if is_required:
-                self.required_tokens.add(token_name)
-
-    # convert the constraint to a spacy pattern
-    @staticmethod
-    def _make_patterns(constraints: Sequence[Token]) -> List[Tuple[str, bool, Dict[str, Dict[str, Sequence[str]]]]]:
-        patterns = []
-        for constraint in constraints:
-            pattern = dict()
-            for spec in constraint.spec:
-                # assuming a list is given (hence the use of "IN"/"NOT_IN", and not REGEX)
-                in_or_not_in = "IN" if spec.in_sequence else "NOT_IN"
-                if spec.field == FieldNames.WORD:
-                    pattern["LOWER"] = {in_or_not_in: spec.value}
-                elif spec.field == FieldNames.LEMMA:
-                    pattern["LEMMA"] = {in_or_not_in: spec.value}
-                elif spec.field == FieldNames.TAG:
-                    pattern["TAG"] = {in_or_not_in: spec.value}
-                elif spec.field == FieldNames.ENTITY:
-                    pattern["ENT_TYPE"] = {in_or_not_in: spec.value}
-
-            patterns.append((constraint.id, not constraint.optional, pattern))
-        return patterns
-
-    def _post_spacy_matcher(self, matched_tokens: Mapping[str, List[int]], sentence: Sequence[BartToken]) \
+    def _post_local_matcher(self, matched_tokens: Mapping[str, List[int]], sentence: Sequence[BartToken]) \
             -> Mapping[str, List[int]]:
         # handles incoming and outgoing label constraints (still in token level)
         checked_tokens = defaultdict(list)
@@ -274,28 +250,16 @@ class TokenMatcher:
                     labels = get_labels(sentence, child=token)
                     if not labels or get_matched_labels(self.incoming_constraints[name], labels) is None:
                         continue
-                # if in_matched is None or out_matched is None:
-                #     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
-                #     continue
+                # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
                 checked_tokens[name].append(token)
         return checked_tokens
 
-    def apply(self, sentence: Sequence[BartToken], doc: SpacyDoc) -> Optional[Mapping[str, List[int]]]:
-        matched_tokens = defaultdict(list)
-
-        # apply spacy's token-level match
-        matches = self.matcher(doc)
-        # validate the span and store each matched token
-        for match_id, start, end in matches:
-            token_name = self.vocab.strings[match_id]
-            # assert that we matched no more than single token
-            if end - 1 != start:
-                continue
-            token = doc[start]
-            matched_tokens[token_name].append(token.i)
+    def apply(self, sentence: Sequence[BartToken]) -> Optional[Mapping[str, List[int]]]:
+        # match tokens according to their basic per-token/local features
+        matched_tokens = match_tokens(sentence, self.spec_constraints)
 
         # extra token matching out of spacy's scope
-        matched_tokens = self._post_spacy_matcher(matched_tokens, sentence)
+        matched_tokens = self._post_local_matcher(matched_tokens, sentence)
 
         # reverse validate the 'optional' constraint
         if len(self.required_tokens.difference(set(matched_tokens.keys()))) != 0:
@@ -306,12 +270,11 @@ class TokenMatcher:
 
 class Match:
     def __init__(self, token_matchers: Mapping[str, TokenMatcher],
-                 global_matchers: Mapping[str, GlobalMatcher], sentence: Sequence[BartToken], vocab: Vocab):
+                 global_matchers: Mapping[str, GlobalMatcher], sentence: Sequence[BartToken]):
         assert token_matchers.keys() == global_matchers.keys()
         self.token_matchers = token_matchers
         self.global_matchers = global_matchers
         self.sentence = sentence
-        self.doc = get_spacy_doc(sentence, vocab)
 
     def names(self) -> List[str]:
         # return constraint-name list
@@ -319,7 +282,7 @@ class Match:
 
     def matches_for(self, name: str) -> Generator[MatchingResult, None, None]:
         # token match
-        matches = self.token_matchers[name].apply(self.sentence, self.doc)
+        matches = self.token_matchers[name].apply(self.sentence)
         if matches is None:
             return
 
@@ -379,18 +342,17 @@ def preprocess_constraint(constraint: Full) -> Full:
 
 
 class Matcher:
-    def __init__(self, constraints: Sequence[NamedConstraint], vocab: Vocab):
+    def __init__(self, constraints: Sequence[NamedConstraint]):
         self.token_matchers = dict()
         self.global_matchers = dict()
-        self.vocab = vocab
         for constraint in constraints:
             # preprocess the constraints (optimizations)
             preprocessed_constraint = preprocess_constraint(constraint.constraint)
 
             # initialize internal matchers
-            self.token_matchers[constraint.name] = TokenMatcher(preprocessed_constraint.tokens, vocab)
+            self.token_matchers[constraint.name] = TokenMatcher(preprocessed_constraint.tokens)
             self.global_matchers[constraint.name] = GlobalMatcher(preprocessed_constraint)
 
     # apply the matching process on a given sentence
     def __call__(self, sentence: Sequence[BartToken]) -> Match:
-        return Match(self.token_matchers, self.global_matchers, sentence, self.vocab)
+        return Match(self.token_matchers, self.global_matchers, sentence)
