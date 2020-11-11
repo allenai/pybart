@@ -226,11 +226,18 @@ class GlobalMatcher:
 class TokenMatcher:
     def __init__(self, constraints: Sequence[Token]):
         # store the no_children/incoming/outgoing token constraints according to the token id for post spacy matching
-        self.no_children = {constraint.id: constraint.no_children for constraint in constraints}
-        self.incoming_constraints = {constraint.id: constraint.incoming_edges for constraint in constraints}
-        self.outgoing_constraints = {constraint.id: constraint.outgoing_edges for constraint in constraints}
-        self.spec_constraints = {constraint.id: constraint.spec for constraint in constraints}
-        self.required_tokens = set(constraint.id for constraint in constraints if not constraint.optional)
+        self.no_children = dict()
+        self.incoming_constraints = dict()
+        self.outgoing_constraints = dict()
+        self.spec_constraints = dict()
+        self.required_tokens = set()
+        for constraint in constraints:
+            self.no_children[constraint.id] = constraint.no_children
+            self.incoming_constraints[constraint.id] = constraint.incoming_edges
+            self.outgoing_constraints[constraint.id] = constraint.outgoing_edges
+            self.spec_constraints[constraint.id] = constraint.spec
+            if not constraint.optional:
+                self.required_tokens.add(constraint.id)
 
     def _post_local_matcher(self, matched_tokens: Mapping[str, List[int]], sentence: Sequence[BartToken]) \
             -> Mapping[str, List[int]]:
