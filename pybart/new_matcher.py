@@ -56,9 +56,9 @@ def get_labels(sentence: Sequence[BartToken], child: int = None, parent: int = N
     if child is not None:
         if parent is not None:
             parent = sentence[parent]
-        labels = [rels for _, rels in sentence[child].get_new_relations(given_head=parent)]
+        labels = [rel.base for _, rels in sentence[child].get_new_relations(given_head=parent) for rel in rels]
     elif parent is not None:
-        labels = [rels for _, rels in sentence[parent].get_children_with_rels()]
+        labels = [rel.base for _, rels in sentence[parent].get_children_with_rels() for rel in rels]
 
     return labels
 
