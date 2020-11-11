@@ -158,8 +158,10 @@ class GlobalMatcher:
                     if child == parent:
                         continue
                     # check if edge constraint is satisfied
-                    captured_labels = \
-                        get_matched_labels(edge.label, get_labels(sentence, child=child, parent=parent))
+                    captured_labels = None
+                    actual_labels = get_labels(sentence, child=child, parent=parent)
+                    if actual_labels:
+                        captured_labels = get_matched_labels(edge.label, actual_labels)
                     if captured_labels is None:
                         continue
                     # TODO - compare the speed of non-edge filtering here to the current post-merging location:
@@ -265,10 +267,12 @@ class TokenMatcher:
                 if self.no_children[name] and (get_children_count(sentence, token) != 0):
                     continue
                 if self.outgoing_constraints[name]:
-                    if get_matched_labels(self.outgoing_constraints[name], get_labels(sentence, parent=token)) is None:
+                    labels = get_labels(sentence, parent=token)
+                    if not labels or get_matched_labels(self.outgoing_constraints[name], labels) is None:
                         continue
                 if self.incoming_constraints[name]:
-                    if get_matched_labels(self.incoming_constraints[name], get_labels(sentence, child=token)) is None:
+                    labels = get_labels(sentence, child=token)
+                    if not labels or get_matched_labels(self.incoming_constraints[name], labels) is None:
                         continue
                 # if in_matched is None or out_matched is None:
                 #     # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
