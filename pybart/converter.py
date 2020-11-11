@@ -1649,7 +1649,7 @@ def init_conversions():
 
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
-            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, context=None, ud_version=1):
+            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version=1):
     global g_remove_node_adding_conversions, g_iids, g_ud_version
     pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
     pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
@@ -1660,7 +1660,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
                  remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
     matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint)
-                       for conversion_name, conversion in conversions.items()], context)
+                       for conversion_name, conversion in conversions.items()])
 
     i = 0
     updated = []

@@ -72,8 +72,6 @@ def get_labels(sentence: Sequence[BartToken], child: int = None, parent: int = N
 def get_matched_labels(label_constraints: Sequence[LabelPresence], actual_labels: List[str]) -> Optional[Set[str]]:
     successfully_matched = set()
     # we need to satisfy all constraints in the sequence, so if one fails, return None
-    # TODO - optional optimization step:
-    #   _ = [successfully_matched.update(constraint.satisfied(actual_labels)) for constraint in label_constraints]
     for constraint in label_constraints:
         satisfied_labels = constraint.satisfied(actual_labels)
         if satisfied_labels is None:
