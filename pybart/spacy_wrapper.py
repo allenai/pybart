@@ -39,7 +39,7 @@ def parse_bart_label(rel, is_state_head_node):
     else:
         src = "UD" if not is_state_head_node else "BART"
     
-    return rel.with_no_bart(), src, bool(rel.uncertain), rel.alt
+    return rel.with_no_bart(), src, bool(rel.uncertain), rel.iid
 
 
 def serialize_spacy_doc(orig_doc, converted_sentences):
@@ -52,7 +52,6 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
     
     for orig_span, converted_sentence in zip(orig_doc.sents, converted_sentences):
         # remove redundant dummy-root-node
-        converted = {tok for tok in converted_sentence.items() if tok.get_conllu_field("id") != 0}
         orig = orig_span.as_doc()
 
         # get attributes of original doc
@@ -60,7 +59,7 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
         
         # append copied attributes for new nodes
         new_nodes_attrs = []
-        for tok in converted:
+        for tok in converted_sentence:
             iid = tok.get_conllu_field("id")
             if int(iid) != iid:
                 new_node_attrs = list(orig_attrs[int(iid) - 1])
@@ -80,9 +79,9 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
         # fix whitespaces in case of new nodes: take original spaces. change the last one if there are new nodes.
         #   add spaces for each new nodes, except for last
         spaces += [t.whitespace_ if not ((i + 1 == len(orig)) and (len(new_nodes_attrs) > 0)) else ' ' for i, t in enumerate(orig)] + \
-                  [' ' if i + 1 < len(converted) else '' for i, iid in enumerate(converted) if int(iid) != iid]
+                  [' ' if i + 1 < len(converted_sentence) else '' for i, t in enumerate(converted_sentence) if int(t.get_conllu_field("id")) != t.get_conllu_field("id")]
         spaces[-1] = ' '
-        words += [t.get_conllu_field("form") for t in converted]
+        words += [t.get_conllu_field("form") for t in converted_sentence]
     
     # form new doc including new nodes and set attributes
     spaces[-1] = ''
@@ -91,13 +90,11 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
     
     j = 0
     for converted_sentence in converted_sentences:
-        converted = {iid: tok for iid, tok in converted_sentence.items() if iid != 0}
-
         # store spacy ids for head indices extraction later on
-        spacy_ids = {tok.get_conllu_field("id"): (spacy_i + j) for spacy_i, tok in enumerate(converted)}
+        spacy_ids = {tok.get_conllu_field("id"): (spacy_i + j) for spacy_i, tok in enumerate(converted_sentence)}
         
         # set new info for all tokens per their head lists
-        for i, bart_tok in enumerate(converted):
+        for i, bart_tok in enumerate(converted_sentence):
             spacy_tok = new_doc[i + j]
             for head, rel in bart_tok.get_new_relations():
                 # extract spacy correspondent head id
@@ -114,6 +111,6 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
             spacy_tok.is_sent_start = False if i != 0 else True
             new_doc.is_parsed = True
         
-        j += len(converted)
+        j += len(converted_sentence)
     
     return new_doc
