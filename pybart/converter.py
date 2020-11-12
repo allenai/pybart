@@ -327,9 +327,22 @@ extra_xcomp_propagation_no_to_constraint = Full(
     tokens=[
         Token(id="gov"),
         Token(id="new_subj"),
-        Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos + ["TO"])],
+        Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos + ["TO", "IN"])],
+              outgoing_edges=[HasNoLabel(subj) for subj in subj_options] + [HasNoLabel("mark"), HasNoLabel("aux")]),
+    ],
+    edges=[
+        Edge(child="xcomp", parent="gov", label=[HasLabelFromList(["xcomp"])]),
+        Edge(child="new_subj", parent="gov", label=[HasLabelFromList(subj_options + obj_options)]),
+    ],
+)
+
+extra_xcomp_propagation_constraint = Full(
+    tokens=[
+        Token(id="gov"),
+        Token(id="new_subj"),
+        Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos)],
               outgoing_edges=[HasNoLabel(subj) for subj in subj_options]),
-        Token(id="to_marker", optional=True, spec=[Field(field=FieldNames.TAG, value=["TO"])]),
+        Token(id="to_marker", spec=[Field(field=FieldNames.TAG, value=["TO", "IN"])]),
     ],
     edges=[
         Edge(child="xcomp", parent="gov", label=[HasLabelFromList(["xcomp"])]),
@@ -339,7 +352,7 @@ extra_xcomp_propagation_no_to_constraint = Full(
 )
 
 
-def xcomp_propagation_per_type(sentence, matches, is_bart):
+def xcomp_propagation_per_type(sentence, matches):
     labels_dict = defaultdict(list)
     for cur_match in matches:
         new_subj = cur_match.token("new_subj")
@@ -355,19 +368,19 @@ def xcomp_propagation_per_type(sentence, matches, is_bart):
         for new_subj, label in labels:
             if obj_found and "subj" in label:
                 continue
-            is_xcomp_basic = (to_marker != -1) or (sentence[xcomp].get_conllu_field("xpos") == "TO")
-            if is_xcomp_basic and not is_bart:
+            is_xcomp_basic = (to_marker != -1) or (sentence[xcomp].get_conllu_field("xpos") in ["TO", "IN"])
+            if is_xcomp_basic:
                 sentence[new_subj].add_edge(Label("nsubj", eud="xcomp(INF)"), sentence[xcomp])
-            elif not is_xcomp_basic and is_bart:
+            elif not is_xcomp_basic:
                 sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="GERUND"), sentence[xcomp])
 
 
 def eud_xcomp_propagation(sentence, matches):
-    xcomp_propagation_per_type(sentence, matches, False)
+    xcomp_propagation_per_type(sentence, matches)
 
 
 def extra_xcomp_propagation_no_to(sentence, matches):
-    xcomp_propagation_per_type(sentence, matches, True)
+    xcomp_propagation_per_type(sentence, matches)
 
 
 # propagate subject and(/or) object as (possible) subject(s) for the son of the `advcl` relation if it has no subject of his own
@@ -1630,7 +1643,7 @@ def init_conversions():
         Conversion(ConvTypes.EUDPP, eudpp_add_ref_and_collapse_constraint, eudpp_add_ref_and_collapse),
         Conversion(ConvTypes.BART, extra_add_ref_and_collapse_constraint, extra_add_ref_and_collapse),
         Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
-        Conversion(ConvTypes.EUD, extra_xcomp_propagation_no_to_constraint, eud_xcomp_propagation),
+        Conversion(ConvTypes.EUD, extra_xcomp_propagation_constraint, eud_xcomp_propagation),
         Conversion(ConvTypes.BART, extra_of_prep_alteration_constraint, extra_of_prep_alteration),
         Conversion(ConvTypes.BART, extra_compound_propagation_constraint, extra_compound_propagation),
         Conversion(ConvTypes.BART, extra_xcomp_propagation_no_to_constraint, extra_xcomp_propagation_no_to),

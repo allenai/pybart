@@ -381,12 +381,6 @@
 12	a	_	DT	DT	_	13	det	13:det	_
 13	trip	_	NN	NN	_	10	nmod	10:nmod:for	_
 
-# test:eud_xcomp_propagation-blackbox5
-1	He	_	PRP	PRP	_	2	nsubj	2:nsubj|4:nsubj:xcomp(INF)	_
-2	decided	_	VBD	VBD	_	0	root	0:root	_
-3	not	_	RB	RB	_	4	neg	4:neg	_
-4	to	_	TO	TO	_	2	xcomp	2:xcomp	_
-
 # test:eud_prep_patterns-blackbox1
 1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
 2	like	_	VBP	VBP	_	0	root	0:root	_
@@ -486,6 +480,12 @@
 3	talking	_	VB	VB	_	2	xcomp	2:xcomp	_
 4	to	_	TO	TO	_	5	case	5:case	_
 5	friends	_	VB	VB	_	3	nmod	3:nmod:to	_
+
+# test:eud_xcomp_propagation_no_to-blackbox2
+1	He	_	PRP	PRP	_	2	nsubj	2:nsubj|4:nsubj:xcomp(INF)	_
+2	decided	_	VBD	VBD	_	0	root	0:root	_
+3	not	_	RB	RB	_	4	neg	4:neg	_
+4	to	_	TO	TO	_	2	xcomp	2:xcomp	_
 
 # test:extra_advcl_propagation-blackbox1
 1	I	_	PRP	PRP	_	2	nsubj	2:nsubj	_
