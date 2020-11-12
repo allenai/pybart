@@ -248,12 +248,10 @@ class TokenMatcher:
                 if self.no_children[name] and (get_children_count(sentence, token) != 0):
                     continue
                 if self.outgoing_constraints[name]:
-                    labels = get_labels(sentence, parent=token)
-                    if not labels or get_matched_labels(self.outgoing_constraints[name], labels) is None:
+                    if get_matched_labels(self.outgoing_constraints[name], get_labels(sentence, parent=token)) is None:
                         continue
                 if self.incoming_constraints[name]:
-                    labels = get_labels(sentence, child=token)
-                    if not labels or get_matched_labels(self.incoming_constraints[name], labels) is None:
+                    if get_matched_labels(self.incoming_constraints[name], get_labels(sentence, child=token)) is None:
                         continue
                 # TODO - consider adding a 'token in self.required_tokens' validation here for optimization
                 checked_tokens[name].append(token)
