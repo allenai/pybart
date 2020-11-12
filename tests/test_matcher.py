@@ -74,17 +74,17 @@ def try_helper(try_code, exception_str, exception):
 
 class TestConstraints:
     def test_has_label_from_list(self):
-        label_con = HasLabelFromList(['/nmod.*/', 'nsubj'])
-        assert {"nmod", "nmod:of", "nsubj"} == \
+        label_con = HasLabelFromList(['nmod', 'nsubj'])
+        assert {"nmod", "nsubj"} == \
                label_con.satisfied(["bla_nmod", "nmod", "nmod:of", "nsubj", "nsubjpass"])
         assert label_con.satisfied(["bla_nmod", "nsubjpass"]) is None
 
     def test_has_no_label(self):
-        no_label_con1 = HasNoLabel('/nmod.*/')
+        no_label_con1 = HasNoLabel('nmod')
         no_label_con2 = HasNoLabel('nsubj')
-        assert no_label_con1.satisfied(["bla_nmod", "nsubj", "nsubjpass"]) == set()
+        assert no_label_con1.satisfied(["bla_nmod", "nsubj", "nsubjpass", "nmod:of"]) == set()
         assert no_label_con2.satisfied(["bla_nmod", "nmod", "nmod:of", "nsubjpass"]) == set()
-        assert no_label_con1.satisfied(["bla_nmod", "nmod:of", "nsubj"]) is None
+        assert no_label_con1.satisfied(["bla_nmod", "nmod", "nsubj"]) is None
         assert no_label_con2.satisfied(["bla_nmod", "nsubj", "nsubjpass"]) is None
 
     def test_exact_distance(self):
@@ -150,7 +150,7 @@ class TestMatcher:
         conversions = [("conversion1", Full(
             tokens=[Token("tok2"), Token("tok1", spec=[Field(FieldNames.WORD, ["went"])])],
             edges=[Edge("tok1", "tok2", [HasLabelFromList(["some_label"])])]))]
-        matcher = Matcher([NamedConstraint(name, constraint) for name, constraint in conversions], nlp.vocab)
+        matcher = Matcher([NamedConstraint(name, constraint) for name, constraint in conversions])
 
         for sent in sentences:
             m = matcher(sent)
@@ -163,14 +163,14 @@ class TestMatcher:
 
     def test_get_matched_labels(self):
         assert {"nmod:of", "bla"} == get_matched_labels(
-            [HasLabelFromList(["/nmod.*/", "nsubj", "bla"]), HasNoLabel("dobj")], ["nmod:of", "bla"])
+            [HasLabelFromList(["nmod:of", "nsubj", "bla"]), HasNoLabel("dobj")], ["nmod:of", "bla"])
         assert set() == get_matched_labels([HasNoLabel("dobj")], ["nsubjpass"])
         assert get_matched_labels(
-            [HasLabelFromList(["/nmod.*/", "nsubj", "bla"]), HasNoLabel("dobj")], ["nsubjpass"]) is None
+            [HasLabelFromList(["nmod", "nsubj", "bla"]), HasNoLabel("dobj")], ["nsubjpass"]) is None
         assert get_matched_labels(
-            [HasLabelFromList(["/nmod.*/", "nsubj", "bla"]), HasNoLabel("dobj")], ["nsubj", "dobj"]) is None
+            [HasLabelFromList(["nmod", "nsubj", "bla"]), HasNoLabel("dobj")], ["nsubj", "dobj"]) is None
         assert get_matched_labels(
-            [HasLabelFromList(["/nmod.*/", "nsubj", "bla"]), HasNoLabel("dobj")], ["dobj"]) is None
+            [HasLabelFromList(["nmod", "nsubj", "bla"]), HasNoLabel("dobj")], ["dobj"]) is None
 
     def test_filter_distance_constraints(self):
         gm = GlobalMatcher(Full(tokens=[Token("tok1"), Token("tok2"), Token("tok3", optional=True)],
@@ -250,43 +250,31 @@ class TestMatcher:
             assert res.token("tok2") == 12
             assert res.token("tok3") == -1
 
-    def test_make_patterns(self):
-        assert [
-                   ("1", False, {"LOWER": {"NOT_IN": ["tok1", "token1"]}, "LEMMA": {"IN": ["tok", "token"]}}),
-                   ("2", True, {"TAG": {"NOT_IN": ["VB", "JJ"]}, "ENT_TYPE": {"IN": ["PER", "ORG"]}})] == \
-               TokenMatcher._make_patterns([
-                   Token("1", optional=True, spec=[
-                       Field(in_sequence=False, field=FieldNames.WORD, value=["tok1", "token1"]),
-                       Field(in_sequence=True, field=FieldNames.LEMMA, value=["tok", "token"])]),
-                   Token("2", spec=[
-                       Field(in_sequence=False, field=FieldNames.TAG, value=["VB", "JJ"]),
-                       Field(in_sequence=True, field=FieldNames.ENTITY, value=["PER", "ORG"])])])
-
     def test_post_spacy_matcher(self):
         # empty matched_tokens
-        tm = TokenMatcher([], nlp.vocab)
-        assert {} == tm._post_spacy_matcher({}, sentences[0])
+        tm = TokenMatcher([])
+        assert {} == tm._post_local_matcher({}, sentences[0])
 
         # have one no_children with children, have one out_matched/in_matched as None, have one successful token
         tm = TokenMatcher([Token("tok1", no_children=True),
                            Token("tok2", outgoing_edges=[HasNoLabel("some_label")]),
-                           Token("tok3")], nlp.vocab)
-        assert {"tok2": [5], "tok3": [3, 4]} == \
-               tm._post_spacy_matcher({"tok1": [3], "tok2": [3, 5], "tok3": [3, 4]}, sentences[0])
+                           Token("tok3")])
+        assert {'tok1': [3], "tok2": [5], "tok3": [3, 4]} == \
+               tm._post_local_matcher({"tok1": [3], "tok2": [3, 5], "tok3": [3, 4]}, sentences[0])
 
     def test_tm_apply(self):
         # no matches with optional
-        tm = TokenMatcher([Token("tok1", optional=True, spec=[Field(FieldNames.WORD, ["by"])])], nlp.vocab)
-        assert {} == tm.apply(sentences[1], docs[1])
+        tm = TokenMatcher([Token("tok1", optional=True, spec=[Field(FieldNames.WORD, ["by"])])])
+        assert {} == tm.apply(sentences[1])
 
         # no matches with no optional
-        tm = TokenMatcher([Token("tok1", spec=[Field(FieldNames.WORD, ["by"])])], nlp.vocab)
-        assert tm.apply(sentences[1], docs[1]) is None
+        tm = TokenMatcher([Token("tok1", spec=[Field(FieldNames.WORD, ["by"])])])
+        assert tm.apply(sentences[1]) is None
 
         # matches
         tm = TokenMatcher([Token("tok1", spec=[Field(FieldNames.WORD, ["he"])]),
-                           Token("verb", spec=[Field(FieldNames.TAG, ["VBD", "VB"])])], nlp.vocab)
-        assert {"tok1": [0], "verb": [1, 3]} == tm.apply(sentences[2], docs[2])
+                           Token("verb", spec=[Field(FieldNames.TAG, ["VBD", "VB"])])])
+        assert {"tok1": [0], "verb": [1, 3]} == tm.apply(sentences[2])
 
 
 class TestMatch:
@@ -297,13 +285,13 @@ class TestMatch:
         constraint3 = Full(tokens=[Token("tok2"), Token("tok1", spec=[Field(FieldNames.WORD, ["he"])])],
                            edges=[Edge("tok1", "tok2", [HasLabelFromList(["some_label"])])])
         match = Match(
-            {"constraint1": TokenMatcher(constraint.tokens, nlp.vocab),
-             "constraint2": TokenMatcher(constraint2.tokens, nlp.vocab),
-             "constraint3": TokenMatcher(constraint3.tokens, nlp.vocab)},
+            {"constraint1": TokenMatcher(constraint.tokens),
+             "constraint2": TokenMatcher(constraint2.tokens),
+             "constraint3": TokenMatcher(constraint3.tokens)},
             {"constraint1": GlobalMatcher(constraint),
              "constraint2": GlobalMatcher(constraint2),
              "constraint3": GlobalMatcher(constraint3)},
-            sentences[3], nlp.vocab)
+            sentences[3])
         assert len(list(match.matches_for("constraint1"))) == 0
         assert len(list(match.matches_for("constraint2"))) == 0
         assert len(list(match.matches_for("constraint3"))) == 1
