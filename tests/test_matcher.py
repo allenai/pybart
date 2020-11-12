@@ -1,9 +1,9 @@
 import math
 import pytest
 from pybart.spacy_wrapper import parse_spacy_sent
-from pybart.new_matcher import *
+from pybart.matcher import *
 import spacy
-from pybart import new_matcher
+from pybart import matcher
 
 
 def stub_get_text(stub_self, i):
@@ -24,14 +24,14 @@ def stub_get_labels(stub_self, child=0, parent=0):
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup(request):
-    keep_get_text = new_matcher.get_text
-    new_matcher.get_text = stub_get_text
-    keep_get_labels = new_matcher.get_labels
-    new_matcher.get_labels = stub_get_labels
+    keep_get_text = matcher.get_text
+    matcher.get_text = stub_get_text
+    keep_get_labels = matcher.get_labels
+    matcher.get_labels = stub_get_labels
 
     def remove_test_dir():
-        new_matcher.get_text = keep_get_text
-        new_matcher.get_labels = keep_get_labels
+        matcher.get_text = keep_get_text
+        matcher.get_labels = keep_get_labels
     request.addfinalizer(remove_test_dir)
 
 

@@ -13,7 +13,7 @@ from .constraints import *
 from .graph_token import Label
 from . import pybart_globals
 
-from .new_matcher import Matcher, NamedConstraint
+from .matcher import Matcher, NamedConstraint
 from dataclasses import dataclass
 
 # constants   # TODO - english specific
