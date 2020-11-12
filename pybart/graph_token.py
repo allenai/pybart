@@ -86,7 +86,7 @@ class Token:
     def get_new_relations(self, given_head=None):
         if given_head:
             if given_head in self._new_deps:
-                return {given_head: self._new_deps[given_head]}.items()
+                return [(given_head, self._new_deps[given_head])]
             else:
                 return dict().items()
         else:
