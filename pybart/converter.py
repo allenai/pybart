@@ -827,7 +827,7 @@ def reattach_children_evidential(old_root, new_root, predecessor):
         for rel in rels:
             # Note - transfer 'conj' only if it is a verb conjunction,
             #   as we want it to be attached to the new (verb/state) root
-            if rel.base in subj_options + ["discourse", "punct", "advcl", "xcomp", "ccomp", "expl", "parataxis"] \
+            if rel.base in subj_options + ["discourse", "punct", "advcl", "xcomp", "ccomp", "expl", "parataxis", "conj", "cc"] \
                     or (rel.base == "mark" and child.get_conllu_field('xpos') != 'TO'):
                 # transfer any of the following children and any non 'to' markers
                 child.replace_edge(rel, rel, old_root, new_root)
@@ -854,6 +854,8 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, matches, evidential)
         # add STATE node or nominate the copula as new root if we shouldn't add new nodes
         if not g_remove_node_adding_conversions:
             new_id = predecessor.get_conllu_field('id') + 0.1
+            if new_id in [t.get_conllu_field("id") for t in sentence]:
+                return
             new_root = predecessor.copy(
                 new_id=new_id, form="STATE", lemma="_", upos="_", xpos="_", feats="_", head="_", deprel="_", deps=None)
             sentence.append(new_root)
