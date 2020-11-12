@@ -69,6 +69,10 @@ class Conversion:
         self.name = self.transformation.__name__
 
 
+def get_eud_info(eud_str):
+    return eud_str if not pybart_globals.g_remove_enhanced_extra_info else None
+
+
 def get_conversion_names():
     return {func_name for (func_name, _) in inspect.getmembers(sys.modules[__name__], inspect.isfunction)
             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
@@ -370,7 +374,7 @@ def xcomp_propagation_per_type(sentence, matches):
                 continue
             is_xcomp_basic = (to_marker != -1) or (sentence[xcomp].get_conllu_field("xpos") in ["TO", "IN"])
             if is_xcomp_basic:
-                sentence[new_subj].add_edge(Label("nsubj", eud="xcomp(INF)"), sentence[xcomp])
+                sentence[new_subj].add_edge(Label("nsubj", eud=get_eud_info("xcomp(INF)")), sentence[xcomp])
             elif not is_xcomp_basic:
                 sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="GERUND"), sentence[xcomp])
 
@@ -765,11 +769,11 @@ def extra_nmod_advmod_reconstruction(sentence, matches):
         # in any way we connect the nmod to the governor
         mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
         if mwe in nmod_advmod_complex:
-            nmod.add_edge(Label("nmod", eud=case.get_conllu_field("form").lower(), src="advmod_prep"), gov)  # TODO: UDv1 = nmod
+            nmod.add_edge(Label("nmod", eud=get_eud_info(case.get_conllu_field("form").lower()), src="advmod_prep"), gov)  # TODO: UDv1 = nmod
         else:
             advmod.replace_edge(Label("advmod"), Label("case", src="advmod_prep"), gov, nmod)
             case.replace_edge(Label("case"), Label("mwe", src="advmod_prep"), nmod, advmod)
-            nmod.replace_edge(Label("nmod"), Label("nmod", eud=mwe, src="advmod_prep"), advmod, gov)  # TODO: UDv1 = nmod
+            nmod.replace_edge(Label("nmod"), Label("nmod", eud=get_eud_info(mwe), src="advmod_prep"), advmod, gov)  # TODO: UDv1 = nmod
 
 
 extra_appos_propagation_constraint = Full(
@@ -1325,7 +1329,7 @@ def extra_add_ref_and_collapse(sentence, matches):
             sentence[prep].replace_edge(Label(old_rel), Label("case"), mod, mod)
         else:
             leftmost_rel = 'dobj'  # TODO: UDv1 = dobj
-        gov.add_edge(Label(leftmost_rel, eud=eud, src="acl", src_type="RELCL", phrase="REDUCED"), mod)
+        gov.add_edge(Label(leftmost_rel, eud=get_eud_info(eud), src="acl", src_type="RELCL", phrase="REDUCED"), mod)
 
 
 # Adds the type of conjunction to all conjunct relations
@@ -1407,7 +1411,7 @@ def eudpp_expand_pp_conjunctions(sentence, matches):
         cc_tok, cc_rel = g_cc_assignments[conj]
 
         copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
-        copy_node.add_edge(Label("conj", cc_rel), to_copy)
+        copy_node.add_edge(Label("conj", eud=get_eud_info(cc_rel)), to_copy)
 
         # replace cc('gov', 'cc') with cc('to_copy', 'cc')
         # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
@@ -1460,11 +1464,11 @@ def eudpp_expand_prep_conjunctions(sentence, matches):
             return
         
         copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
-        copy_node.add_edge(Label("conj", g_cc_assignments[conj][1]), to_copy)
+        copy_node.add_edge(Label("conj", eud=get_eud_info(g_cc_assignments[conj][1])), to_copy)
         
         # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
         for rel in cur_match.edge(cur_match.token('modifier'), cur_match.token('to_copy')):
-            modifier.add_edge(Label(rel, conj.get_conllu_field('form')), copy_node)
+            modifier.add_edge(Label(rel, eud=get_eud_info(conj.get_conllu_field('form'))), copy_node)
 
 
 # TODO: UDv1 specific
@@ -1567,6 +1571,7 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
         conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.BART}
     if remove_enhanced_extra_info:
         conversions.pop('eud_conj_info')
+        conversions.pop('eud_prep_patterns')
     if remove_node_adding_conversions:
         # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
         conversions.pop('eudpp_expand_prep_conjunctions')
