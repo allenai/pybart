@@ -26,24 +26,8 @@ from .graph_token import Token as BartToken
 field_by_field = {FieldNames.WORD: "form", FieldNames.TAG: "xpos", FieldNames.LEMMA: "lemma"}
 
 
-def match_tokens(sentence: Sequence[BartToken], spec_constraints: Mapping[str, Sequence[Field]]) \
-        -> Mapping[str, List[int]]:
-    matched_tokens = defaultdict(list)
-
-    for con_name, field_cons in spec_constraints.items():
-        if not field_cons:
-            matched_tokens[con_name] = list(range(len(sentence)))
-            continue
-        for i, tok in enumerate(sentence):
-            satisfied_tok = True
-            for field_con in field_cons:
-                if (tok.get_conllu_field(field_by_field[field_con.field]) in field_con.value) ^ field_con.in_sequence:
-                    satisfied_tok = False
-                    break
-            if satisfied_tok:
-                matched_tokens[con_name].append(i)
-
-    return matched_tokens
+def get_content_by_field(tok: BartToken, cur_field: FieldNames) -> str:
+    return tok.get_conllu_field(field_by_field[cur_field])
 
 
 # gets the verbatim of a token in position i in the sentence
@@ -257,9 +241,27 @@ class TokenMatcher:
                 checked_tokens[name].append(token)
         return checked_tokens
 
+    def _match_tokens(self, sentence: Sequence[BartToken]) -> Mapping[str, List[int]]:
+        matched_tokens = defaultdict(list)
+
+        for con_name, field_cons in self.spec_constraints.items():
+            if not field_cons:
+                matched_tokens[con_name] = list(range(len(sentence)))
+                continue
+            for i, tok in enumerate(sentence):
+                satisfied_tok = True
+                for field_con in field_cons:
+                    if not field_con.satisfied(tok, get_content_by_field):
+                        satisfied_tok = False
+                        break
+                if satisfied_tok:
+                    matched_tokens[con_name].append(i)
+
+        return matched_tokens
+
     def apply(self, sentence: Sequence[BartToken]) -> Optional[Mapping[str, List[int]]]:
         # match tokens according to their basic per-token/local features
-        matched_tokens = match_tokens(sentence, self.spec_constraints)
+        matched_tokens = self._match_tokens(sentence)
 
         # extra token matching out of spacy's scope
         matched_tokens = self._post_local_matcher(matched_tokens, sentence)

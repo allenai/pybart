@@ -1,9 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Sequence, Set, List, Optional
+from typing import Sequence, Set, List, Optional, Callable, Any
 from enum import Enum
 from math import inf
 from abc import ABC, abstractmethod
-import re
 
 
 class FieldNames(Enum):
@@ -23,6 +22,10 @@ class Field:
         # validate value's value specifically because str is converted to list and this is hard to debug
         if not isinstance(self.value, list):
             raise ValueError(f"Expected <class 'list'> got {type(self.value)}")
+        object.__setattr__(self, 'value', [v.lower() for v in self.value])
+
+    def satisfied(self, context: Any, get_content_by_field: Callable[[Any, FieldNames], str]) -> bool:
+        return not ((get_content_by_field(context, self.field).lower() in self.value) ^ self.in_sequence)
 
 
 @dataclass(frozen=True)
@@ -42,9 +45,6 @@ class HasLabelFromList(LabelPresence):
         # validate value's value specifically because str is converted to list and this is hard to debug
         if not isinstance(self.value, list):
             raise ValueError(f"Expected <class 'list'> got {type(self.value)}")
-        # new_values = [v[1:-1] if v.startswith('/') and v.endswith('/') else v for v in self.value]
-        # new_is_regex = [v.startswith('/') and v.endswith('/') for v in self.value]
-        # object.__setattr__(self, 'value', new_values)
         if len(self.value) == 1 and self.value[0].startswith('/') and self.value[0].endswith('/'):
             object.__setattr__(self, 'is_regex', True)
 
@@ -66,20 +66,12 @@ class HasLabelFromList(LabelPresence):
 class HasNoLabel(LabelPresence):
     # does not have edge with value
     value: str
-    is_regex: bool = field(init=False, default=False)
-
-    def __post_init__(self):
-        if self.value.startswith('/') and self.value.endswith('/'):
-            object.__setattr__(self, 'value', self.value[1:-1])
-            object.__setattr__(self, 'is_regex', True)
 
     def satisfied(self, actual_labels: List[str]) -> Optional[Set[str]]:
         # for each edged label, check if the label matches the constraint, and fail if it does,
         #   because it is a negative search (that is non of the labels should match)
-        for actual_label in actual_labels:
-            if (self.is_regex and re.match(self.value, actual_label)) or \
-                    (not self.is_regex and self.value == actual_label):
-                return None
+        if self.value in actual_labels:
+            return None
         return set()
 
 
