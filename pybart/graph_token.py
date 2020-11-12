@@ -70,7 +70,8 @@ class Token:
     def get_conllu_string(self):
         # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
         # as required by the format.
-        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + bb.to_str() for (a, b) in sorted(self.get_new_relations()) for bb in b])
+        sorted_ = sorted((h, sorted(rels)) for h, rels in self.get_new_relations())
+        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + bb.to_str() for (a, b) in sorted_ for bb in b])
         return "\t".join([str(v) for v in self._conllu_info.values()])
     
     def set_conllu_field(self, field, val):
