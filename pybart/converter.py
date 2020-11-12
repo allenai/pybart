@@ -7,12 +7,9 @@
 import sys
 import re
 from collections import defaultdict
-from math import copysign
 import inspect
-from typing import List, Dict, Callable, Any
 
 from .constraints import *
-from .matcher import *
 from .graph_token import Label
 from . import pybart_globals
 
