@@ -43,7 +43,7 @@ docs = [
     nlp("He wanted to go"),
     nlp("He went home")
 ]
-sentences = [[t for t in parse_spacy_sent(doc) if t.get_conllu_field("id") != 0] for doc in docs]
+sentences = [[t for t in parse_spacy_sent(doc) if t.get_conllu_field("id").major != 0] for doc in docs]
 
 
 def init_full_constraints():
