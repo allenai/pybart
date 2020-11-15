@@ -1,6 +1,21 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from .pybart_globals import *
 
+
+@dataclass
+class TokenId:
+    major: int
+    minor: int = 0
+    token_str: str = field(init=False)
+
+    def __post_init__(self):
+        object.__setattr__(self, 'token_str', f"{self.major}.{self.minor}" if self.minor else f"{self.major}")
+
+    def __str__(self):
+        return self.token_str
+
+    def __lt__(self, other):
+        return self.major < other.major or (self.major == other.major and self.minor < other.minor)
 
 @dataclass
 class Label:
@@ -120,9 +135,6 @@ class Token:
     # operator overloading: less than
     def __lt__(self, other):
         return self.get_conllu_field('id') < other.get_conllu_field('id')
-    
-    def dist(self, other):
-        return other.get_conllu_field('id') - self.get_conllu_field('id')
 
 
 def add_basic_edges(sentence):
@@ -134,5 +146,5 @@ def add_basic_edges(sentence):
     for (cur_id, token) in enumerate(sentence):
         # add the relation
         head = token.get_conllu_field('head')
-        if head is not None and head != "_":
-            sentence[cur_id].add_edge(Label(token.get_conllu_field('deprel')), sentence[head - 1])
+        if head is not None:
+            sentence[cur_id].add_edge(Label(token.get_conllu_field('deprel')), sentence[head.major - 1])

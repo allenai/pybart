@@ -5,12 +5,11 @@
 #   3. we look for all fathers as we can have multiple fathers, while in SC they look at first one found.
 
 import sys
-import re
 from collections import defaultdict
 import inspect
 
 from .constraints import *
-from .graph_token import Label
+from .graph_token import Label, TokenId
 from . import pybart_globals
 
 from .matcher import Matcher, NamedConstraint
@@ -109,7 +108,7 @@ def reattach_parents(old_child, new_child, new_rel=None, rel_by_cond=lambda x, y
 #   2. Some of the multi-words are already treated as multi-word prepositions (and are henceforth missed):
 #       as of this reason, for now we and SC both miss: instead-of, rather-than
 def get_assignment(sentence, cc):
-    cc_cur_id = cc.get_conllu_field('id') - 1
+    cc_cur_id = cc.get_conllu_field('id').major - 1
     prev_forms = "_".join([info.get_conllu_field('form') for (iid, info) in enumerate(sentence)
                            if (cc_cur_id - 1 == iid or cc_cur_id == iid)])
     next_forms = "_".join([info.get_conllu_field('form') for (iid, info) in enumerate(sentence)
@@ -626,7 +625,7 @@ def conj_propagation_of_nmods_per_type(sentence, matches, specific_nmod_rel):
         case = cur_match.token("case")
 
         # this prevents propagating modifiers to added nodes
-        if '.' in str(receiver.get_conllu_field("id")):
+        if receiver.get_conllu_field("id").minor:
             continue
 
         conj_per_type = sentence[conj] if conj != -1 else receiver
@@ -867,7 +866,8 @@ def extra_inner_weak_modifier_verb_reconstruction(sentence, matches, evidential)
 
         # add STATE node or nominate the copula as new root if we shouldn't add new nodes
         if not g_remove_node_adding_conversions:
-            new_id = predecessor.get_conllu_field('id') + 0.1
+            new_id = TokenId(predecessor.get_conllu_field('id').major,
+                             predecessor.get_conllu_field('id').minor + 1)
             if new_id in [t.get_conllu_field("id") for t in sentence]:
                 return
             new_root = predecessor.copy(
@@ -1354,11 +1354,12 @@ def eud_conj_info(sentence, matches):
 
 def create_new_node(sentence, to_copy, nodes_copied, last_copy_id):
     # create a copy node,
-    nodes_copied = 1 if to_copy.get_conllu_field('id') != last_copy_id else nodes_copied + 1
-    last_copy_id = to_copy.get_conllu_field('id')
-    new_id = to_copy.get_conllu_field('id') + (0.1 * nodes_copied)
+    to_copy_id = to_copy.get_conllu_field('id')
+    nodes_copied = 1 if to_copy_id != last_copy_id else nodes_copied + 1
+    last_copy_id = to_copy_id
+    new_id = TokenId(to_copy_id.major, to_copy_id.minor + nodes_copied)
     
-    copy_node = to_copy.copy(new_id=new_id, head="_", deprel="_", misc="CopyOf=%d" % to_copy.get_conllu_field('id'))
+    copy_node = to_copy.copy(new_id=new_id, head="_", deprel="_", misc=f"CopyOf={str(to_copy.get_conllu_field('id'))}")
     sentence.append(copy_node)
     
     return copy_node, nodes_copied, last_copy_id
@@ -1402,7 +1403,7 @@ def eudpp_expand_pp_conjunctions(sentence, matches):
 
         # Check if we already copied this node in this same match (as it is hard to restrict that).
         if already_copied != -1 and \
-                any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence):
+                any(node.get_conllu_field("misc") == f"CopyOf={str(to_copy.get_conllu_field('id'))}" for node in sentence):
             return
 
         cc_tok, cc_rel = g_cc_assignments[conj]
@@ -1457,7 +1458,7 @@ def eudpp_expand_prep_conjunctions(sentence, matches):
         
         # Check if we already copied this node in this same match (as it is hard to restrict that).
         if already_copied != -1 and \
-                any(node.get_conllu_field("misc") == f"CopyOf={int(to_copy.get_conllu_field('id'))}" for node in sentence):
+                any(node.get_conllu_field("misc") == f"CopyOf={str(to_copy.get_conllu_field('id'))}" for node in sentence):
             return
         
         copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
@@ -1588,7 +1589,7 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
 
 
 def get_rel_set(converted_sentence):
-    return set([(head.get_conllu_field("id"), rel.to_str(), tok.get_conllu_field("id")) for tok in converted_sentence
+    return set([(str(head.get_conllu_field("id")), rel.to_str(), str(tok.get_conllu_field("id"))) for tok in converted_sentence
                 for (head, rels) in tok.get_new_relations() for rel in rels])
 
 
@@ -1683,7 +1684,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
     updated = []
     for sentence in parsed:
         g_iids = dict()
-        sentence_as_list = [t for t in sentence if t.get_conllu_field("id") != 0]
+        sentence_as_list = [t for t in sentence if t.get_conllu_field("id").major != 0]
         assign_ccs_to_conjs(sentence_as_list)
         i = max(i, convert_sentence(sentence_as_list, conversions, matcher, conv_iterations))
         updated.append(sentence_as_list)

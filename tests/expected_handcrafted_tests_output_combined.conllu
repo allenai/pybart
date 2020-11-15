@@ -41,7 +41,7 @@
 2	street	_	NN	NN	_	6	nsubj	3.1:nsubj	_
 3	is	_	VBZ	VBZ	_	6	cop	3.1:ev	_
 3.1	STATE	_	_	_	_	_	_	0:root	_
-3.2	STATE	_	_	_	_	_	_	3.1:conj:and	CopyOf=3
+3.2	STATE	_	_	_	_	_	_	3.1:conj:and	CopyOf=3.1
 4	across	_	IN	IN	_	6	advmod	6:case	_
 5	from	_	IN	IN	_	6	case	4:mwe	_
 6	you	_	PRP	PRP	_	0	root	3.1:nmod:across_from	_
