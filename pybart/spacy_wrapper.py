@@ -3,7 +3,7 @@ from spacy.tokens import Doc, Token as SpacyToken
 from spacy import attrs
 import numpy as np
 
-from .graph_token import Token, add_basic_edges
+from .graph_token import Token, add_basic_edges, TokenId
 
 NUM_OF_BITS = struct.calcsize("P") * 8
 
@@ -13,18 +13,18 @@ SpacyToken.set_extension("parent_list", default=[])
 
 
 def parse_spacy_sent(sent):
-    sentence = dict()
+    sentence = []
 
     offset = min(tok.i for tok in sent)
     
     for i, tok in enumerate(sent):
         # add current token to current sentence
-        sentence[tok.i + 1 - offset] = Token(
-            tok.i + 1 - offset, tok.text, tok.lemma_, tok.pos_, tok.tag_, "_", (tok.head.i + 1 - offset) if tok.head.i != tok.i else 0,
-            tok.dep_.lower(), "_", "_")
+        sentence.append(Token(
+            TokenId(tok.i + 1 - offset), tok.text, tok.lemma_, tok.pos_, tok.tag_, "_",
+            TokenId((tok.head.i + 1 - offset) if tok.head.i != tok.i else 0), tok.dep_.lower(), "_", "_"))
     
     # add root
-    sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
+    sentence.append(Token(TokenId(0), None, None, None, None, None, None, None, None, None))
     
     # after parsing entire sentence, add basic deprel edges,
     # and add sentence to output list
@@ -39,7 +39,7 @@ def parse_bart_label(rel, is_state_head_node):
     else:
         src = "UD" if not is_state_head_node else "BART"
     
-    return rel.with_no_bart(), src, bool(rel.uncertain), rel.alt
+    return rel.with_no_bart(), src, bool(rel.uncertain), rel.iid
 
 
 def serialize_spacy_doc(orig_doc, converted_sentences):
@@ -52,21 +52,21 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
     
     for orig_span, converted_sentence in zip(orig_doc.sents, converted_sentences):
         # remove redundant dummy-root-node
-        converted = {iid: tok for iid, tok in converted_sentence.items() if iid != 0}
         orig = orig_span.as_doc()
-        
+
         # get attributes of original doc
         orig_attrs = orig.to_array(attrs_)
         
         # append copied attributes for new nodes
         new_nodes_attrs = []
-        for iid, tok in converted.items():
-            if int(iid) != iid:
-                new_node_attrs = list(orig_attrs[int(iid) - 1])
+        for tok in converted_sentence:
+            iid = tok.get_conllu_field("id")
+            if iid.minor:
+                new_node_attrs = list(orig_attrs[iid.major - 1])
                 
                 # here we fix the relative head he is pointing to,
                 # in case it is a negative number we need to cast it to its unsigned synonym
-                relative = int(iid) - (len(orig_attrs) + len(new_nodes_attrs) + 1)
+                relative = iid.major - (len(orig_attrs) + len(new_nodes_attrs) + 1)
                 new_node_attrs[attrs_.index('HEAD')] = relative + (2**NUM_OF_BITS if relative < 0 else 0)
                 
                 new_nodes_attrs.append(new_node_attrs)
@@ -79,9 +79,9 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
         # fix whitespaces in case of new nodes: take original spaces. change the last one if there are new nodes.
         #   add spaces for each new nodes, except for last
         spaces += [t.whitespace_ if not ((i + 1 == len(orig)) and (len(new_nodes_attrs) > 0)) else ' ' for i, t in enumerate(orig)] + \
-                  [' ' if i + 1 < len(converted.keys()) else '' for i, iid in enumerate(converted.keys()) if int(iid) != iid]
+                  [' ' if i + 1 < len(converted_sentence) else '' for i, t in enumerate(converted_sentence) if t.get_conllu_field("id").minor]
         spaces[-1] = ' '
-        words += [t.get_conllu_field("form") for iid, t in converted.items()]
+        words += [t.get_conllu_field("form") for t in converted_sentence]
     
     # form new doc including new nodes and set attributes
     spaces[-1] = ''
@@ -90,29 +90,28 @@ def serialize_spacy_doc(orig_doc, converted_sentences):
     
     j = 0
     for converted_sentence in converted_sentences:
-        converted = {iid: tok for iid, tok in converted_sentence.items() if iid != 0}
-
         # store spacy ids for head indices extraction later on
-        spacy_ids = {iid: (spacy_i + j) for spacy_i, iid in enumerate(converted.keys())}
+        spacy_ids = {str(tok.get_conllu_field("id")): (spacy_i + j) for spacy_i, tok in enumerate(converted_sentence)}
         
         # set new info for all tokens per their head lists
-        for i, bart_tok in enumerate(converted.values()):
+        for i, bart_tok in enumerate(converted_sentence):
             spacy_tok = new_doc[i + j]
-            for head, rel in bart_tok.get_new_relations():
-                # extract spacy correspondent head id
-                head_tok = new_doc[spacy_ids[head.get_conllu_field("id")] if head.get_conllu_field("id") != 0 else spacy_tok.i]
-                # parse stringish label
-                is_state_head_node = ((head_tok.text == "STATE") and (head.get_conllu_field("id") != int(head.get_conllu_field("id")))) or \
-                                     (bart_tok.get_conllu_field("id") != int(bart_tok.get_conllu_field("id")))
-                new_rel, src, unc, alt = parse_bart_label(rel, is_state_head_node=is_state_head_node)
-                # add info to token
-                spacy_tok._.parent_list.append({'head': head_tok, 'rel': new_rel, 'src': src, 'alt': alt, 'unc': unc})
+            for head, rels in bart_tok.get_new_relations():
+                for rel in rels:
+                    # extract spacy correspondent head id
+                    head_tok = new_doc[spacy_ids[str(head.get_conllu_field("id"))] if head.get_conllu_field("id").major != 0 else spacy_tok.i]
+                    # parse stringish label
+                    is_state_head_node = ((head_tok.text == "STATE") and head.get_conllu_field("id").minor) or \
+                                         bart_tok.get_conllu_field("id").minor
+                    new_rel, src, unc, alt = parse_bart_label(rel, is_state_head_node=is_state_head_node)
+                    # add info to token
+                    spacy_tok._.parent_list.append({'head': head_tok.i, 'rel': new_rel, 'src': src, 'alt': alt, 'unc': unc})
             
             # fix sentence boundaries, need to turn off is_parsed bool as it prevents setting the boundaries
             new_doc.is_parsed = False
             spacy_tok.is_sent_start = False if i != 0 else True
             new_doc.is_parsed = True
         
-        j += len(converted)
+        j += len(converted_sentence)
     
     return new_doc

@@ -4,10 +4,13 @@ import math
 
 import pybart
 from pybart.conllu_wrapper import parse_conllu, serialize_conllu
-from pybart import converter
+from pybart import converter, pybart_globals
 from pybart import api
 from pybart.graph_token import add_basic_edges
 from pybart.converter import convert
+import spacy
+
+nlp = spacy.load("en_ud_model_sm")
 
 
 class TestConversions:
@@ -55,33 +58,33 @@ class TestConversions:
     
     @staticmethod
     def setup_method():
-        pybart.converter.g_remove_enhanced_extra_info = False
-        pybart.converter.g_remove_bart_extra_info = False
+        pybart_globals.g_remove_enhanced_extra_info = False
+        pybart_globals.g_remove_bart_extra_info = False
         pybart.converter.g_remove_node_adding_conversions = False
     
     @classmethod
     def common_logic(cls, cur_name):
         name = cur_name.split("test_")[1]
         for spec, sent_ in cls.out[name].items():
-            sent = {k: v.copy() for k, v in sent_.items()}
+            sent = [v.copy() for v in sent_]
             add_basic_edges(sent)
             converted, _ = convert([sent], True, True, True, math.inf, False, False, False, False, False,
-                                   funcs_to_cancel=list(set(api.get_conversion_names()).difference({name})))
-            serialized_conllu = serialize_conllu([sent], [None], False)
+                                   funcs_to_cancel=list(set(api.get_conversion_names()).difference({name, "extra_inner_weak_modifier_verb_reconstruction"})))
+            serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
-                assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
+                assert out_line.split() == gold_line, spec + str(print("\n")) + str([print(s) for s in serialized_conllu.split("\n")])
     
     @classmethod
     def common_logic_combined(cls, cur_name, rnac=False):
         name = cur_name.split("test_combined_")[1]
         for spec, sent_ in cls.out[name].items():
-            sent = {k: v.copy() for k, v in sent_.items()}
+            sent = [v.copy() for v in sent_]
             add_basic_edges(sent)
             converted, _ = \
                 convert([sent], True, True, True, math.inf, False, False, rnac, False, False, funcs_to_cancel=[])
             serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold_combined[name][spec], serialized_conllu.split("\n")):
-                assert gold_line == out_line.split(), spec + str([print(s) for s in serialized_conllu.split("\n")])
+                assert out_line.split() == gold_line, spec + str(print("\n")) + str([print(s) for s in serialized_conllu.split("\n")])
 
     def test_no_node_adding(self):
         self.common_logic_combined("test_combined_no_node_adding", rnac=True)

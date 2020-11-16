@@ -1,5 +1,5 @@
 import uuid
-from .graph_token import Token, add_basic_edges
+from .graph_token import Token, add_basic_edges, TokenId
 
 
 def parse_conllu(text):
@@ -26,7 +26,7 @@ def parse_conllu(text):
         if not lines:
             continue
         comments = []
-        sentence = dict()
+        sentence = []
         
         # for each line (either comment or token)
         for line in lines:
@@ -54,11 +54,11 @@ def parse_conllu(text):
             xpos = upos if xpos == '_' else xpos
             
             # add current token to current sentence
-            sentence[int(new_id)] = Token(
-                    int(new_id), form, lemma, upos, xpos, feats, int(head), deprel, deps, misc)
+            sentence.append(Token(
+                    TokenId(int(new_id)), form, lemma, upos, xpos, feats, TokenId(int(head)), deprel, deps, misc))
         
         # add root
-        sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
+        sentence.append(Token(TokenId(0), None, None, None, None, None, None, None, None, None))
         
         # after parsing entire sentence, add basic deprel edges,
         # and add sentence to output list
@@ -85,8 +85,7 @@ def serialize_conllu(converted, all_comments, preserve_comments=False):
         if preserve_comments:
             comments = ["\n".join(per_sent_comments)]
         
-        # TODO - fix case of more than 9 copy nodes - needs special ordering e.g 1.1 ... 1.9 1.10 and not 1.1 1.10 ... 1.9
-        text.append(comments + [token.get_conllu_string() for (cur_id, token) in sorted(sentence.items()) if cur_id != 0])
+        text.append(comments + [token.get_conllu_string() for token in sorted(sentence, key=lambda tok: tok.get_conllu_field("id")) if token.get_conllu_field("id").major != 0])
     
     return "\n".join(["\n".join(sent) + "\n" for sent in text])
 
@@ -170,12 +169,13 @@ def fix_graph(conllu_sentence, odin_sentence, is_basic):
                     {"source": token.get_conllu_field("head") - 1, "destination": iid - 1,
                      "relation": token.get_conllu_field("deprel")})
         else:
-            for head, rel in token.get_new_relations():
-                if rel.lower().startswith("root"):
-                    odin_sentence["graphs"]["universal-enhanced"]["roots"].append(iid - 1)
-                else:
-                    odin_sentence["graphs"]["universal-enhanced"]["edges"].append(
-                        {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel.to_str()})
+            for head, rels in token.get_new_relations():
+                for rel in rels:
+                    if rel.lower().startswith("root"):
+                        odin_sentence["graphs"]["universal-enhanced"]["roots"].append(iid - 1)
+                    else:
+                        odin_sentence["graphs"]["universal-enhanced"]["edges"].append(
+                            {"source": head.get_conllu_field("id") - 1, "destination": iid - 1, "relation": rel.to_str()})
     
     return odin_sentence
 
@@ -185,7 +185,7 @@ def append_odin(odin_sent, fixed_sentence, text):
     cur_offset = 0
     
     for node in list(fixed_sentence.values())[len(odin_sent['words']):]:
-        if node.get_conllu_field('id') == 0:
+        if node.get_conllu_field('id').major == 0:
             continue
         
         if 'words' in odin_sent:
@@ -274,7 +274,7 @@ def parsed_tacred_json(data):
             sentence[i + 1] = Token(i + 1, t, t, p, p, "_", int(h), dep, "_", "_")
         sentence[0] = Token(0, None, None, None, None, None, None, None, None, None)
         add_basic_edges(sentence)
-        [child.remove_edge(rel, sentence[0]) for child, rel in sentence[0].get_children_with_rels()]
+        [child.remove_edge(rel, sentence[0]) for child, rels in sentence[0].get_children_with_rels() for rel in rels]
         _ = sentence.pop(0)
         sentences.append(sentence)
     
