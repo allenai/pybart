@@ -8,9 +8,6 @@ from pybart import converter, pybart_globals
 from pybart import api
 from pybart.graph_token import add_basic_edges
 from pybart.converter import convert
-import spacy
-
-nlp = spacy.load("en_ud_model_sm")
 
 
 class TestConversions:

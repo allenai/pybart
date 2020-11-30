@@ -2,8 +2,8 @@ import math
 import pytest
 from pybart.spacy_wrapper import parse_spacy_sent
 from pybart.matcher import *
-import spacy
 from pybart import matcher
+from pybart.graph_token import Token as BartToken, TokenId
 
 
 def stub_get_text(stub_self, i):
@@ -35,15 +35,21 @@ def cleanup(request):
     request.addfinalizer(remove_test_dir)
 
 
-nlp = spacy.load("en_ud_model_sm")
-
-docs = [
-    nlp("He went home today"),
-    nlp("test sentence 1"),
-    nlp("He wanted to go"),
-    nlp("He went home")
-]
-sentences = [[t for t in parse_spacy_sent(doc) if t.get_conllu_field("id").major != 0] for doc in docs]
+sentences = [[BartToken(TokenId(1), "He", "he", "", "PRP", "", TokenId(2), "nsubj", "", ""),
+              BartToken(TokenId(2), "went", "go", "", "VBD", "", TokenId(0), "root", "", ""),
+              BartToken(TokenId(3), "home", "home", "", "RB", "", TokenId(2), "advmod", "", ""),
+              BartToken(TokenId(4), "today", "today", "", "NN", "", TokenId(2), "nmod:tmod", "", "")],
+             [BartToken(TokenId(1), "test", "test", "", "NN", "", TokenId(1), "compound", "", ""),
+              BartToken(TokenId(2), "sentence", "sentence", "", "NN", "", TokenId(0), "root", "", ""),
+              BartToken(TokenId(3), "1", "1", "", "CD", "", TokenId(1), "nummod", "", "")],
+             [BartToken(TokenId(1), "He", "", "", "PRP", "", TokenId(2), "nsubj", "", ""),
+              BartToken(TokenId(2), "wanted", "", "", "VBD", "", TokenId(0), "root", "", ""),
+              BartToken(TokenId(3), "to", "", "", "TO", "", TokenId(4), "mark", "", ""),
+              BartToken(TokenId(4), "go", "", "", "VBD", "", TokenId(2), "xcomp", "", "")],
+             [BartToken(TokenId(1), "He", "", "", "PRP", "", TokenId(2), "nsubj", "", ""),
+              BartToken(TokenId(2), "went", "", "", "VBD", "", TokenId(0), "root", "", ""),
+              BartToken(TokenId(3), "home", "", "", "RB", "", TokenId(2), "advmod", "", "")]
+             ]
 
 
 def init_full_constraints():
