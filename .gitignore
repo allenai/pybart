@@ -4,8 +4,3 @@
 *.txt
 /build/*
 *.egg*
-*.json
-
-en_ud_model_lg-1.1.0/en_ud_model_lg/
-
-en_ud_model_lg-1.1.0/
