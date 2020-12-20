@@ -1562,11 +1562,11 @@ def extra_passive_alteration(sentence, matches):
 
 def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel):
     if not enhanced:
-        conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.EUD}
+        conversions = {conversion.name: conversion for conversion in conversions.values() if conversion.conv_type != ConvTypes.EUD}
     if not enhanced_plus_plus:
-        conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.EUDPP}
+        conversions = {conversion.name: conversion for conversion in conversions.values() if conversion.conv_type != ConvTypes.EUDPP}
     if not enhanced_extra:
-        conversions = {conversion.name: conversion for conversion in conversions if conversion.conv_type != ConvTypes.BART}
+        conversions = {conversion.name: conversion for conversion in conversions.values() if conversion.conv_type != ConvTypes.BART}
     if remove_enhanced_extra_info:
         conversions.pop('eud_conj_info')
         conversions.pop('eud_prep_patterns')
@@ -1599,7 +1599,7 @@ def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, c
     on_last_iter = ["extra_amod_propagation"]
     do_last_iter = []
     # we iterate till convergence or till user defined maximum is reached - the first to come.
-    while (i < conv_iterations) and (get_rel_set(sentence) != last_converted_sentence):
+    while i < conv_iterations:
         last_converted_sentence = get_rel_set(sentence)
         m = matcher(sentence)
         for conv_name in m.names():
@@ -1608,12 +1608,16 @@ def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, c
                 continue
             matches = m.matches_for(conv_name)
             conversions[conv_name].transformation(sentence, matches)
+        if get_rel_set(sentence) == last_converted_sentence:
+            break
         i += 1
 
     for conv_name in do_last_iter:
         m = matcher(sentence)
         matches = m.matches_for(conv_name)
         conversions[conv_name].transformation(sentence, matches)
+        if get_rel_set(sentence) != last_converted_sentence:
+            i += 1
 
     return i
 

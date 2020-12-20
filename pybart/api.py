@@ -37,7 +37,7 @@ def convert_spacy_doc(doc, enhance_ud=True, enhanced_plus_plus=True, enhanced_ex
     from .spacy_wrapper import parse_spacy_sent, serialize_spacy_doc
     parsed_doc = [parse_spacy_sent(sent) for sent in doc.sents]
     converted, convs_done = convert(parsed_doc, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
-    return serialize_spacy_doc(doc, converted), parsed_doc, convs_done
+    return serialize_spacy_doc(doc, converted), converted, convs_done
 
 
 class Converter:
@@ -45,13 +45,13 @@ class Converter:
         self.config = (enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
     
     def __call__(self, doc):
-        serialized_spacy_doc, parsed_doc, convs_done = convert_spacy_doc(doc, *self.config)
-        self._parsed_doc = parsed_doc
+        serialized_spacy_doc, converted_sents, convs_done = convert_spacy_doc(doc, *self.config)
+        self._converted_sents = converted_sents
         self._convs_done = convs_done
         return serialized_spacy_doc
     
-    def get_parsed_doc(self):
-        return self._parsed_doc
+    def get_converted_sents(self):
+        return self._converted_sents
     
     def get_max_convs(self):
         return self._convs_done

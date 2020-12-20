@@ -163,7 +163,7 @@ def fix_graph(conllu_sentence, odin_sentence, is_basic):
             odin_sentence["graphs"] = {"universal-enhanced": {"edges": [], "roots": []}}
 
     for iid, token in enumerate(conllu_sentence):
-        if token.get_conllu_field("id").najor == 0:
+        if token.get_conllu_field("id").major == 0:
             continue
         
         if is_basic:
@@ -176,7 +176,7 @@ def fix_graph(conllu_sentence, odin_sentence, is_basic):
         else:
             for head, rels in token.get_new_relations():
                 for rel in rels:
-                    if rel.lower().startswith("root"):
+                    if rel.to_str().lower().startswith("root"):
                         odin_sentence["graphs"]["universal-enhanced"]["roots"].append(iid)
                     else:
                         odin_sentence["graphs"]["universal-enhanced"]["edges"].append(
@@ -251,8 +251,8 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
         fixed_sentences.append(fixed_sentence)
         odin_sentences.append(fix_graph(
             fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
-            {'words': [token.get_conllu_field("form") for token in fixed_sentence if token.get_conllu_field("id") != 0],
-             'tags': [token.get_conllu_field("xpos") for token in fixed_sentence if token.get_conllu_field("id") != 0]},
+            {'words': [token.get_conllu_field("form") for token in fixed_sentence if token.get_conllu_field("id").major != 0],
+             'tags': [token.get_conllu_field("xpos") for token in fixed_sentence if token.get_conllu_field("id").major != 0]},
             is_basic))
     
     if odin_to_enhance:
@@ -263,7 +263,7 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
         odin = {"documents": {"": {
             "id": str(uuid.uuid4()),
             "text": " ".join([token.get_conllu_field("form") for conllu_sentence in fixed_sentences for token in
-                              (sorted(conllu_sentence) if not push_new_to_end else conllu_sentence) if token.get_conllu_field("id") != 0]),
+                              (sorted(conllu_sentence) if not push_new_to_end else conllu_sentence) if token.get_conllu_field("id").major != 0]),
             "sentences": odin_sentences
         }}, "mentions": []}
     
