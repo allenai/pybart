@@ -1,9 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Sequence, Set, List, Optional
+from typing import Sequence, Set, List, Optional, Callable, Any
 from enum import Enum
 from math import inf
 from abc import ABC, abstractmethod
-import re
 
 
 class FieldNames(Enum):
@@ -23,64 +22,56 @@ class Field:
         # validate value's value specifically because str is converted to list and this is hard to debug
         if not isinstance(self.value, list):
             raise ValueError(f"Expected <class 'list'> got {type(self.value)}")
+        object.__setattr__(self, 'value', [v.lower() for v in self.value])
+
+    def satisfied(self, context: Any, get_content_by_field: Callable[[Any, FieldNames], str]) -> bool:
+        return not ((get_content_by_field(context, self.field).lower() in self.value) ^ self.in_sequence)
 
 
 @dataclass(frozen=True)
-class Label(ABC):
+class LabelPresence(ABC):
     @abstractmethod
     def satisfied(self, actual_labels: List[str]) -> Set[str]:
         pass
 
 
 @dataclass(frozen=True)
-class HasLabelFromList(Label):
+class HasLabelFromList(LabelPresence):
     # has at least one edge with value
     value: Sequence[str]
-    is_regex: Sequence[bool] = field(init=False)
+    is_regex: bool = field(default=False, init=False)
 
     def __post_init__(self):
         # validate value's value specifically because str is converted to list and this is hard to debug
         if not isinstance(self.value, list):
             raise ValueError(f"Expected <class 'list'> got {type(self.value)}")
-        new_values = [v[1:-1] if v.startswith('/') and v.endswith('/') else v for v in self.value]
-        new_is_regex = [v.startswith('/') and v.endswith('/') for v in self.value]
-        object.__setattr__(self, 'value', new_values)
-        object.__setattr__(self, 'is_regex', new_is_regex)
+        if len(self.value) == 1 and self.value[0].startswith('/') and self.value[0].endswith('/'):
+            object.__setattr__(self, 'is_regex', True)
 
     def satisfied(self, actual_labels: List[str]) -> Optional[Set[str]]:
-        current_successfully_matched = set()
         # at least one of the constraint strings should match, so return False only if none of them did.
-        for value_option, is_current_regex in zip(self.value, self.is_regex):
-            # for each edged label, check if the label matches the constraint, and store it if it does,
-            #   because it is a positive search (that is at least one label should match)
-            for actual_label in actual_labels:
-                if (is_current_regex and re.match(value_option, actual_label)) or \
-                        (not is_current_regex and value_option == actual_label):
-                    # store the matched label
-                    current_successfully_matched.add(actual_label)
+        if self.is_regex:
+            return set(actual_labels)
+
+        # for each edged label, check if the label matches the constraint, and store it if it does,
+        #   because it is a positive search (that is at least one label should match)
+        current_successfully_matched = [v for v in self.value if v in actual_labels]
+
         if len(current_successfully_matched) == 0:
             return None
-        return current_successfully_matched
+        return set(current_successfully_matched)
 
 
 @dataclass(frozen=True)
-class HasNoLabel(Label):
+class HasNoLabel(LabelPresence):
     # does not have edge with value
     value: str
-    is_regex: bool = field(init=False, default=False)
-
-    def __post_init__(self):
-        if self.value.startswith('/') and self.value.endswith('/'):
-            object.__setattr__(self, 'value', self.value[1:-1])
-            object.__setattr__(self, 'is_regex', True)
 
     def satisfied(self, actual_labels: List[str]) -> Optional[Set[str]]:
         # for each edged label, check if the label matches the constraint, and fail if it does,
         #   because it is a negative search (that is non of the labels should match)
-        for actual_label in actual_labels:
-            if (self.is_regex and re.match(self.value, actual_label)) or \
-                    (not self.is_regex and self.value == actual_label):
-                return None
+        if self.value in actual_labels:
+            return None
         return set()
 
 
@@ -90,8 +81,8 @@ class Token:
     capture: bool = True
     spec: Sequence[Field] = field(default_factory=list)
     optional: bool = False  # is this an optional constraint or required
-    incoming_edges: Sequence[Label] = field(default_factory=list)
-    outgoing_edges: Sequence[Label] = field(default_factory=list)
+    incoming_edges: Sequence[LabelPresence] = field(default_factory=list)
+    outgoing_edges: Sequence[LabelPresence] = field(default_factory=list)
     no_children: bool = False  # should this token have no children or can it
     is_root: bool = False  # should this token have no parents (i.e. it is the root) or can it
 
@@ -100,7 +91,11 @@ class Token:
 class Edge:
     child: str
     parent: str
-    label: Sequence[Label]
+    label: Sequence[LabelPresence]
+    optional: bool = field(init=False, default=False)
+
+    def adjust_optionality(self, is_any_opt):
+        object.__setattr__(self, 'optional', is_any_opt)
 
 
 @dataclass(frozen=True)
@@ -136,7 +131,7 @@ class UptoDistance(Distance):
             raise ValueError("'up-to' distance can't be negative")
 
     def satisfied(self, calculated_distance: int) -> bool:
-        return self.distance >= calculated_distance
+        return 0 <= calculated_distance <= self.distance
 
 
 @dataclass(frozen=True)
@@ -223,6 +218,11 @@ class Full:
             if (tok.no_children and tok.outgoing_edges) or (tok.is_root and tok.incoming_edges):
                 raise ValueError(
                     "Found a token with a no_children/is_root constraint and outgoing_edges/incoming_edges constraint")
+
+        for edge in self.edges:
+            is_child_opt = any(tok.optional for tok in self.tokens if tok.id == edge.child)
+            is_parent_opt = any(tok.optional for tok in self.tokens if tok.id == edge.parent)
+            edge.adjust_optionality(is_child_opt or is_parent_opt)
 
 
 # usage examples:

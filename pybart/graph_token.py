@@ -1,15 +1,62 @@
-import re
+from dataclasses import dataclass, field
+from .pybart_globals import *
 
 
-class Token(object):
+@dataclass
+class TokenId:
+    major: int
+    minor: int = 0
+    token_str: str = field(init=False)
+
+    def __post_init__(self):
+        object.__setattr__(self, 'token_str', f"{self.major}.{self.minor}" if self.minor else f"{self.major}")
+
+    def __str__(self):
+        return self.token_str
+
+    def __lt__(self, other):
+        return self.major < other.major or (self.major == other.major and self.minor < other.minor)
+
+@dataclass
+class Label:
+    base: str
+    eud: str = None
+    src: str = None
+    src_type: str = None
+    phrase: str = None
+    uncertain: bool = False
+    iid: int = None
+
+    def to_str(self, no_bart=False):
+        eud = ""
+        if self.eud is not None and not g_remove_enhanced_extra_info:
+            eud = ":" + self.eud
+
+        bart = ""
+        if not no_bart:
+            if self.src is not None and not g_remove_bart_extra_info:
+                iid_str = "" if self.iid is None else "#" + str(self.iid)
+                dep_args = ", ".join(x for x in filter(None, [self.src_type, self.phrase, "UNC" if self.uncertain else None]))
+                bart = "@" + self.src + "(" + dep_args + ")" + iid_str
+
+        return self.base + eud + bart
+
+    def with_no_bart(self):
+        return self.to_str(no_bart=True)
+
+    # operator overloading: less than
+    def __lt__(self, other):
+        return self.to_str() < other.to_str()
+
+
+class Token:
     def __init__(self, new_id, form, lemma, upos, xpos, feats, head, deprel, deps, misc):
         # format of CoNLL-U as described here: https://universaldependencies.org/format.html
         self._conllu_info = {"id": new_id, "form": form, "lemma": lemma, "upos": upos, "xpos": xpos,
                              "feats": feats, "head": head, "deprel": deprel, "deps": deps, "misc": misc}
         self._children_list = []
         self._new_deps = dict()
-        self._extra_info_edges = dict()
-    
+
     def copy(self, new_id=None, form=None, lemma=None, upos=None, xpos=None, feats=None, head=None, deprel=None, deps=None, misc=None):
         new_id_copy, form_copy, lemma_copy, upos_copy, xpos_copy, feats_copy, head_copy, deprel_copy, deps_copy, misc_copy = self._conllu_info.values()
         return Token(new_id if new_id else new_id_copy,
@@ -33,12 +80,13 @@ class Token(object):
         return self._children_list
     
     def get_children_with_rels(self):
-        return [(child, relation[1]) for child in self.get_children() for relation in child.get_new_relations(self)]
-    
+        return [(child, list(child.get_new_relations(self))[0][1]) for child in self.get_children()]
+
     def get_conllu_string(self):
         # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
         # as required by the format.
-        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + b for (a, b) in sorted(self.get_new_relations())])
+        sorted_ = sorted((h, sorted(rels)) for h, rels in self.get_new_relations())
+        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + bb.to_str() for (a, b) in sorted_ for bb in b])
         return "\t".join([str(v) for v in self._conllu_info.values()])
     
     def set_conllu_field(self, field, val):
@@ -46,40 +94,21 @@ class Token(object):
     
     def get_conllu_field(self, field):
         return self._conllu_info[field]
-    
-    def is_root_node(self):
-        return 0 == self.get_conllu_field('id')
-    
-    def is_root_rel(self):
-        # TODO - maybe we want to validate here (or/and somewhere else) that a root is an only parent
-        return 0 in [parent.get_conllu_field('id') for parent in self.get_parents()]
-    
+
     def get_parents(self):
         return self._new_deps.keys()
     
-    def get_extra_info_edges(self):
-        return self._extra_info_edges
-    
     def get_new_relations(self, given_head=None):
-        new_deps_pairs = []
-        for head, edges in self._new_deps.items():
-            # having more than one edge should really never happen
-            for edge in edges:
-                if not given_head or given_head == head:
-                    new_deps_pairs.append((head, edge))
-        
-        return new_deps_pairs
-    
-    def match_rel(self, str_to_match, head):
-        ret = []
-        # having more than one edge should really never happen
-        for edge in self._new_deps[head]:
-            m = re.match(str_to_match, edge)
-            if m:
-                ret.append(edge)
-        return ret
-    
-    def add_edge(self, rel, head, extra_info=None):
+        if given_head:
+            if given_head in self._new_deps:
+                return [(given_head, self._new_deps[given_head])]
+            else:
+                return dict().items()
+        else:
+            return self._new_deps.items()
+
+    def add_edge(self, rel, head):
+        assert isinstance(rel, Label)
         if head in self._new_deps:
             if rel in self._new_deps[head]:
                 return
@@ -87,21 +116,17 @@ class Token(object):
         else:
             self._new_deps[head] = [rel]
             head.add_child(self)
-        if extra_info:
-            self._extra_info_edges[(head, rel)] = extra_info
     
     def remove_edge(self, rel, head):
+        assert isinstance(rel, Label)
         if head in self._new_deps and rel in self._new_deps[head]:
             self._new_deps[head].remove(rel)
             if not self._new_deps[head]:
                 self._new_deps.pop(head)
                 head.remove_child(self)
-            if (head, rel) in self._extra_info_edges:
-                self._extra_info_edges.pop((head, rel))
     
     def remove_all_edges(self):
-        for head, edge in self.get_new_relations():
-            self.remove_edge(edge, head)
+        _ = [self.remove_edge(edge, head) for head, edges in list(self.get_new_relations()) for edge in edges]
     
     def replace_edge(self, old_rel, new_rel, old_head, new_head):
         self.remove_edge(old_rel, old_head)
@@ -110,9 +135,6 @@ class Token(object):
     # operator overloading: less than
     def __lt__(self, other):
         return self.get_conllu_field('id') < other.get_conllu_field('id')
-    
-    def dist(self, other):
-        return other.get_conllu_field('id') - self.get_conllu_field('id')
 
 
 def add_basic_edges(sentence):
@@ -121,11 +143,8 @@ def add_basic_edges(sentence):
     Args:
         (dict) The parsed sentence.
     """
-    for (cur_id, token) in sentence.items():
-        if cur_id == 0:
-            continue
-        
+    for (cur_id, token) in enumerate(sentence):
         # add the relation
         head = token.get_conllu_field('head')
-        if head != "_":
-            sentence[cur_id].add_edge(token.get_conllu_field('deprel'), sentence[token.get_conllu_field('head')])
+        if head is not None:
+            sentence[cur_id].add_edge(Label(token.get_conllu_field('deprel')), sentence[head.major - 1])

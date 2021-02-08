@@ -86,7 +86,7 @@
 
 # test:eudpp_process_complex_2wp-blackbox3
 # purpose: test for gov2's relation type (nmod)
-1       As      _       IN      IN      _       2       case    _       _
+1       As      _       IN      IN      _       2       advmod    _       _
 2       close   _       NN      NN      _       7       nmod    _       _
 3       to      _       TO      TO      _       4       case    _       _
 4       me      _       PRP     PRP     _       2       nmod    _       _
@@ -131,14 +131,14 @@
 8       can     _       MD      MD      _       9       aux     _       _
 9       be      _       VB      VB      _       0       root    _       _
 
-# test:eudpp_demote_quantificational_modifiers-blackbox1
+# test:eudpp_demote_quantificational_modifiers_3w-blackbox1
 # purpose: test basic functionality of 3w + 'A'
 1       A       _       DT      DT      _       2       det     _       _
 2       couple  _       NN      NN      _       0       root    _       _
 3       of      _       IN      IN      _       4       case    _       _
 4       people  _       NNS     NNS     _       2       nmod    _       _
 
-# test:eudpp_demote_quantificational_modifiers-blackbox2
+# test:eudpp_demote_quantificational_modifiers_3w-blackbox2
 # purpose: test with an amod
 1       An      _       DT      DT      _       3       det     _       _
 2       angry   _       JJ      JJ      _       3       amod    _       _
@@ -146,14 +146,14 @@
 4       of      _       IN      IN      _       5       case    _       _
 5       people  _       NNS     NNS     _       3       nmod    _       _
 
-# test:eudpp_demote_quantificational_modifiers-blackbox3
+# test:eudpp_demote_quantificational_modifiers_3w-blackbox3
 # purpose: test with word out of dict
 1       An      _       DT      DT      _       2       det     _       _
 2       horde   _       NN      NN      _       0       root    _       _
 3       of      _       IN      IN      _       4       case    _       _
 4       people  _       NNS     NNS     _       2       nmod    _       _
 
-# test:eudpp_demote_quantificational_modifiers-blackbox4
+# test:eudpp_demote_quantificational_modifiers_3w-blackbox4
 # purpose: test with w3 not sequential
 1       A       _       DT      DT      _       2       det     _       _
 2       ton     _       NN      NN      _       0       root    _       _
@@ -162,14 +162,14 @@
 5       of      _       IN      IN      _       6       case    _       _
 6       people  _       NNS     NNS     _       2       nmod    _       _
 
-# test:eudpp_demote_quantificational_modifiers-blackbox5
+# test:eudpp_demote_quantificational_modifiers_3w-blackbox5
 # purpose: test gov2 not as NN or PRP
 1       A       _       DT      DT      _       2       det     _       _
 2       ton     _       NN      NN      _       0       root    _       _
 3       of      _       IN      IN      _       4       case    _       _
-4       what    _       WP      WP      _       2       nmod    _       _
+4       working    _       VB      VB      _       2       nmod    _       _
 
-# test:eudpp_demote_quantificational_modifiers-blackbox6
+# test:eudpp_demote_quantificational_modifiers_2w-blackbox1
 # purpose: test basic functionality of 2w and 2w+det. also test two matches in one sentence
 1       Several _       JJ      JJ      _       5       nsubj   _       _
 2       of      _       IN      IN      _       3       case    _       _
@@ -184,7 +184,22 @@
 11      are     _       VBP     VBP     _       12      aux     _       _
 12      reading _       VBG     VBG     _       5       advcl   _       _
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox1
+# test:eudpp_demote_quantificational_modifiers_det-blackbox1
+# purpose: test basic functionality of 2w and 2w+det. also test two matches in one sentence
+1       Several _       JJ      JJ      _       5       nsubj   _       _
+2       of      _       IN      IN      _       3       case    _       _
+3       us      _       PRP     PRP     _       1       nmod    _       _
+4       were    _       VBD     VBD     _       5       aux     _       _
+5       playing _       VBG     VBG     _       0       root    _       _
+6       while   _       IN      IN      _       12      mark    _       _
+7       some    _       DT      DT      _       12      nsubj   _       _
+8       of      _       IN      IN      _       10      case    _       _
+9       the     _       DT      DT      _       10      det     _       _
+10      others  _       NNS     NNS     _       7       nmod    _       _
+11      are     _       VBP     VBP     _       12      aux     _       _
+12      reading _       VBG     VBG     _       5       advcl   _       _
+
+# test:eudpp_expand_pp_conjunctions-blackbox1
 # purpose: test basic functionality
 1	Bill	Bill	PROPN	NNP	_	2	nsubj	_	_
 2	flies	fly		VERB	VBZ	_	0	root	_	_
@@ -194,7 +209,7 @@
 6	from	from	ADP		IN	_	7	case	_	_
 7	Serbia	Serbia	PROPN	NNP	_	4	conj	_	_
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox2
+# test:eudpp_expand_pp_conjunctions-blackbox2
 # purpose: test multiple ccs and conjs, also test for multi word conj phrases
 1       Bill    _       NNP     NNP     _       2       nsubj   _       _
 2       flies   _       VBZ     VBZ     _       0       root    _       _
@@ -215,7 +230,7 @@
 17      from    _       IN      IN      _       18      case    _     	_
 18      Israel  _       NNP     NNP     _       4       conj    _		_
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox3
+# test:eudpp_expand_pp_conjunctions-blackbox3
 # purpose: test two separate matches in one sentence
 1       Bill    _       NNP     NNP     _       2       nsubj   _       _
 2       flies   _       VBZ     VBZ     _       0       root    _       _
@@ -233,7 +248,7 @@
 14      from    _       IN      IN      _       15      case    _       _
 15      Italy   _       NNP     NNP     _       12      conj    _       _
 
-# test:eudpp_expand_pp_or_prep_conjunctions-blackbox4
+# test:eudpp_expand_prep_conjunctions-blackbox1
 # purpose: test prep
 1       Bill    _       NNP     NNP     _       2       nsubj   _       _
 2       flies   _       VBZ     VBZ     _       0       root    _       _
@@ -241,43 +256,6 @@
 4       and     _       CC      CC      _       3       cc      _       _
 5       from    _       IN      IN      _       3       conj    _       _
 6       France  _       NNP     NNP     _       2       nmod    _       _
-
-# test:eud_passive_agent-blackbox1
-# purpose: test basic functionality
-1       He      _       PRP     PRP     _       3       nsubjpass   _       _
-2       was     _       VBD     VBD     _       3       auxpass 	_       _
-3       chosen  _       VBN     VBN     _       0       root    	_       _
-4       by      _       IN      IN      _       5       case    	_       _
-5       me      _       PRP     PRP     _       3       nmod    	_       _
-
-# test:eud_passive_agent-blackbox2
-# purpose: test two matches in one sentence
-1       He      _       PRP     PRP     _       3       nsubjpass   _       _
-2       was     _       VBD     VBD     _       3       auxpass 	_       _
-3       chosen  _       VBN     VBN     _       0       root    	_       _
-4       by      _       IN      IN      _       5       case    	_       _
-5       me      _       PRP     PRP     _       3       nmod    	_       _
-6       and     _       CC      CC      _       3       cc      	_       _
-7       I       _       PRP     PRP     _       9       nsubjpass   _       _
-8       was     _       VBD     VBD     _       9       auxpass 	_       _
-9       chosen  _       VBN     VBN     _       3       conj    	_       _
-10      by      _       IN      IN      _       11      case    	_       _
-11      you     _       PRP     PRP     _       9       nmod    	_       _
-
-# test:eud_passive_agent-blackbox3
-# purpose: test with no auxpass
-1       They    	_       PRP     PRP     _       2       nsubj   _       _
-2       chose   	_       VBD     VBD     _       0       root    _       _
-3       by      	_       IN      IN      _       4       case    _       _
-4       themselves  _       PRP     PRP     _       2       nmod    _       _
-
-# test:eud_passive_agent-blackbox4
-# purpose: test with no by
-1       He      _       PRP     PRP     _       3       nsubjpass	_       _
-2       was     _       VBD     VBD     _       3       auxpass		_       _
-3       chosen  _       VBN     VBN     _       0       root    	_       _
-4       with    _       IN      IN      _       5       case   		_       _
-5       me      _       PRP     PRP     _       3       nmod    	_       _
 
 # test:eudpp_add_ref_and_collapse-blackbox1
 # purpose: test two matches in one sentence
@@ -295,65 +273,17 @@
 12      the     _       DT      DT      _       13      det     	_       _
 13      tale    _       NN      NN      _       11      dobj    	_       _
 
-# test:eudpp_add_ref_and_collapse-whitebox1
-# purpose: child is lefter than grandchild
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	4	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	7	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
 
-# test:eudpp_add_ref_and_collapse-whitebox2
-# purpose: grandchild is lefter than child
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	7	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	6	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox3
-# purpose: two grandchildren to same child
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	4	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	4	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox4
-# purpose: two children to same child
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	7	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	7	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox5
-# purpose: left most relative-word is not descentant of acl-relcl, and grandchild is true leftmost
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	1	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	4	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
-
-# test:eudpp_add_ref_and_collapse-whitebox6
-# purpose: left most relative-word is not descentant of acl-relcl, and child is true leftmost
-1	The		the		DET		DT		_	2	det			_	_
-2	boy		boy		NOUN	NN		_	0	root		_	_
-3	who		who		CASE	CASE	_	1	nsubj		_	_
-4	bla		bla		NOUN	NN		_	7	nsubj		_	_
-5	whom	whom	CASE	CASE	_	7	nsubj		_	_
-6	bla		bla		DET		DT		_	7	nsubj		_	_
-7	lived	live	NOUN	NN		_	2	acl:relcl	_	_
+# test:eudpp_add_ref_and_collapse-blackbox2
+# purpose: test non-reduced case that eud missed
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       understand      _       VBP     VBP     _       0       root    _       _
+3       the     _       DT      DT      _       4       det     _       _
+4       reason  _       NN      NN      _       2       dobj    _       _
+5       why     _       WRB     WRB     _       7       advmod  _       _
+6       they    _       PRP     PRP     _       7       nsubj   _       _
+7       did     _       VBD     VBD     _       4       acl:relcl       _       _
+8       it      _       PRP     PRP     _       7       dobj    _       _
 
 # test:eud_subj_of_conjoined_verbs-blackbox1
 # purpose: test basic functionality, with different voice
@@ -396,12 +326,24 @@
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       saw     _       VBD     VBD     _       0       root    _       _
 3       them    _       PRP     PRP     _       2       dobj    _       _
-5       in      _       IN      IN      _       7       case    _       _
-6       the     _       DT      DT      _       7       det     _       _
-7       air     _       NN      NN      _       2       nmod    _       _
-9       ground  _       NN      NN      _       7       conj    _       _
-10      and     _       CC      CC      _       7       cc      _       _
-11      water   _       NN      NN      _       7       conj    _       _
+4       in      _       IN      IN      _       6       case    _       _
+5       the     _       DT      DT      _       6       det     _       _
+6       air     _       NN      NN      _       2       nmod    _       _
+7       ground  _       NN      NN      _       6       conj    _       _
+8       and     _       CC      CC      _       6       cc      _       _
+9       water   _       NN      NN      _       6       conj    _       _
+
+# test:eud_case_sons_of_conjuncts-blackbox1
+# purpose: test special case of case propagation when head is nmod
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       saw     _       VBD     VBD     _       0       root    _       _
+3       them    _       PRP     PRP     _       2       dobj    _       _
+4       in      _       IN      IN      _       6       case    _       _
+5       the     _       DT      DT      _       6       det     _       _
+6       air     _       NN      NN      _       2       nmod    _       _
+7       ground  _       NN      NN      _       6       conj    _       _
+8       and     _       CC      CC      _       6       cc      _       _
+9       water   _       NN      NN      _       6       conj    _       _
 
 # test:eud_xcomp_propagation-blackbox1
 # purpose: test basic functionality, with subject, and with verb that starts with 'to..' just to test the 'to' regex
@@ -451,13 +393,6 @@
 12      a       _       DT      DT      _       13      det     _       _
 13      trip    _       NN      NN      _       10      nmod    _       _
 
-# test:eud_xcomp_propagation-blackbox5
-# purpose: test special case of 'to' with no following verb
-1       He      _       PRP     PRP     _       2       nsubj   _       _
-2       decided _       VBD     VBD     _       0       root    _       _
-3       not     _       RB      RB      _       4       neg     _       _
-4       to      _       TO      TO      _       2       xcomp   _       _
-
 # test:eud_prep_patterns-blackbox1
 # purpose: test basic case of preposition added to nmod
 1       I       _       PRP     PRP     _       2       nsubj   _       _
@@ -487,6 +422,52 @@
 8       feel    _       VB      VB      _       6       ccomp   _       _
 9       bad     _       JJ      JJ      _       8       xcomp   _       _
 
+# test:eud_prep_patterns-blackbox4
+# purpose: test case of 3 word preposition added to nmod
+1       I       _       PRP     PRP     _       2       nsubj   _       _
+2       passed  _       VBP     VBP     _       0       root    _       _
+3       in      _       IN      IN      _       6       case    _       _
+4       front   _       NN      NN      _       3       mwe     _       _
+5       of      _       IN      IN      _       3       mwe     _       _
+6       dogs    _       NNS     NNS     _       2       nmod    _       _
+
+# test:eud_prep_patterns-blackbox5
+# purpose: test basic functionality
+1       He      _       PRP     PRP     _       3       nsubjpass   _       _
+2       was     _       VBD     VBD     _       3       auxpass 	_       _
+3       chosen  _       VBN     VBN     _       0       root    	_       _
+4       by      _       IN      IN      _       5       case    	_       _
+5       me      _       PRP     PRP     _       3       nmod    	_       _
+
+# test:eud_prep_patterns-blackbox6
+# purpose: test two matches in one sentence
+1       He      _       PRP     PRP     _       3       nsubjpass   _       _
+2       was     _       VBD     VBD     _       3       auxpass 	_       _
+3       chosen  _       VBN     VBN     _       0       root    	_       _
+4       by      _       IN      IN      _       5       case    	_       _
+5       me      _       PRP     PRP     _       3       nmod    	_       _
+6       and     _       CC      CC      _       3       cc      	_       _
+7       I       _       PRP     PRP     _       9       nsubjpass   _       _
+8       was     _       VBD     VBD     _       9       auxpass 	_       _
+9       chosen  _       VBN     VBN     _       3       conj    	_       _
+10      by      _       IN      IN      _       11      case    	_       _
+11      you     _       PRP     PRP     _       9       nmod    	_       _
+
+# test:eud_prep_patterns-blackbox7
+# purpose: test with no auxpass
+1       They    	_       PRP     PRP     _       2       nsubj   _       _
+2       chose   	_       VBD     VBD     _       0       root    _       _
+3       by      	_       IN      IN      _       4       case    _       _
+4       themselves  _       PRP     PRP     _       2       nmod    _       _
+
+# test:eud_prep_patterns-blackbox8
+# purpose: test with no by
+1       He      _       PRP     PRP     _       3       nsubjpass	_       _
+2       was     _       VBD     VBD     _       3       auxpass		_       _
+3       chosen  _       VBN     VBN     _       0       root    	_       _
+4       with    _       IN      IN      _       5       case   		_       _
+5       me      _       PRP     PRP     _       3       nmod    	_       _
+
 # test:eud_conj_info-blackbox1
 # purpose: test cc's added to conj
 1       I       _       PRP     PRP     _       2       nsubj   _       _
@@ -495,9 +476,9 @@
 4       but     _       CC      CC      _       3       cc      _       _
 5       also    _       RB      RB      _       6       advmod  _       _
 6       her     _       PRP     PRP     _       3       conj    _       _
-8       but     _       CC      CC      _       3       cc      _       _
-9       not     _       RB      RB      _       10      neg     _       _
-10      myself  _       PRP     PRP     _       3       conj    _       _
+7       but     _       CC      CC      _       3       cc      _       _
+8       not     _       RB      RB      _       9       neg     _       _
+9       myself  _       PRP     PRP     _       3       conj    _       _
 
 # test:extra_aspectual_reconstruction-blackbox1
 # purpose: test basic case of aspectual verb followed by an clausal complement verb
@@ -523,6 +504,13 @@
 3       talking _   VB      VB      _       2       xcomp   _       _
 4       to      _   TO      TO      _       5       case    _       _
 5       friends _   VB      VB      _       3       nmod    _       _
+
+# test:eud_xcomp_propagation_no_to-blackbox2
+# purpose: test special case of 'to' with no following verb
+1       He      _       PRP     PRP     _       2       nsubj   _       _
+2       decided _       VBD     VBD     _       0       root    _       _
+3       not     _       RB      RB      _       4       neg     _       _
+4       to      _       TO      TO      _       2       xcomp   _       _
 
 # test:extra_advcl_propagation-blackbox1
 # purpose: test special case of a 'to' connecting to verbs in advcl fashion.
@@ -553,7 +541,7 @@
 6       a       _       DT      DT      _       7       det     _       _
 7       cake    _       NN      NN      _       5       dobj    _       _
 
-# test:extra_acl_propagation-blackbox1
+# test:extra_acl_to_propagation-blackbox1
 # purpose: test noun modifying clauses(acl+infinitive)
 1       Putin   _       NNP     NNP     _       3       nsubj   _       _
 2       has     _       VBZ     VBZ     _       3       aux     _       _
@@ -565,7 +553,7 @@
 8       with    _       IN      IN      _       9       case    _       _
 9       Hu      _       NNP     NNP     _       6       nmod    _       _
 
-# test:extra_acl_propagation-blackbox2
+# test:extra_acl_propagation-blackbox1
 # purpose: test noun modifying clauses(acl+participle)
 1       soldiers	_       NNS     NNS     _       3       nsubj   _       _
 2       have    	_       VBP     VBP     _       3       aux     _       _
@@ -586,7 +574,7 @@
 6       kidnapped   _       VBN     VBN     _       2       dep     _       _
 7       nearby  	_       RB      RB      _       6       advmod  _       _
 
-# test:extra_conj_propagation_of_nmods-blackbox1
+# test:extra_conj_propagation_of_nmods_forward-blackbox1
 # purpose: test basic functionality, where nmod is attached to father.
 1       he      _       PRP     PRP     _       3       nsubjpass	_       _
 2       was     _       VBD     VBD     _       3       auxpass 	_       _
@@ -596,7 +584,7 @@
 6       in      _       IN      IN      _       7       case    	_       _
 7       Korea   _       NNP     NNP     _       3       nmod    	_       _
 
-# test:extra_conj_propagation_of_nmods-blackbox2
+# test:extra_conj_propagation_of_nmods_backwards-blackbox1
 # purpose: test basic functionality, where nmod is attached to son.
 1       he      _       PRP     PRP     _       3       nsubjpass	_       _
 2       was     _       VBD     VBD     _       3       auxpass 	_       _
@@ -607,7 +595,7 @@
 7       in      _       IN      IN      _       8       case    	_       _
 8       Korea   _       NNP     NNP     _       6       nmod    	_       _
 
-# test:extra_conj_propagation_of_nmods-blackbox3
+# test:extra_conj_propagation_of_nmods_backwards-blackbox2
 # purpose: test no propagation when governor has nmods of his own.
 1       he      	_       PRP     PRP     _       3       nsubjpass	_       _
 2       was     	_       VBD     VBD     _       3       auxpass 	_       _
@@ -788,17 +776,6 @@
 6       visited _       VBD     VBD     _       4       acl:relcl       _       _
 7       in      _       RB      RB      _       6       advmod    _     _
 
-# test:extra_add_ref_and_collapse-blackbox3
-# purpose: test non-reduced case that eud missed
-1       I       _       PRP     PRP     _       2       nsubj   _       _
-2       understand      _       VBP     VBP     _       0       root    _       _
-3       the     _       DT      DT      _       4       det     _       _
-4       reason  _       NN      NN      _       2       dobj    _       _
-5       why     _       WRB     WRB     _       7       advmod  _       _
-6       they    _       PRP     PRP     _       7       nsubj   _       _
-7       did     _       VBD     VBD     _       4       acl:relcl       _       _
-8       it      _       PRP     PRP     _       7       dobj    _       _
-
 # test:extra_hyphen_reconstruction-blackbox1
 # purpose: test basic case
 1       I       _       PRP     PRP     _       2       nsubj   _       _
@@ -879,38 +856,38 @@
 4       be      _       VB      VB      _       5       cop     _       _
 5       queen   _       NN      NN      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox1
+# test:extra_evidential_basic_reconstruction-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       smart   _       JJ      JJ      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox2
+# test:extra_evidential_basic_reconstruction-blackbox2
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       the     _       DT      DT      _       4       det     _       _
 4       king    _       NN      NN      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox3
+# test:extra_evidential_basic_reconstruction-blackbox3
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       from    _       IN      IN      _       4       case    _       _
 4       Europe  _       NNP     NNP     _       2       nmod    _       _
 
-# test:extra_evidential_reconstruction-blackbox4
+# test:extra_evidential_basic_reconstruction-blackbox4
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem       VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       5       mark    _       _
 4       be      _       VB      VB      _       5       cop     _       _
 5       smart   _       JJ      JJ      _       2       xcomp   _       _
 
-# test:extra_evidential_reconstruction-blackbox5
+# test:extra_evidential_xcomp_reconstruction-blackbox1
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem    VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       4       mark    _       _
 4       appear  appear  VB      VB      _       2       xcomp   _       _
 5       early   _       RB      RB      _       4       advmod  _       _
 
-# test:extra_evidential_reconstruction-blackbox6
+# test:extra_evidential_xcomp_reconstruction-blackbox2
 1       He      _       PRP     PRP     _       2       nsubj   _       _
 2       seems   seem    VBZ     VBZ     _       0       root    _       _
 3       to      _       TO      TO      _       4       mark    _       _
