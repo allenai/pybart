@@ -782,7 +782,7 @@ extra_appos_propagation_constraint = Full(
     edges=[
         Edge(child="gov", parent="gov_parent", label=[HasLabelFromList(["/.*/"])]),
         # This is a hand made list of legitimate sons to propagate - so it can be enlarged
-        Edge(child="gov", parent="gov_son", label=[HasLabelFromList(["acl", "amod"])]),
+        Edge(child="gov_son", parent="gov", label=[HasLabelFromList(["acl", "amod", "case"])]),
         Edge(child="appos", parent="gov", label=[HasLabelFromList(["appos"])]),
     ],
 )
