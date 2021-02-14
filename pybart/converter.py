@@ -25,7 +25,7 @@ quant_mod_3w = ['lot', 'assortment', 'number', 'couple', 'bunch', 'handful', 'li
 quant_mod_2w = ['lots', 'many', 'several', 'plenty', 'tons', 'dozens', 'multitudes', 'mountains', 'loads', 'pairs', 'tens', 'hundreds', 'thousands', 'millions', 'billions', 'trillions']
 quant_mod_2w_det = ['some', 'all', 'both', 'neither', 'everyone', 'nobody', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'hundred', 'thousand', 'million', 'billion', 'trillion']
 relativizing_words = ["that", "what", "which", "who", "whom", "whose"]
-relativizers_to_rel = {'where': "nmod", "how": "nmod", "when": "nmod:tmod", "why": "nmod"}  # TODO: UDv1 = nmod
+relativizers_to_rel = {'where': ("nmod", "obl:lmod"), "how": ("nmod", "obl"), "when": ("nmod:tmod", "obl:tmod"), "why": ("nmod", "obl")}
 neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
@@ -38,8 +38,8 @@ adj_pos = ["JJ", "JJR", "JJS"]
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
 noun_pos = ["NN", "NNS", "NNP", "NNPS"]
 pron_pos = ["PRP", "PRP$", "WP", "WP$"]
-subj_options = ["nsubj", "nsubjpass", "csubj", "csubjpass"]  # TODO - UDv1 = pass
-obj_options = ["dobj", "iobj"]  # TODO - UDv1 = pass
+subj_options = [("nsubj", "nsubj"), ("nsubjpass", "nsubj:pass"), ("csubj", "csubj"), ("csubjpass", "csubj:pass")]
+obj_options = [("dobj", "obj"), ("iobj", "iobj")]
 g_remove_node_adding_conversions = False
 g_iids = dict()
 g_cc_assignments = dict()
@@ -84,7 +84,7 @@ def create_mwe(words, head, rel):
         word.add_edge(rel, head)
         if 0 == i:
             head = word
-            rel = Label("mwe")  # TODO: UDv1 = mwe
+            rel = Label(udv("mwe", "fixed"))
 
 
 def reattach_children(old_head, new_head, new_rel=None, cond=None):
@@ -157,7 +157,7 @@ eud_correct_subj_pass_constraint = Full(
         Token(id="subj"),
     ],
     edges=[
-        Edge(child="aux", parent="pred", label=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = pass
+        Edge(child="aux", parent="pred", label=[HasLabelFromList([udv("auxpass", "aux:pass")])]),
         Edge(child="subj", parent="pred", label=[HasLabelFromList(["nsubj", "csubj"])]),
     ],
     distances=[UptoDistance("subj", "aux", inf)]
@@ -170,7 +170,7 @@ def eud_correct_subj_pass(sentence, matches):
         subj = cur_match.token("subj")
         pred = cur_match.token("pred")
         for subj_rel in cur_match.edge(subj, pred):
-            new_rel = Label(subj_rel.replace("subj", "subjpass"))  # TODO - UDv1 = pass
+            new_rel = Label(subj_rel.replace("subj", udv("subjpass", "subj:pass")))
             sentence[subj].replace_edge(Label(subj_rel), new_rel, sentence[pred], sentence[pred])
 
 
@@ -188,11 +188,11 @@ eud_prep_patterns_constraint = Full(
         Token(id="c_in", optional=True, spec=[Field(field=FieldNames.TAG, value=["IN", "TO"])]),
     ],
     edges=[
-        Edge(child="mod", parent="gov", label=[HasLabelFromList(["advcl", "acl", "nmod"])]),  # TODO - UDv1 = nmod
+        Edge(child="mod", parent="gov", label=[HasLabelFromList(["advcl", "acl", "nmod", "obl"])]),
         Edge(child="c1", parent="mod", label=[HasLabelFromList(["case", "mark"])]),
-        Edge(child="c_in", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
-        Edge(child="c_nn", parent="c1", label=[HasLabelFromList(["mwe"])]),  # TODO - UDv1 = mwe
-        Edge(child="auxpass", parent="gov", label=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = auxpass
+        Edge(child="c_in", parent="c1", label=[HasLabelFromList([udv("mwe", "fixed")])]),
+        Edge(child="c_nn", parent="c1", label=[HasLabelFromList([udv("mwe", "fixed")])]),
+        Edge(child="auxpass", parent="gov", label=[HasLabelFromList([udv("auxpass", "aux:pass")])]),
     ],
 )
 
@@ -250,9 +250,9 @@ eud_case_sons_of_conjuncts_constraint = Full(
     tokens=[
         Token(id="new_son"),
         Token(id="gov"),
-        Token(id="dep", outgoing_edges=[HasNoLabel(child) for child in ["aux", "auxpass", "case", "mark"]])],  # TODO: UDv1 = auxpass
+        Token(id="dep", outgoing_edges=[HasNoLabel(child) for child in ["aux", udv("auxpass", "aux:pass"), "case", "mark"]])],
     edges=[
-        Edge(child="new_son", parent="gov", label=[HasLabelFromList(["aux", "auxpass", "case", "mark"])]),
+        Edge(child="new_son", parent="gov", label=[HasLabelFromList(["aux", udv("auxpass", "aux:pass"), "case", "mark"])]),
         Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
     ],
 )
@@ -287,7 +287,7 @@ eud_subj_of_conjoined_verbs_constraint = Full(
     edges=[
         Edge(child="subj", parent="gov", label=[HasLabelFromList(subj_options)]),
         Edge(child="conj", parent="gov", label=[HasLabelFromList(["conj"])]),
-        Edge(child="auxpass", parent="conj", label=[HasLabelFromList(["auxpass"])]),  # TODO - UDv1 = pass
+        Edge(child="auxpass", parent="conj", label=[HasLabelFromList([udv("auxpass", "aux:pass")])]),
     ],
 )
 
@@ -300,10 +300,10 @@ def eud_subj_of_conjoined_verbs(sentence, matches):
         auxpass = cur_match.token("auxpass")
         for rel in cur_match.edge(subj, gov):
             subj_rel = rel
-            if subj_rel.endswith("subjpass") and auxpass == -1:
+            if subj_rel.endswith(udv("subjpass", "subj:pass")) and auxpass == -1:
                 subj_rel = subj_rel[:-4]
             elif subj_rel.endswith("subj") and auxpass != -1:
-                subj_rel += "pass"
+                subj_rel += udv("pass", ":pass")
             sentence[subj].add_edge(Label(subj_rel), sentence[conj])
 
 
@@ -465,7 +465,8 @@ extra_of_prep_alteration_constraint = Full(
     ],
     edges=[
         Edge(child="case", parent="nmod_of", label=[HasLabelFromList(["case"])]),
-        Edge(child="nmod_of", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO - UDv1 = nmod
+        # UD-versioning note: only nmod and not obl here because we are looking specifically for a nominal modifier
+        Edge(child="nmod_of", parent="gov", label=[HasLabelFromList(["nmod"])]),
     ],
 )
 
@@ -490,7 +491,7 @@ extra_compound_propagation_constraint = Full(
     ],
     edges=[
         Edge(child="middle_man", parent="gov", label=[HasLabelFromList(subj_options + obj_options)]),
-        Edge(child="compound", parent="middle_man", label=[HasLabelFromList(["compound"])]),  # TODO - UDv1 = nmod
+        Edge(child="compound", parent="middle_man", label=[HasLabelFromList(["compound"])]),
     ],
 )
 
@@ -582,10 +583,11 @@ extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
         Token(id="case", optional=True, spec=[Field(FieldNames.TAG, ["IN", "TO"])]),
     ],
     edges=[
-        Edge(child="mediator", parent="receiver", label=[HasLabelFromList(subj_options + obj_options + ["nmod"])]),  # TODO: UDv1 = nmod
-        Edge(child="modifier", parent="mediator", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="mediator", parent="receiver", label=[HasLabelFromList(subj_options + obj_options + ["nmod", "obl"])]),
+        # UD-versioning note: we are looking for a nominal elaboration/specification so no obl
+        Edge(child="modifier", parent="mediator", label=[HasLabelFromList(["nmod"])]),
         Edge(child="specifier", parent="modifier", label=[HasLabelFromList(["case"])]),
-        Edge(child="as", parent="specifier", label=[HasLabelFromList(["mwe"])]),  # TODO: UDv1 = mwe
+        Edge(child="as", parent="specifier", label=[HasLabelFromList([udv("mwe", "fixed")])]),
         Edge(child="case", parent="mediator", label=[HasLabelFromList(["case"])]),
     ],
 )
@@ -612,58 +614,61 @@ def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches):
         for label in cur_match.edge(mediator, receiver):
             sentence[modifier].add_edge(Label(label, src="nmod", phrase=phrase), sentence[receiver])
             # also propagate the attached case in case of modifier relation between the receiver and mediator
-            if label == "nmod" and case != -1:  # TODO: UDv1 = nmod
+            if label in ["nmod", "obl"] and case != -1:
                 sentence[case].add_edge(
-                    Label("case", eud=sentence[case].get_conllu_field("form").lower(), src="nmod", phrase=phrase), sentence[modifier])
+                    Label("case", eud=sentence[case].get_conllu_field("form").lower(), src=label, phrase=phrase), sentence[modifier])
 
 
-def conj_propagation_of_nmods_per_type(sentence, matches, specific_nmod_rel):
+def conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name):
     for cur_match in matches:
         nmod = sentence[cur_match.token("nmod")]
         receiver = sentence[cur_match.token("receiver")]
         conj = cur_match.token("conj")
         case = cur_match.token("case")
+        father = cur_match.token(nmod_fathers_name)
 
         # this prevents propagating modifiers to added nodes
         if receiver.get_conllu_field("id").minor:
             continue
 
         conj_per_type = sentence[conj] if conj != -1 else receiver
+        # for simplicity we assume the target nmod/obl is the only one in between
+        label = cur_match.edge(nmod, father)[0]
         nmod.add_edge(
-            Label(specific_nmod_rel, eud=None if case == -1 else sentence[case].get_conllu_field("form").lower(),
+            Label(label, eud=None if case == -1 else sentence[case].get_conllu_field("form").lower(),
                   src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1] if conj_per_type in g_cc_assignments else None), receiver)
 
 
 extra_conj_propagation_of_nmods_backwards_constraint = Full(
     tokens=[
-        Token(id="receiver", outgoing_edges=[HasNoLabel("nmod")]),  # TODO: UDv1 = nmod
+        Token(id="receiver", outgoing_edges=[HasNoLabel("nmod"), HasNoLabel("obl")]),
         Token(id="conj"),
         Token(id="nmod"),
         Token(id="case")
     ],
     edges=[
         Edge(child="conj", parent="receiver", label=[HasLabelFromList(["conj"])]),
-        Edge(child="nmod", parent="conj", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="nmod", parent="conj", label=[HasLabelFromList(["nmod", "obl"])]),
         Edge(child="case", parent="nmod", label=[HasLabelFromList(["case"])])
     ],
 )
 
 
 def extra_conj_propagation_of_nmods_backwards(sentence, matches):
-    conj_propagation_of_nmods_per_type(sentence, matches, "nmod")# TODO: UDv1 = nmod
+    conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name="conj")
 
 
 extra_conj_propagation_of_nmods_forward_constraint = Full(
     tokens=[
         Token(id="father"),
         # TODO: validate if HasNoLabel("nmod") is really needed.
-        Token(id="receiver", outgoing_edges=[HasNoLabel("nmod")]),  # TODO: UDv1 = nmod
+        Token(id="receiver", outgoing_edges=[HasNoLabel("nmod"), HasNoLabel("obl")]),
         Token(id="nmod"),
         Token(id="case")
     ],
     edges=[
         Edge(child="receiver", parent="father", label=[HasLabelFromList(["conj"])]),
-        Edge(child="nmod", parent="father", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="nmod", parent="father", label=[HasLabelFromList(["nmod", "obl"])]),
         Edge(child="case", parent="nmod", label=[HasLabelFromList(["case"])])
     ],
     distances=[
@@ -674,7 +679,7 @@ extra_conj_propagation_of_nmods_forward_constraint = Full(
 
 
 def extra_conj_propagation_of_nmods_forward(sentence, matches):
-    conj_propagation_of_nmods_per_type(sentence, matches, "nmod")# TODO: UDv1 = nmod
+    conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name="father")
 
 
 
@@ -684,18 +689,18 @@ extra_conj_propagation_of_poss_constraint = Full(
         # we need the spec, to prevent propagation of possessive modifiers to pronouns ("my her"), and to proper nouns ("his U.S.A"),
         # and the `det` restriction to prevent propagation of possessive modifiers to definite phrases ("my the man")
         Token(id="receiver", spec=[Field(field=FieldNames.TAG, value=pron_pos + ["NNP", "NNPS"], in_sequence=False)],
-              outgoing_edges=[HasNoLabel("nmod:poss"), HasNoLabel("det")]),  # TODO: UDv1 = nmod
+              outgoing_edges=[HasNoLabel("nmod:poss"), HasNoLabel("det")]),
         Token(id="nmod"),
     ],
     edges=[
         Edge(child="receiver", parent="father", label=[HasLabelFromList(["conj"])]),
-        Edge(child="nmod", parent="father", label=[HasLabelFromList(["nmod:poss"])]),  # TODO: UDv1 = nmod
+        Edge(child="nmod", parent="father", label=[HasLabelFromList(["nmod:poss"])]),
     ],
 )
 
 
 def extra_conj_propagation_of_poss(sentence, matches):
-    conj_propagation_of_nmods_per_type(sentence, matches, "nmod:poss")# TODO: UDv1 = nmod
+    conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name="father")
 
 
 # Here we connect directly the advmod to a predicate that is mediated by an nmod
@@ -708,7 +713,7 @@ extra_advmod_propagation_constraint = Full(
         Token(id="case"),
     ],
     edges=[
-        Edge(child="middle_man", parent="gov", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="middle_man", parent="gov", label=[HasLabelFromList(["nmod", "obl"])]),
         Edge(child="advmod", parent="middle_man", label=[HasLabelFromList(["advmod"])]),
         Edge(child="case", parent="middle_man", label=[HasLabelFromList(["case"])]),
     ],
@@ -720,7 +725,9 @@ def extra_advmod_propagation(sentence, matches):
         gov = cur_match.token("gov")
         case = cur_match.token("case")
         advmod = cur_match.token("advmod")
-        sentence[advmod].add_edge(Label("advmod", src="nmod", src_type="INDEXICAL", phrase=sentence[case].get_conllu_field("form"), uncertain=True), sentence[gov])
+        # for simplicity we assume the target nmod/obl is the only one in between
+        label = cur_match.edge(cur_match.token("middle_man"), gov)[0]
+        sentence[advmod].add_edge(Label("advmod", src=label, src_type="INDEXICAL", phrase=sentence[case].get_conllu_field("form"), uncertain=True), sentence[gov])
 
 
 # here we connect the nmod to a predicate which is mediated by an advmod,
@@ -738,7 +745,8 @@ extra_nmod_advmod_reconstruction_constraint = Full(
     ],
     edges=[
         Edge(child="advmod", parent="gov", label=[HasLabelFromList(["advmod"])]),
-        Edge(child="nmod", parent="advmod", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        # UD-versioning note: here we specifically look for obl in udv2, as we want the modifier to modify an adverb
+        Edge(child="nmod", parent="advmod", label=[HasLabelFromList([udv("nmod", "obl")])]),
         Edge(child="case", parent="nmod", label=[HasLabelFromList(["case"])]),
     ],
     concats=[
@@ -755,21 +763,27 @@ def extra_nmod_advmod_reconstruction(sentence, matches):
         advmod = sentence[cur_match.token("advmod")]
         nmod = sentence[cur_match.token("nmod")]
 
-        # validate that nmod and fov are not connected already
+        # validate that nmod and gov are not connected already
         if gov in nmod.get_parents():
             continue
 
-        # here we split the rewrite step to two behviors, depending on the advmod+preposition concatination,
+        # UD-versioning note: in case the new governor is not nominal, we want the new label to be obl
+        if gov.get_conllu_field("xpos") not in noun_pos + pron_pos:
+            new_label = udv("nmod", "obl")
+        else:
+            new_label = "nmod"
+
+        # here we split the rewrite step to two behaviors, depending on the advmod+preposition concatenation,
         # if it's not part of nmod_advmod_complex: we remove the advmod from the governor
         # and connect it as a multi word case to the nmod, and downgrade the original case to be its mwe son.
         # in any way we connect the nmod to the governor
         mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
         if mwe in nmod_advmod_complex:
-            nmod.add_edge(Label("nmod", eud=get_eud_info(case.get_conllu_field("form").lower()), src="advmod_prep"), gov)  # TODO: UDv1 = nmod
+            nmod.add_edge(Label(new_label, eud=get_eud_info(case.get_conllu_field("form").lower()), src="advmod_prep"), gov)
         else:
             advmod.replace_edge(Label("advmod"), Label("case", src="advmod_prep"), gov, nmod)
-            case.replace_edge(Label("case"), Label("mwe", src="advmod_prep"), nmod, advmod)
-            nmod.replace_edge(Label("nmod"), Label("nmod", eud=get_eud_info(mwe), src="advmod_prep"), advmod, gov)  # TODO: UDv1 = nmod
+            case.replace_edge(Label("case"), Label(udv("mwe", "fixed"), src="advmod_prep"), nmod, advmod)
+            nmod.replace_edge(Label(udv("nmod", "obl")), Label(new_label, eud=get_eud_info(mwe), src="advmod_prep"), advmod, gov)
 
 
 extra_appos_propagation_constraint = Full(
@@ -818,12 +832,12 @@ def reattach_children_copula(old_root, new_root, cop):
                 # store subj children for later
                 if rel.base in subj_options:
                     subjs.append(child)
-            elif rel.base in ["mark", "aux", "auxpass", "advmod"]:  # TODO: and not evidential: TODO: UDv1 = auxpass
+            elif rel.base in ["mark", "aux", udv("auxpass", "aux:pass"), "advmod"]:  # TODO: and not evidential:
                 # simply these are to be transferred to the 'cop' itself, as it is in the evidential case.
                 # and make the 'to' be the son of the 'be' evidential (instead the copula old).
                 child.replace_edge(rel, rel, old_root, cop)
             elif rel.base == "case":
-                new_out_rel = "nmod"  # TODO: UDv1 = nmod
+                new_out_rel = udv("nmod", "obl")
             elif rel.base == "cop":
                 if not g_remove_node_adding_conversions:
                     # 'cop' becomes 'ev' (for event/evidential) to the new root
@@ -850,7 +864,7 @@ def reattach_children_evidential(old_root, new_root, predecessor):
                 # since only non verbal xcomps children get here, this child becomes an amod connection candidate
                 elif rel.base == "xcomp":
                     new_amod = child
-            elif rel.base == "nmod":  # TODO: UDv1 = nmod
+            elif rel.base == udv("nmod", "obl"):
                 child.replace_edge(rel, rel, old_root, new_root)
     return subjs, 'ev', new_amod
 
@@ -919,12 +933,12 @@ def extra_copula_reconstruction(sentence, matches):
 # NOTE: we avoid the auxiliary sense of the evidential (in the 'be' case), with the gov restriction
 extra_evidential_basic_reconstruction_constraint = Full(
     tokens=[
-        Token(id="old_root", incoming_edges=[HasNoLabel("aux"), HasNoLabel("auxpass")],  # TODO: UDv1 = auxpass
+        Token(id="old_root", incoming_edges=[HasNoLabel("aux"), HasNoLabel(udv("auxpass", "aux:pass"))],
               spec=[Field(field=FieldNames.TAG, value=verb_pos), Field(field=FieldNames.LEMMA, value=evidential_list)]),
         Token(id="new_root", spec=[Field(field=FieldNames.TAG, value=noun_pos + adj_pos)]),
     ],
     edges=[
-        Edge(child="new_root", parent="old_root", label=[HasLabelFromList(["xcomp", "nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="new_root", parent="old_root", label=[HasLabelFromList(["xcomp", udv("nmod", "obl")])]),
     ],
 )
 
@@ -956,7 +970,7 @@ def per_type_weak_modified_verb_reconstruction(sentence, matches, type_):
                     # transfer the subj only if it is not the special case of ccomp
                     if ccomp_or_xcomp != "ccomp":
                         child.replace_edge(rel, rel, old_root, new_root)
-                elif rel.base in ["advmod", "aux", "auxpass", "cc", "conj"]:  # TODO: UDv1 = auxpass
+                elif rel.base in ["advmod", "aux", udv("auxpass", "aux:pass"), "cc", "conj"]:
                     child.replace_edge(rel, rel, old_root, new_root)  # TODO4: consult regarding all cases in the world.
 
         # find lowest 'ev' of the new root, and make us his 'ev' son
@@ -1073,7 +1087,7 @@ eudpp_process_complex_2wp_constraint = Full(
         Token(id="w2", no_children=True),
         Token(id="proxy")],
     edges=[
-        Edge(child="proxy", parent="w1", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        Edge(child="proxy", parent="w1", label=[HasLabelFromList(["nmod", "obl"])]),
         Edge(child="w2", parent="proxy", label=[HasLabelFromList(["case"])])
     ],
     distances=[ExactDistance("w1", "w2", distance=0)],
@@ -1124,7 +1138,7 @@ eudpp_process_3wp_constraint = Full(
         Token(id="w3", no_children=True),
         Token(id="proxy")],
     edges=[
-        Edge(child="proxy", parent="w2", label=[HasLabelFromList(["nmod", "acl", "advcl"])]),  # TODO: UDv1 = nmod
+        Edge(child="proxy", parent="w2", label=[HasLabelFromList(["nmod", "obl", "acl", "advcl"])]),
         Edge(child="w1", parent="w2", label=[HasLabelFromList(["case"])]),
         Edge(child="w3", parent="proxy", label=[HasLabelFromList(["case", "mark"])])
     ],
@@ -1147,7 +1161,7 @@ def eudpp_process_3wp(sentence, matches):
         # make the proxy the head of the phrase
         reattach_parents(w2, proxy, new_rel=Label(proxy_rel),
                          # fix acl to advcl if the new head is a verb, or to root if should be
-                         rel_by_cond=lambda x, y, z: y if x.base not in ["acl", "advcl"] or y.base != "nmod" else
+                         rel_by_cond=lambda x, y, z: y if x.base not in ["acl", "advcl"] or y.base not in ["nmod", "obl"] else
                          (Label("advcl") if z.get_conllu_field("xpos") in verb_pos and x.base == "acl" else x))
 
         # reattach w2 sons to gov2
@@ -1191,7 +1205,7 @@ def demote_per_type(sentence, matches):
         reattach_parents(old_gov, gov2)
         create_mwe(words, gov2, Label("det", "qmod"))
         # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
-        reattach_children(old_gov, gov2, cond=lambda x: x.base != "mwe")  # TODO: UDv1 = mwe
+        reattach_children(old_gov, gov2, cond=lambda x: x.base != udv("mwe", "fixed"))
 
 
 eudpp_demote_quantificational_modifiers_3w_constraint = Full(
@@ -1202,7 +1216,8 @@ eudpp_demote_quantificational_modifiers_3w_constraint = Full(
         Token(id="gov2", spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
     ],
     edges=[
-        Edge(child="gov2", parent="w2", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        # UD-versioning note: no need to use obl as we expect a modifier of nouns (a word from a list)
+        Edge(child="gov2", parent="w2", label=[HasLabelFromList(["nmod"])]),
         Edge(child="w1", parent="w2", label=[HasLabelFromList(["det"])]),
         Edge(child="w3", parent="gov2", label=[HasLabelFromList(["case"])]),
     ],
@@ -1221,7 +1236,8 @@ eudpp_demote_quantificational_modifiers_2w_constraint = Full(
         Token(id="gov2", outgoing_edges=[HasNoLabel("det")], spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
     ],
     edges=[
-        Edge(child="gov2", parent="w1", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        # UD-versioning note: no need to use obl as we expect a modifier of nouns (a word from a list)
+        Edge(child="gov2", parent="w1", label=[HasLabelFromList(["nmod"])]),
         Edge(child="w2", parent="gov2", label=[HasLabelFromList(["case"])]),
     ],
     distances=[ExactDistance("w1", "w2", distance=0)]
@@ -1240,7 +1256,8 @@ eudpp_demote_quantificational_modifiers_det_constraint = Full(
         Token(id="det", optional=True),
     ],
     edges=[
-        Edge(child="gov2", parent="w1", label=[HasLabelFromList(["nmod"])]),  # TODO: UDv1 = nmod
+        # UD-versioning note: no need to use obl as we expect a modifier of nouns (a word from a list)
+        Edge(child="gov2", parent="w1", label=[HasLabelFromList(["nmod"])]),
         Edge(child="w2", parent="gov2", label=[HasLabelFromList(["case"])]),
         Edge(child="det", parent="gov2", label=[HasLabelFromList(["det"])]),
     ],
@@ -1281,7 +1298,7 @@ def eudpp_add_ref_and_collapse(sentence, matches):
         label = list(cur_match.edge(cur_match.token('relativizer'), cur_match.token('mod')))[0]
         text = relativizer.get_conllu_field("form").lower()
         # some relativizers that were simply missing on the eUD, we added them as nmods
-        new_label = Label(relativizers_to_rel[text], eud=text) if text in relativizers_to_rel else Label(label)
+        new_label = Label(udv(*relativizers_to_rel[text]), eud=udv(text, "")) if text in relativizers_to_rel else Label(label)
 
         reattach_children(relativizer, gov)
         relativizer.replace_edge(Label(label), Label("ref"), mod, gov)
@@ -1300,7 +1317,7 @@ extra_add_ref_and_collapse_constraint = Full(
     edges=[
         Edge(child="mod", parent="gov", label=[HasLabelFromList(["acl:relcl"])]),  # TODO: english: relcl
         Edge(child="subj", parent="mod", label=[HasLabelFromList(subj_options)]),
-        Edge(child="prep", parent="mod", label=[HasLabelFromList(["advmod", "nmod", "case", "mark"])]),  # TODO: UDv1: nmod
+        Edge(child="prep", parent="mod", label=[HasLabelFromList(["advmod", udv("nmod", "obl"), "case", "mark"])]),
     ],
 )
 
@@ -1317,7 +1334,7 @@ def extra_add_ref_and_collapse(sentence, matches):
             leftmost_rel = "nsubj"
         # cased of orphan case/marker should become nmod and not obj
         elif prep != -1:
-            leftmost_rel = 'nmod'  # TODO: UDv1 = nmod
+            leftmost_rel = udv("nmod", "obl")
             eud = sentence[prep].get_conllu_field("form").lower()
             # replace the orphan prep to ba a case relation
             # TODO: but actually this is a bit harsh,
@@ -1325,7 +1342,7 @@ def extra_add_ref_and_collapse(sentence, matches):
             old_rel = list(cur_match.edge(prep, cur_match.token('mod')))[0]
             sentence[prep].replace_edge(Label(old_rel), Label("case"), mod, mod)
         else:
-            leftmost_rel = 'dobj'  # TODO: UDv1 = dobj
+            leftmost_rel = udv('dobj', "obj")
         gov.add_edge(Label(leftmost_rel, eud=get_eud_info(eud), src="acl", src_type="RELCL", phrase="REDUCED"), mod)
 
 
@@ -1469,7 +1486,6 @@ def eudpp_expand_prep_conjunctions(sentence, matches):
             modifier.add_edge(Label(rel, eud=get_eud_info(conj.get_conllu_field('form'))), copy_node)
 
 
-# TODO: UDv1 specific
 # TODO: Documentation
 extra_fix_nmod_npmod_constraint = Full(
     tokens=[
@@ -1513,7 +1529,7 @@ def extra_hyphen_reconstruction(sentence, matches):
         verb = cur_match.token("verb")
         noun = cur_match.token("noun")
         sentence[subj].add_edge(Label("nsubj", src="compound", src_type="HYPHEN"), sentence[verb])
-        sentence[noun].add_edge(Label("nmod", src="compound", src_type="HYPHEN"), sentence[verb])  # TODO - UDv1 = nmod
+        sentence[noun].add_edge(Label(udv("nmod", "obl"), src="compound", src_type="HYPHEN"), sentence[verb])
 
 
 # The bottle was broken by me.
@@ -1526,9 +1542,9 @@ extra_passive_alteration_constraint = Full(
         Token(id="by", optional=True, spec=[Field(FieldNames.WORD, ["by"])]),  # TODO - english specific
         Token(id="predicates_obj", optional=True)],
     edges=[
-        Edge(child="subjpass", parent="predicate", label=[HasLabelFromList(["nsubjpass", "csubjpass"])]),  # TODO - UDv1 = pass
+        Edge(child="subjpass", parent="predicate", label=[HasLabelFromList([udv("nsubjpass", "nsubj:pass"), udv("csubjpass", "csubj:pass")])]),
         # TODO: maybe nmod:agent is redundant as we always look at the basic label and agent is part of EUD (afaik)
-        Edge(child="agent", parent="predicate", label=[HasLabelFromList(["nmod", "nmod:agent"])]),  # TODO: UDv1 = nmod
+        Edge(child="agent", parent="predicate", label=[HasLabelFromList([udv("nmod", "obl"), udv("nmod:agent", "obl:agent")])]),
         Edge(child="by", parent="agent", label=[HasLabelFromList(["case"])]),
         Edge(child="predicates_obj", parent="predicate", label=[HasLabelFromList(obj_options)]),
     ]
@@ -1551,7 +1567,7 @@ def extra_passive_alteration(sentence, matches):
         # NOTE:
         #   when there is csubjpass, there are also theoretical cases in which the relation shouldn't be object,
         #   but xcomp/ccomp/advcl (depending on the markers). but I couldn't reproduce these cases so they have been removed
-        subj_new_rel = "dobj" if predicates_obj == -1 else "iobj"  # TODO: UDv1 = obj
+        subj_new_rel = udv("dobj", "obj") if predicates_obj == -1 else "iobj"
 
         # reverse the passivised subject
         subj.add_edge(Label(subj_new_rel, src="passive"), predicate)
@@ -1623,8 +1639,6 @@ def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, c
 
 
 def init_conversions():
-    # TODO - update Full to each constraint
-
     conversion_list = [
         Conversion(ConvTypes.EUD, eud_correct_subj_pass_constraint, eud_correct_subj_pass),
         Conversion(ConvTypes.EUDPP, eudpp_process_simple_2wp_constraint, eudpp_process_simple_2wp),
@@ -1638,9 +1652,9 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_evidential_xcomp_reconstruction_constraint, extra_evidential_xcomp_reconstruction),
         Conversion(ConvTypes.BART, extra_evidential_basic_reconstruction_constraint, extra_evidential_basic_reconstruction),
         Conversion(ConvTypes.BART, extra_aspectual_reconstruction_constraint, extra_aspectual_reconstruction),
-        Conversion(ConvTypes.BART, extra_reported_evidentiality_constraint, extra_reported_evidentiality),
-        Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod),
-        Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
+        Conversion(ConvTypes.BART, extra_reported_evidentiality_constraint, extra_reported_evidentiality)] + \
+        ([Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod)] if g_ud_version == 1 else []) + \
+        [Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
         Conversion(ConvTypes.EUDPP, eudpp_expand_pp_conjunctions_constraint, eudpp_expand_pp_conjunctions),
         Conversion(ConvTypes.EUDPP, eudpp_expand_prep_conjunctions_constraint, eudpp_expand_prep_conjunctions),
@@ -1672,11 +1686,14 @@ def init_conversions():
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
             remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version=1):
-    global g_remove_node_adding_conversions, g_iids, g_ud_version
+    global g_remove_node_adding_conversions, g_iids, g_ud_version, subj_options, obj_options
     pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
     pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
     g_remove_node_adding_conversions = remove_node_adding_conversions
     g_ud_version = ud_version
+    # fixing the global arrays to contain only the correct ud version of the label
+    subj_options = [udv(ud1, ud2) for ud1, ud2 in subj_options]
+    obj_options = [udv(ud1, ud2) for ud1, ud2 in obj_options]
 
     conversions = init_conversions()
     remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
