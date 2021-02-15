@@ -1546,7 +1546,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             # NOTE:
             #   when there is csubjpass, there are also theoretical cases in which the relation shouldn't be object,
             #   but xcomp/ccomp/advcl (depending on the markers). but I couldn't reproduce these cases so they have been removed
-            subj_new_rel = udv("dobj", "obj") if predicates_obj == -1 else "iobj"
+            subj_new_rel = udv("dobj") if predicates_obj == -1 else "iobj"
 
             # reverse the passivised subject
             subj.add_edge(Label(subj_new_rel, src="passive"), predicate)
