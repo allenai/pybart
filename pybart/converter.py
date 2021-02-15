@@ -146,7 +146,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
     def udv(udv1_str: str) -> str:
         # the replace is to take care for a unique case in which we get nmod but dont want the corresponding obl,
         # but rather obl:lmod. while in ud v1 we still want nmod and not nmod:lmod as it doesnt exist in version 1
-        return udv1_str.replace(":lmod", "") if ud_version == 1 else udv_map.get(udv1_str, default=udv1_str)
+        return udv1_str.replace(":lmod", "") if ud_version == 1 else udv_map.get(udv1_str, udv1_str)
 
     subj_options = ["nsubj", udv("nsubjpass"), "csubj", udv("csubjpass")]
     obj_options = [udv("dobj"), "iobj"]
