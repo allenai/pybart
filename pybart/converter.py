@@ -37,10 +37,8 @@ adj_pos = ["JJ", "JJR", "JJS"]
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
 noun_pos = ["NN", "NNS", "NNP", "NNPS"]
 pron_pos = ["PRP", "PRP$", "WP", "WP$"]
-g_remove_node_adding_conversions = False
 g_iids = dict()
 g_cc_assignments = dict()
-g_ud_version = 0
 
 
 class ConvTypes(Enum):
@@ -71,17 +69,13 @@ def get_conversion_names():
             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
 
 
-def udv(udv1_str: str, udv2_str: str) -> str:
-    return udv1_str if g_ud_version == 1 else udv2_str
-
-
-def create_mwe(words, head, rel):
+def create_mwe(words, head, rel, secondary_rel):
     for i, word in enumerate(words):
         word.remove_all_edges()
         word.add_edge(rel, head)
         if 0 == i:
             head = word
-            rel = Label(udv("mwe", "fixed"))
+            rel = Label(secondary_rel)
 
 
 def reattach_children(old_head, new_head, new_rel=None, cond=None):
@@ -145,7 +139,11 @@ def assign_ccs_to_conjs(sentence):
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 
-def init_conversions():
+def init_conversions(remove_node_adding_conversions, ud_version):
+
+    def udv(udv1_str: str, udv2_str: str) -> str:
+        return udv1_str if ud_version == 1 else udv2_str
+
     subj_options = [udv("nsubj", "nsubj"), udv("nsubjpass", "nsubj:pass"), udv("csubj", "csubj"), udv("csubjpass", "csubj:pass")]
     obj_options = [udv("dobj", "obj"), udv("iobj", "iobj")]
 
@@ -816,7 +814,7 @@ def init_conversions():
                 elif rel.base == "case":
                     new_out_rel = udv("nmod", "obl")
                 elif rel.base == "cop":
-                    if not g_remove_node_adding_conversions:
+                    if not remove_node_adding_conversions:
                         # 'cop' becomes 'ev' (for event/evidential) to the new root
                         child.replace_edge(rel, Label("ev"), old_root, new_root)
                 # else: 'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', ('cc', 'conj')
@@ -856,7 +854,7 @@ def init_conversions():
             predecessor = sentence[cop] if cop != -1 else old_root
 
             # add STATE node or nominate the copula as new root if we shouldn't add new nodes
-            if not g_remove_node_adding_conversions:
+            if not remove_node_adding_conversions:
                 new_id = TokenId(predecessor.get_conllu_field('id').major,
                                  predecessor.get_conllu_field('id').minor + 1)
                 if new_id in [t.get_conllu_field("id") for t in sentence]:
@@ -921,7 +919,7 @@ def init_conversions():
 
 
     def extra_evidential_basic_reconstruction(sentence, matches):
-        if not g_remove_node_adding_conversions:
+        if not remove_node_adding_conversions:
             extra_inner_weak_modifier_verb_reconstruction(sentence, matches, True)
 
 
@@ -1042,7 +1040,7 @@ def init_conversions():
             w2 = sentence[cur_match.token("w2")]
 
             # create multi word expression
-            create_mwe([w1, w2], common_parent, Label("case"))
+            create_mwe([w1, w2], common_parent, Label("case"), udv("mwe", "fixed"))
 
 
     # for example: He is close to me.
@@ -1090,7 +1088,7 @@ def init_conversions():
             reattach_children(w1, proxy)
 
             # create multi word expression
-            create_mwe([w1, w2], proxy, Label("case"))
+            create_mwe([w1, w2], proxy, Label("case"), udv("mwe", "fixed"))
 
 
     # for example: He is close to me.
@@ -1145,7 +1143,7 @@ def init_conversions():
             reattach_children(w2, proxy)
 
             # create multi word expression
-            create_mwe([w1, w2, w3], proxy, Label(case))
+            create_mwe([w1, w2, w3], proxy, Label(case), udv("mwe", "fixed"))
 
 
     # The following two methods corrects Partitives and light noun constructions,
@@ -1180,7 +1178,7 @@ def init_conversions():
                 words += [sentence[det]]
 
             reattach_parents(old_gov, gov2)
-            create_mwe(words, gov2, Label("det", "qmod"))
+            create_mwe(words, gov2, Label("det", "qmod"), udv("mwe", "fixed"))
             # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
             reattach_children(old_gov, gov2, cond=lambda x: x.base != udv("mwe", "fixed"))
 
@@ -1563,7 +1561,7 @@ def init_conversions():
         Conversion(ConvTypes.BART, extra_evidential_basic_reconstruction_constraint, extra_evidential_basic_reconstruction),
         Conversion(ConvTypes.BART, extra_aspectual_reconstruction_constraint, extra_aspectual_reconstruction),
         Conversion(ConvTypes.BART, extra_reported_evidentiality_constraint, extra_reported_evidentiality)] + \
-        ([Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod)] if 1 == g_ud_version else []) + \
+        ([Conversion(ConvTypes.BART, extra_fix_nmod_npmod_constraint, extra_fix_nmod_npmod)] if 1 == ud_version else []) + \
         [Conversion(ConvTypes.BART, extra_hyphen_reconstruction_constraint, extra_hyphen_reconstruction),
         Conversion(ConvTypes.EUD, eud_case_sons_of_conjuncts_constraint, eud_case_sons_of_conjuncts),
         Conversion(ConvTypes.EUDPP, eudpp_expand_pp_conjunctions_constraint, eudpp_expand_pp_conjunctions),
@@ -1660,14 +1658,16 @@ def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, c
 
 
 def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
-            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version=1):
-    global g_remove_node_adding_conversions, g_iids, g_ud_version
+            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel,
+            ud_version=1, one_time_initialized_conversions=None):
+    global g_iids
     pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
     pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
-    g_remove_node_adding_conversions = remove_node_adding_conversions
-    g_ud_version = ud_version
 
-    conversions = init_conversions()
+    if one_time_initialized_conversions:
+        conversions = one_time_initialized_conversions
+    else:
+        conversions = init_conversions(remove_node_adding_conversions, ud_version)
     remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
                  remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
     matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint)
