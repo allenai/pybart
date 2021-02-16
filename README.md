@@ -33,7 +33,7 @@ This project is part of a wider project series, related to BART:
 
 ## Converter description
 
- * Converts UD (v1.4) to BART. 
+ * Converts UD (supports both versions 1 and 2) to BART.
  * Supports Conll-U format, spaCy docs, and spaCy pipeline component (see [Usage](#usage)).
  * Highly configurable (see [Configuration](#configuration)).
 
@@ -123,7 +123,8 @@ Each of our API calls can get the following optional parameters:
 | remove_node_adding_conversions | boolean | False | Do not include conversions that might add nodes to the given graph. |
 | remove_unc | boolean | False | Do not include conversions that might contain `uncertainty` (see paper for detailed explanation). |
 | query_mode | boolean | False | Do not include conversions that add arcs rather than reorder arcs. |
-| funcs_to_cancel | ConvsCanceler class | Empty class instantiation | A list of conversions to prevent from occuring by their names. Use `get_conversion_names` for the full conversion name list |
+| funcs_to_cancel | List\[str\] | None | A list of conversions to prevent from occuring by their names. Use `get_conversion_names` for the full conversion name list |
+| ud_version | int | 1 | Which UD version to expect as input and to set the converter to. Currently we support 1 and 2. |
 
 [//]: # ({: .tablelines})
 
