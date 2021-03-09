@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from .pybart_globals import *
 
 
 @dataclass
@@ -29,12 +28,15 @@ class Label:
 
     def to_str(self, no_bart=False):
         eud = ""
-        if self.eud is not None and not g_remove_enhanced_extra_info:
-            eud = ":" + self.eud
+        if self.eud is not None:
+            from .pybart_globals import g_remove_enhanced_extra_info
+            if not g_remove_enhanced_extra_info:
+                eud = ":" + self.eud
 
         bart = ""
-        if not no_bart:
-            if self.src is not None and not g_remove_bart_extra_info:
+        if not no_bart and self.src is not None:
+            from .pybart_globals import g_remove_bart_extra_info
+            if not g_remove_bart_extra_info:
                 iid_str = "" if self.iid is None else "#" + str(self.iid)
                 dep_args = ", ".join(x for x in filter(None, [self.src_type, self.phrase, "UNC" if self.uncertain else None]))
                 bart = "@" + self.src + "(" + dep_args + ")" + iid_str
