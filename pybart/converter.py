@@ -600,7 +600,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
 
     def conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name):
         for cur_match in matches:
-            nmod = sentence[cur_match.token("nmod")]
+            nmod = cur_match.token("nmod")
             receiver = sentence[cur_match.token("receiver")]
             conj = cur_match.token("conj")
             case = cur_match.token("case")
@@ -612,8 +612,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
 
             conj_per_type = sentence[conj] if conj != -1 else receiver
             # for simplicity we assume the target nmod/obl is the only one in between
-            label = cur_match.edge(nmod, father)[0]
-            nmod.add_edge(
+            label = list(cur_match.edge(nmod, father))[0]
+            sentence[nmod].add_edge(
                 Label(label, eud=None if case == -1 else sentence[case].get_conllu_field("form").lower(),
                       src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1] if conj_per_type in g_cc_assignments else None), receiver)
 
@@ -705,7 +705,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             case = cur_match.token("case")
             advmod = cur_match.token("advmod")
             # for simplicity we assume the target nmod/obl is the only one in between
-            label = cur_match.edge(cur_match.token("middle_man"), gov)[0]
+            label = list(cur_match.edge(cur_match.token("middle_man"), gov))[0]
             sentence[advmod].add_edge(Label("advmod", src=label, src_type="INDEXICAL", phrase=sentence[case].get_conllu_field("form"), uncertain=True), sentence[gov])
 
 
