@@ -1607,22 +1607,22 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
     if not enhanced_extra:
         conversions = {conversion.name: conversion for conversion in conversions.values() if conversion.conv_type != ConvTypes.BART}
     if remove_enhanced_extra_info:
-        conversions.pop('eud_conj_info')
-        conversions.pop('eud_prep_patterns')
+        conversions.pop('eud_conj_info', None)
+        conversions.pop('eud_prep_patterns', None)
     if remove_node_adding_conversions:
         # no need to cancel extra_inner_weak_modifier_verb_reconstruction as we have a special treatment there
-        conversions.pop('eudpp_expand_prep_conjunctions')
-        conversions.pop('eudpp_expand_pp_conjunctions')
+        conversions.pop('eudpp_expand_prep_conjunctions', None)
+        conversions.pop('eudpp_expand_pp_conjunctions', None)
     if remove_unc:
         for func_name in ['extra_dep_propagation', 'extra_compound_propagation', 'extra_conj_propagation_of_poss', 'extra_conj_propagation_of_nmods_forward', 'extra_conj_propagation_of_nmods_backwards', 'extra_advmod_propagation', 'extra_advcl_ambiguous_propagation']:
-            conversions.pop(func_name)
+            conversions.pop(func_name, None)
     if query_mode:
         for func_name in conversions.keys():
             if func_name in ['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_basic_reconstruction', 'extra_evidential_xcomp_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers']:
-                conversions.pop(func_name)
+                conversions.pop(func_name, None)
     if funcs_to_cancel:
         for func_to_cancel in funcs_to_cancel:
-            conversions.pop(func_to_cancel)
+            conversions.pop(func_to_cancel, None)
 
     return conversions
 
@@ -1672,7 +1672,7 @@ def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iteration
         conversions = one_time_initialized_conversions
     else:
         conversions = init_conversions(remove_node_adding_conversions, ud_version)
-    remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
+    conversions = remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
                  remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
     matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint)
                        for conversion_name, conversion in conversions.items()])
