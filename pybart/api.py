@@ -38,7 +38,8 @@ def convert_bart_tacred(tacred_json, enhance_ud=True, enhanced_plus_plus=True, e
 def convert_spacy_doc(doc, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1, one_time_initialized_conversions=None):
     parsed_doc = [parse_spacy_sent(sent) for sent in doc.sents]
     converted, convs_done = convert(parsed_doc, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version, one_time_initialized_conversions)
-    return enhance_to_spacy_doc(doc, converted), converted, convs_done
+    enhance_to_spacy_doc(doc, converted)
+    return converted, convs_done
 
 
 class Converter:
@@ -48,10 +49,10 @@ class Converter:
         self.conversions = init_conversions(remove_node_adding_conversions, ud_version)
 
     def __call__(self, doc):
-        serialized_spacy_doc, converted_sents, convs_done = convert_spacy_doc(doc, *self.config, self.conversions)
+        converted_sents, convs_done = convert_spacy_doc(doc, *self.config, self.conversions)
         self._converted_sents = converted_sents
         self._convs_done = convs_done
-        return serialized_spacy_doc
+        return doc
 
     def get_converted_sents(self):
         return self._converted_sents
@@ -74,7 +75,7 @@ def get_conversion_names():
 
 @Language.factory(
    "pybart_spacy_pipe",
-   default_config={"enhance_ud": True, "enhanced_plus_plus": True, "enhanced_extra": True, "conv_iterations": math.inf, "remove_eud_info": False, "remove_extra_info": False, "remove_node_adding_conversions": False, "remove_unc": False, "query_mode": False, "funcs_to_cancel": None, "ud_version": 1, "one_time_initialized_conversions": None},
+   default_config={"enhance_ud": True, "enhanced_plus_plus": True, "enhanced_extra": True, "conv_iterations": math.inf, "remove_eud_info": False, "remove_extra_info": False, "remove_node_adding_conversions": False, "remove_unc": False, "query_mode": False, "funcs_to_cancel": None, "ud_version": 1},
 )
 def create_pybart_spacy_pipe(nlp, name, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version):
     return ConverterWithNlp(nlp, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)

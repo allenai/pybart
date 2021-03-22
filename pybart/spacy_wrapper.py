@@ -11,17 +11,19 @@ NUM_OF_BITS = struct.calcsize("P") * 8
 
 
 # this is here because it needs to happen only once (per import)
-SpacyToken.set_extension("parent_graphs_per_sent", default=[])
+Doc.set_extension("parent_graphs_per_sent", default=[])
 
 
 def enhance_spike_doc(doc: Doc, spike_doc: JsonObject) -> JsonObject:
-    spike_doc["graphs"]["universal-enhanced"] = {"edges": [], "roots": []}
-    for edge in doc._.parent_graph.edges():
-        if edge.label_.lower().startswith("root"):
-            spike_doc["graphs"]["universal-enhanced"]["roots"].append(edge.tail.tokens[0].i)  # assume we have only one token per graph node
-        else:
-            spike_doc["graphs"]["universal-enhanced"]["edges"].append(
-                {"source": edge.head.tokens[0].i, "destination": edge.tail.tokens[0].i, "relation": edge.label_})
+    converted_graphs = doc._.parent_graphs_per_sent
+    for idx, sent in enumerate(spike_doc["sentences"]):
+        sent["graphs"]["universal-enhanced"] = {"edges": [], "roots": []}
+        for edge in converted_graphs[idx].edges:
+            if edge.label_.lower().startswith("root"):
+                sent["graphs"]["universal-enhanced"]["roots"].append(edge.tail.tokens[0].i)  # assume we have only one token per graph node
+            else:
+                sent["graphs"]["universal-enhanced"]["edges"].append(
+                    {"source": edge.head.tokens[0].i, "destination": edge.tail.tokens[0].i, "relation": edge.label_})
     return spike_doc
 
 
@@ -66,14 +68,21 @@ def enhance_to_spacy_doc(orig_doc, converted_sentences):
         edges = []
         labels = []
         for idx, tok in enumerate(converted_sentence):
-            node_indices_map[(tok.new_id.major, tok.new_id.minor)] = idx
-            nodes.append((tok.new_id.major - 1 + offset,) if tok.new_id.minor == 0 else ())
+            new_id = tok.get_conllu_field("id")
+            if new_id == '0':
+                continue
+            node_indices_map[new_id.token_str] = idx
+            _ = nodes.append((new_id.major - 1 + offset,) if new_id.minor == 0 else ())
         for idx, tok in enumerate(converted_sentence):
+            new_id = tok.get_conllu_field("id").token_str
+            if new_id == '0':
+                continue
             for head, rels in tok.get_new_relations():
                 for rel in rels:
+                    head_id = head.get_conllu_field("id").token_str
                     edges.append((
-                        node_indices_map[(head.new_id.major, head.new_id.minor)],
-                        node_indices_map[(tok.new_id.major, tok.new_id.minor)]
+                        node_indices_map[head_id if head_id != '0' else new_id],
+                        node_indices_map[new_id]
                     ))
                     _ = orig_doc.vocab[rel.to_str()]  # this will push the label into the vocab if it's not there
                     labels.append(rel.to_str())
