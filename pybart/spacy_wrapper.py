@@ -1,5 +1,7 @@
 import struct
 from typing import Any, Dict
+import os
+import sys
 
 from spacy.tokens import Doc, Token as SpacyToken
 from spacy.tokens.graph import Graph
@@ -87,5 +89,9 @@ def enhance_to_spacy_doc(orig_doc, converted_sentences):
                     _ = orig_doc.vocab[rel.to_str()]  # this will push the label into the vocab if it's not there
                     labels.append(rel.to_str())
 
+        # Disable printing possibility: so graph creation wont print many lines
+        sys.stdout = open(os.devnull, 'w')
         orig_doc._.parent_graphs_per_sent.append(Graph(orig_doc, name="pybart", nodes=nodes, edges=edges, labels=labels))
+        # Restore printing possibility
+        sys.stdout = sys.__stdout__
         offset += len(orig_span)
