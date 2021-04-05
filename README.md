@@ -15,7 +15,7 @@ See our [pyBART: Evidence-based Syntactic Transformations for IE](http://arxiv.o
 
 This project is part of a wider project series, related to BART:
 1. [**Converter:**](#converter-description) The current project.
-2. [**Model:**](https://github.com/allenai/ud_spacy_model) UD based [spaCy](https://spacy.io/) model (pip install [the_large_model](https://storage.googleapis.com/en_ud_model/en_ud_model_lg-1.1.0.tar.gz)). This model is needed when using the converter as a spaCy pipeline component (as spaCy doesn't provide UD-format based models).
+2. [**Model:**](https://github.com/allenai/ud_spacy_model) UD based [spaCy](https://spacy.io/) model (pip install [the_large_model](https://storage.googleapis.com/en_ud_model/en_ud_model_trf-2.0.0.tar.gz)). This model is needed when using the converter as a spaCy pipeline component (as spaCy doesn't provide UD-format based models).
 3. [**Demo:**](http://nlp.biu.ac.il/~aryeht/eud/) Web-demo making use of the converter, to compare between UD and BART representations.
 
 ## Table of contents
@@ -46,13 +46,14 @@ If you want to use pyBART as a spaCy pipeline component, then you should install
 
 ```bash
 # if you want to use pyBART as a spaCy pipeline component, well,
-#   you need spaCy installed and a spaCy model (based on UD-format):
+#   you need spaCy installed and a transformer-based spaCy model (based on UD-format):
 pip install spacy
-pip install https://storage.googleapis.com/en_ud_model/en_ud_model_lg-1.1.0.tar.gz
+pip install https://storage.googleapis.com/en_ud_model/en_ud_model_trf-2.0.0.tar.gz
 
-# or if you want smaller models:
-#   medium: https://storage.googleapis.com/en_ud_model/en_ud_model_md-1.1.0.tar.gz
-#   small: https://storage.googleapis.com/en_ud_model/en_ud_model_sm-1.1.0.tar.gz
+# or if you want non-trandformer-based smaller models:
+#   large: https://storage.googleapis.com/en_ud_model/en_ud_model_lg-2.0.0.tar.gz
+#   medium: https://storage.googleapis.com/en_ud_model/en_ud_model_md-2.0.0.tar.gz
+#   small: https://storage.googleapis.com/en_ud_model/en_ud_model_sm-2.0.0.tar.gz
 
 # and this is us. please don't confuse with pybart/bart-py/bart
 pip install pybart-nlp
@@ -69,22 +70,25 @@ Notice that for both methods the API calls can be called with a list of optional
 import spacy
 
 # Load a UD-based english model
-nlp = spacy.load("en_ud_model_lg") # here you can change it to md/sm as you preffer
+nlp = spacy.load("en_ud_model_sm") # here you can change it to md/sm/lg as you preffer
 
 # Add BART converter to spaCy's pipeline
-from pybart.api import Converter
-converter = Converter()
-nlp.add_pipe(converter, name="BART")
+from pybart.api import ConverterWithNlp
+nlp.add_pipe("pybart_spacy_pipe", last="True", config={'remove_extra_info':True}) # you can pass an empty config for default behavior, this is just an example
 
 # Test the new converter component
 doc = nlp("He saw me while driving")
-me_token = doc[2]
-for par_tok in me_token._.parent_list:
-    print(par_tok)
+for sent_graph in doc._.parent_graphs_per_sent:
+   for edge in sent_graph.edges:
+       print([doc[t.i].text for t in edge.head.tokens], f" --{edge.label_}-> ", [doc[t.i].text for t in edge.tail.tokens])
 
 # Output:
-# {'head': saw, 'rel': 'dobj', 'src': 'UD', 'alt': None, 'unc': False}
-# {'head': driving, 'rel': 'nsubj', 'src': ('advcl', 'while'), 'alt': 0, 'unc': False}
+# ['saw'] --root-> ['saw']
+# ['saw'] --nsubj-> ['He']
+# ['saw'] --dobj-> ['me']
+# ['saw'] --advcl:while-> ['driving']
+# ['driving'] --mark-> ['while']
+# ['driving'] --nsubj-> ['He']
 ```
 
 ### CoNLL-U format
