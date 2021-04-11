@@ -19,13 +19,18 @@ Doc.set_extension("parent_graphs_per_sent", default=[])
 def enhance_spike_doc(doc: Doc, spike_doc: JsonObject) -> JsonObject:
     converted_graphs = doc._.parent_graphs_per_sent
     for idx, sent in enumerate(spike_doc["sentences"]):
+        offset = min(token for node in converted_graphs[idx].nodes for token in node)
         sent["graphs"]["universal-enhanced"] = {"edges": [], "roots": []}
         for edge in converted_graphs[idx].edges:
             if edge.label_.lower().startswith("root"):
-                sent["graphs"]["universal-enhanced"]["roots"].append(edge.tail.tokens[0].i)  # assume we have only one token per graph node
+                sent["graphs"]["universal-enhanced"]["roots"].append(edge.tail.tokens[0].i - offset)  # assume we have only one token per graph node
             else:
                 sent["graphs"]["universal-enhanced"]["edges"].append(
-                    {"source": edge.head.tokens[0].i, "destination": edge.tail.tokens[0].i, "relation": edge.label_})
+                    {"source": edge.head.tokens[0].i - offset, "destination": edge.tail.tokens[0].i - offset, "relation": edge.label_})
+        # sort the roots and edges for consistency purposes
+        sent["graphs"]["universal-enhanced"]["roots"] = sorted(sent["graphs"]["universal-enhanced"]["roots"])
+        sent["graphs"]["universal-enhanced"]["edges"] = sorted(sent["graphs"]["universal-enhanced"]["edges"],
+                                                               key=lambda x: (x['source'], x['destination'], x['relation']))
     return spike_doc
 
 
