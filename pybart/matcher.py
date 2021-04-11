@@ -141,7 +141,6 @@ class GlobalMatcher:
             #   then it is a redundant token-constraint
             for child in matches.get(edge.child, []):
                 for parent in matches.get(edge.parent, []):
-                    not_optional = True
                     if child == parent:
                         continue
                     # check if edge constraint is satisfied

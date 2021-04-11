@@ -53,16 +53,7 @@ def parse_spacy_sent(sent):
     return sentence
 
 
-def parse_bart_label(rel, is_state_head_node):
-    if rel.src is not None:
-        src = (rel.src,) + tuple(filter(None, [rel.src_type, rel.phrase]))
-    else:
-        src = "UD" if not is_state_head_node else "BART"
-    
-    return rel.with_no_bart(), src, bool(rel.uncertain), rel.iid
-
-
-def enhance_to_spacy_doc(orig_doc, converted_sentences):
+def enhance_to_spacy_doc(orig_doc, converted_sentences, remove_enhanced_extra_info, remove_bart_extra_info):
     offset = 0
     for orig_span, converted_sentence in zip(orig_doc.sents, converted_sentences):
         node_indices_map = dict()
@@ -86,8 +77,8 @@ def enhance_to_spacy_doc(orig_doc, converted_sentences):
                         node_indices_map[head_id if head_id != '0' else new_id],
                         node_indices_map[new_id]
                     ))
-                    _ = orig_doc.vocab[rel.to_str()]  # this will push the label into the vocab if it's not there
-                    labels.append(rel.to_str())
+                    _ = orig_doc.vocab[rel.to_str(remove_enhanced_extra_info, remove_bart_extra_info)]  # this will push the label into the vocab if it's not there
+                    labels.append(rel.to_str(remove_enhanced_extra_info, remove_bart_extra_info))
 
         # Disable printing possibility: so graph creation wont print many lines
         sys.stdout = open(os.devnull, 'w')

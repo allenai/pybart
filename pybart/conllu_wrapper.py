@@ -69,7 +69,7 @@ def parse_conllu(text):
     return sentences, all_comments
 
 
-def serialize_conllu(converted, all_comments, preserve_comments=False):
+def serialize_conllu(converted, all_comments, remove_enhanced_extra_info, remove_bart_extra_info, preserve_comments=False):
     """Purpose: create a CoNLL-U formatted text from a sentence list.
     
     Args:
@@ -85,7 +85,7 @@ def serialize_conllu(converted, all_comments, preserve_comments=False):
         if preserve_comments:
             comments = ["\n".join(per_sent_comments)]
         
-        text.append(comments + [token.get_conllu_string() for token in sorted(sentence, key=lambda tok: tok.get_conllu_field("id")) if token.get_conllu_field("id").major != 0])
+        text.append(comments + [token.get_conllu_string(remove_enhanced_extra_info, remove_bart_extra_info) for token in sorted(sentence, key=lambda tok: tok.get_conllu_field("id")) if token.get_conllu_field("id").major != 0])
     
     return "\n".join(["\n".join(sent) + "\n" for sent in text])
 
@@ -153,7 +153,7 @@ def fix_sentence(conllu_sentence, push_new_to_end=True):
         return _fix_sentence_keep_order(conllu_sentence)
 
 
-def fix_graph(conllu_sentence, odin_sentence, is_basic):
+def fix_graph(conllu_sentence, odin_sentence, is_basic, remove_enhanced_extra_info, remove_bart_extra_info):
     if is_basic:
         odin_sentence["graphs"] = {"universal-basic": {"edges": [], "roots": []}}
     else:
@@ -176,11 +176,11 @@ def fix_graph(conllu_sentence, odin_sentence, is_basic):
         else:
             for head, rels in token.get_new_relations():
                 for rel in rels:
-                    if rel.to_str().lower().startswith("root"):
+                    if rel.to_str(remove_enhanced_extra_info, remove_bart_extra_info).lower().startswith("root"):
                         odin_sentence["graphs"]["universal-enhanced"]["roots"].append(iid)
                     else:
                         odin_sentence["graphs"]["universal-enhanced"]["edges"].append(
-                            {"source": head.get_conllu_field("id").major - 1, "destination": iid, "relation": rel.to_str()})
+                            {"source": head.get_conllu_field("id").major - 1, "destination": iid, "relation": rel.to_str(remove_enhanced_extra_info, remove_bart_extra_info)})
     
     return odin_sentence
 
@@ -221,7 +221,7 @@ def fix_offsets(odin_sent, all_offset):
         odin_sent['endOffsets'] = [(current + all_offset) for current in odin_sent['endOffsets']]
     
 
-def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_new_to_end=True):
+def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_new_to_end=True, remove_enhanced_extra_info=False, remove_bart_extra_info=True):
     odin_sentences = []
     fixed_sentences = []
     texts = []
@@ -253,7 +253,7 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
             fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
             {'words': [token.get_conllu_field("form") for token in fixed_sentence if token.get_conllu_field("id").major != 0],
              'tags': [token.get_conllu_field("xpos") for token in fixed_sentence if token.get_conllu_field("id").major != 0]},
-            is_basic))
+            is_basic, remove_enhanced_extra_info, remove_bart_extra_info))
     
     if odin_to_enhance:
         odin_to_enhance['sentences'] = odin_sentences

@@ -26,29 +26,24 @@ class Label:
     uncertain: bool = False
     iid: int = None
 
-    def to_str(self, no_bart=False):
+    def to_str(self, remove_enhanced_extra_info, remove_bart_extra_info):
         eud = ""
         if self.eud is not None:
-            from .pybart_globals import g_remove_enhanced_extra_info
-            if not g_remove_enhanced_extra_info:
+            if not remove_enhanced_extra_info:
                 eud = ":" + self.eud
 
         bart = ""
-        if not no_bart and self.src is not None:
-            from .pybart_globals import g_remove_bart_extra_info
-            if not g_remove_bart_extra_info:
+        if self.src is not None:
+            if not remove_bart_extra_info:
                 iid_str = "" if self.iid is None else "#" + str(self.iid)
                 dep_args = ", ".join(x for x in filter(None, [self.src_type, self.phrase, "UNC" if self.uncertain else None]))
                 bart = "@" + self.src + "(" + dep_args + ")" + iid_str
 
         return self.base + eud + bart
 
-    def with_no_bart(self):
-        return self.to_str(no_bart=True)
-
     # operator overloading: less than
     def __lt__(self, other):
-        return self.to_str() < other.to_str()
+        return self.to_str(False, False) < other.to_str(False, False)
 
 
 class Token:
@@ -84,11 +79,11 @@ class Token:
     def get_children_with_rels(self):
         return [(child, list(child.get_new_relations(self))[0][1]) for child in self.get_children()]
 
-    def get_conllu_string(self):
+    def get_conllu_string(self, remove_enhanced_extra_info, remove_bart_extra_info):
         # for 'deps' field, we need to sort the new relations and then add them with '|' separation,
         # as required by the format.
         sorted_ = sorted((h, sorted(rels)) for h, rels in self.get_new_relations())
-        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + bb.to_str() for (a, b) in sorted_ for bb in b])
+        self._conllu_info["deps"] = "|".join([str(a.get_conllu_field('id')) + ":" + bb.to_str(remove_enhanced_extra_info, remove_bart_extra_info) for (a, b) in sorted_ for bb in b])
         return "\t".join([str(v) for v in self._conllu_info.values()])
     
     def set_conllu_field(self, field, val):

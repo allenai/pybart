@@ -1,2 +1,0 @@
-g_remove_enhanced_extra_info = False
-g_remove_bart_extra_info = False

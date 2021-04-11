@@ -10,7 +10,6 @@ import inspect
 
 from .constraints import *
 from .graph_token import Label, TokenId
-from . import pybart_globals
 from .matcher import Matcher, NamedConstraint
 from dataclasses import dataclass
 
@@ -39,8 +38,6 @@ noun_pos = ["NN", "NNS", "NNP", "NNPS"]
 pron_pos = ["PRP", "PRP$", "WP", "WP$"]
 udv_map = {"nsubjpass": "nsubj:pass", "csubjpass": "csubj:pass", "auxpass": "aux:pass", "dobj": "obj", "mwe": "fixed",
            "nmod": "obl", "nmod:agent": "obl:agent", "nmod:tmod": "obl:tmod", "nmod:lmod": "obl:lmod"}
-g_iids = dict()
-g_cc_assignments = dict()
 
 
 class ConvTypes(Enum):
@@ -49,7 +46,7 @@ class ConvTypes(Enum):
     BART = 3
 
 
-ConvFuncSignature = Callable[[Any, Any], None]
+ConvFuncSignature = Callable[[Any, Any, Any], None]
 
 
 @dataclass
@@ -62,8 +59,8 @@ class Conversion:
         self.name = self.transformation.__name__
 
 
-def get_eud_info(eud_str):
-    return eud_str if not pybart_globals.g_remove_enhanced_extra_info else None
+def get_eud_info(eud_str, converter):
+    return eud_str if not converter.remove_enhanced_extra_info else None
 
 
 def get_conversion_names():
@@ -71,7 +68,7 @@ def get_conversion_names():
             if (func_name.startswith("eud") or func_name.startswith("eudpp") or func_name.startswith("extra"))}
 
 
-def create_mwe(words, head, rel, secondary_rel):
+def create_mwe(words, head, rel, secondary_rel, converter):
     for i, word in enumerate(words):
         word.remove_all_edges()
         word.add_edge(rel, head)
@@ -117,9 +114,7 @@ def get_assignment(sentence, cc):
 # In case multiple coordination marker depend on the same governor
 # the one that precedes the conjunct is appended to the conjunction relation or the
 # first one if no preceding marker exists.
-def assign_ccs_to_conjs(sentence):
-    global g_cc_assignments
-    g_cc_assignments = dict()
+def assign_ccs_to_conjs(sentence, cc_assignments):
     for token in sentence:
         ccs = []
         for child, rels in sorted(token.get_children_with_rels(), reverse=True):
@@ -131,10 +126,10 @@ def assign_ccs_to_conjs(sentence):
             for rel in rels:
                 if rel.base.startswith('conj'):
                     if len(ccs) == 0:
-                        g_cc_assignments[child] = (None, 'and')
+                        cc_assignments[child] = (None, 'and')
                     else:
                         cc = ccs[i if i < len(ccs) else -1]
-                        g_cc_assignments[child] = (cc, get_assignment(sentence, cc))
+                        cc_assignments[child] = (cc, get_assignment(sentence, cc))
                     i += 1
 
 
@@ -142,7 +137,6 @@ def assign_ccs_to_conjs(sentence):
 
 
 def init_conversions(remove_node_adding_conversions, ud_version):
-
     def udv(udv1_str: str) -> str:
         # the replace is to take care for a unique case in which we get nmod but dont want the corresponding obl,
         # but rather obl:lmod. while in ud v1 we still want nmod and not nmod:lmod as it doesnt exist in version 1
@@ -166,7 +160,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         distances=[UptoDistance("subj", "aux", inf)]
     )
 
-    def eud_correct_subj_pass(sentence, matches):
+    def eud_correct_subj_pass(sentence, matches, converter):
         # for every located subject add a 'pass' and replace in graph node
         for cur_match in matches:
             subj = cur_match.token("subj")
@@ -197,7 +191,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def eud_prep_patterns(sentence, matches):
+    def eud_prep_patterns(sentence, matches, converter):
         for cur_match in matches:
             mod = cur_match.token("mod")
             gov = cur_match.token("gov")
@@ -225,7 +219,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def eud_heads_of_conjuncts(sentence, matches):
+    def eud_heads_of_conjuncts(sentence, matches, converter):
         for cur_match in matches:
             new_gov = cur_match.token("new_gov")
             gov = cur_match.token("gov")
@@ -254,7 +248,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def eud_case_sons_of_conjuncts(sentence, matches):
+    def eud_case_sons_of_conjuncts(sentence, matches, converter):
         for cur_match in matches:
             new_son = sentence[cur_match.token("new_son")]
             gov = cur_match.token("gov")
@@ -286,7 +280,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def eud_subj_of_conjoined_verbs(sentence, matches):
+    def eud_subj_of_conjoined_verbs(sentence, matches, converter):
         for cur_match in matches:
             gov = cur_match.token("gov")
             conj = cur_match.token("conj")
@@ -344,7 +338,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def xcomp_propagation_per_type(sentence, matches):
+    def xcomp_propagation_per_type(sentence, matches, converter):
         labels_dict = defaultdict(list)
         for cur_match in matches:
             new_subj = cur_match.token("new_subj")
@@ -362,15 +356,15 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                     continue
                 is_xcomp_basic = (to_marker != -1) or (sentence[xcomp].get_conllu_field("xpos") in ["TO", "IN"])
                 if is_xcomp_basic:
-                    sentence[new_subj].add_edge(Label("nsubj", eud=get_eud_info("xcomp(INF)")), sentence[xcomp])
+                    sentence[new_subj].add_edge(Label("nsubj", eud=get_eud_info("xcomp(INF)", converter)), sentence[xcomp])
                 elif not is_xcomp_basic:
                     sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="GERUND"), sentence[xcomp])
 
-    def eud_xcomp_propagation(sentence, matches):
-        xcomp_propagation_per_type(sentence, matches)
+    def eud_xcomp_propagation(sentence, matches, converter):
+        xcomp_propagation_per_type(sentence, matches, converter)
 
-    def extra_xcomp_propagation_no_to(sentence, matches):
-        xcomp_propagation_per_type(sentence, matches)
+    def extra_xcomp_propagation_no_to(sentence, matches, converter):
+        xcomp_propagation_per_type(sentence, matches, converter)
 
     # propagate subject and(/or) object as (possible) subject(s) for the son of the `advcl` relation if it has no subject of his own
     extra_advcl_propagation_constraint = Full(
@@ -407,8 +401,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def advcl_or_dep_propagation_per_type(sentence, matches, type_, unc):
-        global g_iids
+    def advcl_or_dep_propagation_per_type(sentence, matches, type_, unc, converter):
         for cur_match in matches:
             dep = sentence[cur_match.token("dep")]
             subj = sentence[cur_match.token("subj")]
@@ -424,9 +417,9 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                 cur_iid = None
             else:
                 # get the id for this token or update the global ids for this new one.
-                if dep not in g_iids:
-                    g_iids[dep] = 0 if len(g_iids.values()) == 0 else (max(g_iids.values()) + 1)
-                cur_iid = g_iids[dep]
+                if dep not in converter.iids:
+                    converter.iids[dep] = 0 if len(converter.iids.values()) == 0 else (max(converter.iids.values()) + 1)
+                cur_iid = converter.iids[dep]
 
             # decide wether to propagte both the subject or object or both according to the criteria mentioned before
             if phrase != "to" or obj == -1:
@@ -434,11 +427,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             if obj != -1:
                 sentence[obj].add_edge(Label("nsubj", src=type_, phrase=phrase, iid=cur_iid, uncertain=unc), dep)
 
-    def extra_advcl_propagation(sentence, matches):
-        advcl_or_dep_propagation_per_type(sentence, matches, "advcl", False)
+    def extra_advcl_propagation(sentence, matches, converter):
+        advcl_or_dep_propagation_per_type(sentence, matches, "advcl", False, converter)
 
-    def extra_dep_propagation(sentence, matches):
-        advcl_or_dep_propagation_per_type(sentence, matches, "dep", True)
+    def extra_dep_propagation(sentence, matches, converter):
+        advcl_or_dep_propagation_per_type(sentence, matches, "dep", True, converter)
 
     # here we add a compound relation for each nmod:of relation between two nouns
     extra_of_prep_alteration_constraint = Full(
@@ -454,7 +447,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def extra_of_prep_alteration(sentence, matches):
+    def extra_of_prep_alteration(sentence, matches, converter):
         for cur_match in matches:
             gov = cur_match.token("gov")
             nmod_of = cur_match.token("nmod_of")
@@ -477,7 +470,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    def extra_compound_propagation(sentence, matches):
+    def extra_compound_propagation(sentence, matches, converter):
         for cur_match in matches:
             gov = cur_match.token("gov")
             compound = cur_match.token("compound")
@@ -496,8 +489,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_amod_propagation(sentence, matches):
+    def extra_amod_propagation(sentence, matches, converter):
         for cur_match in matches:
             gov = cur_match.token("gov")
             amod = cur_match.token("amod")
@@ -522,8 +514,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_acl_to_propagation(sentence, matches):
+    def extra_acl_to_propagation(sentence, matches, converter):
         for cur_match in matches:
             subj = sentence[cur_match.token("subj")]
             acl = sentence[cur_match.token("acl")]
@@ -543,13 +534,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_acl_propagation(sentence, matches):
+    def extra_acl_propagation(sentence, matches, converter):
         for cur_match in matches:
             father = sentence[cur_match.token("father")]
             acl = sentence[cur_match.token("acl")]
             father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
-
 
     extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
         tokens=[
@@ -571,8 +560,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches):
+    def extra_subj_obj_nmod_propagation_of_nmods(sentence, matches, converter):
         for cur_match in matches:
             modifier = cur_match.token("modifier")
             receiver = cur_match.token("receiver")
@@ -597,8 +585,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                     sentence[case].add_edge(
                         Label("case", eud=sentence[case].get_conllu_field("form").lower(), src=label, phrase=phrase), sentence[modifier])
 
-
-    def conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name):
+    def conj_propagation_of_nmods_per_type(sentence, matches, converter, nmod_fathers_name):
         for cur_match in matches:
             nmod = cur_match.token("nmod")
             receiver = sentence[cur_match.token("receiver")]
@@ -615,8 +602,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             label = list(cur_match.edge(nmod, father))[0]
             sentence[nmod].add_edge(
                 Label(label, eud=None if case == -1 else sentence[case].get_conllu_field("form").lower(),
-                      src="conj", uncertain=True, phrase=g_cc_assignments[conj_per_type][1] if conj_per_type in g_cc_assignments else None), receiver)
-
+                      src="conj", uncertain=True, phrase=converter.cc_assignments[conj_per_type][1] if conj_per_type in converter.cc_assignments else None), receiver)
 
     extra_conj_propagation_of_nmods_backwards_constraint = Full(
         tokens=[
@@ -632,10 +618,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_conj_propagation_of_nmods_backwards(sentence, matches):
-        conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name="conj")
-
+    def extra_conj_propagation_of_nmods_backwards(sentence, matches, converter):
+        conj_propagation_of_nmods_per_type(sentence, matches, converter, nmod_fathers_name="conj")
 
     extra_conj_propagation_of_nmods_forward_constraint = Full(
         tokens=[
@@ -656,11 +640,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ]
     )
 
-
-    def extra_conj_propagation_of_nmods_forward(sentence, matches):
-        conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name="father")
-
-
+    def extra_conj_propagation_of_nmods_forward(sentence, matches, converter):
+        conj_propagation_of_nmods_per_type(sentence, matches, converter, nmod_fathers_name="father")
 
     extra_conj_propagation_of_poss_constraint = Full(
         tokens=[
@@ -677,10 +658,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_conj_propagation_of_poss(sentence, matches):
-        conj_propagation_of_nmods_per_type(sentence, matches, nmod_fathers_name="father")
-
+    def extra_conj_propagation_of_poss(sentence, matches, converter):
+        conj_propagation_of_nmods_per_type(sentence, matches, converter, nmod_fathers_name="father")
 
     # Here we connect directly the advmod to a predicate that is mediated by an nmod
     # We do this for the set of advmods the corresponds to the phenomenon known as indexicals
@@ -698,8 +677,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_advmod_propagation(sentence, matches):
+    def extra_advmod_propagation(sentence, matches, converter):
         for cur_match in matches:
             gov = cur_match.token("gov")
             case = cur_match.token("case")
@@ -707,7 +685,6 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             # for simplicity we assume the target nmod/obl is the only one in between
             label = list(cur_match.edge(cur_match.token("middle_man"), gov))[0]
             sentence[advmod].add_edge(Label("advmod", src=label, src_type="INDEXICAL", phrase=sentence[case].get_conllu_field("form"), uncertain=True), sentence[gov])
-
 
     # here we connect the nmod to a predicate which is mediated by an advmod,
     # and forming a multi-word preposition from the combination of the advmod and current preposition
@@ -734,8 +711,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ]
     )
 
-
-    def extra_nmod_advmod_reconstruction(sentence, matches):
+    def extra_nmod_advmod_reconstruction(sentence, matches, converter):
         for cur_match in matches:
             gov = sentence[cur_match.token("gov")]
             case = sentence[cur_match.token("case")]
@@ -758,12 +734,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             # in any way we connect the nmod to the governor
             mwe = advmod.get_conllu_field("form").lower() + "_" + case.get_conllu_field("form").lower()
             if mwe in nmod_advmod_complex:
-                nmod.add_edge(Label(new_label, eud=get_eud_info(case.get_conllu_field("form").lower()), src="advmod_prep"), gov)
+                nmod.add_edge(Label(new_label, eud=get_eud_info(case.get_conllu_field("form").lower(), converter), src="advmod_prep"), gov)
             else:
                 advmod.replace_edge(Label("advmod"), Label("case", src="advmod_prep"), gov, nmod)
                 case.replace_edge(Label("case"), Label(udv("mwe"), src="advmod_prep"), nmod, advmod)
-                nmod.replace_edge(Label(udv("nmod")), Label(new_label, eud=get_eud_info(mwe), src="advmod_prep"), advmod, gov)
-
+                nmod.replace_edge(Label(udv("nmod")), Label(new_label, eud=get_eud_info(mwe, converter), src="advmod_prep"), advmod, gov)
 
     extra_appos_propagation_constraint = Full(
         tokens=[
@@ -780,8 +755,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_appos_propagation(sentence, matches):
+    def extra_appos_propagation(sentence, matches, converter):
         for cur_match in matches:
             gov_parent = cur_match.token("gov_parent")
             gov_son = cur_match.token("gov_son")
@@ -792,8 +766,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             for label in cur_match.edge(gov_son, gov):
                 sentence[gov_son].add_edge(Label(label, src="appos"), sentence[appos])
 
-
-    def reattach_children_copula(old_root, new_root, cop):
+    def reattach_children_copula(old_root, new_root, cop, converter):
         subjs = []
         new_out_rel = "xcomp"
         for child, rels in old_root.get_children_with_rels():
@@ -806,8 +779,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                     # transfer any of the following children and any non 'to' markers
                     child.replace_edge(rel, rel, old_root, new_root)
                     # attach the best 'cc' to the new root as compliance with the transferred 'conj'
-                    if child in g_cc_assignments and g_cc_assignments[child][0]:
-                        g_cc_assignments[child][0].replace_edge(Label("cc"), Label("cc"), old_root, new_root)
+                    if child in converter.cc_assignments and converter.cc_assignments[child][0]:
+                        converter.cc_assignments[child][0].replace_edge(Label("cc"), Label("cc"), old_root, new_root)
                     # store subj children for later
                     if rel.base in subj_options:
                         subjs.append(child)
@@ -824,7 +797,6 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                 # else: 'compound', 'nmod', 'acl:relcl', 'amod', 'det', 'nmod:poss', 'nummod', 'nmod:tmod', ('cc', 'conj')
 
         return subjs, new_out_rel, old_root
-
 
     def reattach_children_evidential(old_root, new_root, predecessor):
         subjs = []
@@ -847,8 +819,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                     child.replace_edge(rel, rel, old_root, new_root)
         return subjs, 'ev', new_amod
 
-
-    def extra_inner_weak_modifier_verb_reconstruction(sentence, matches, evidential):
+    def extra_inner_weak_modifier_verb_reconstruction(sentence, matches, evidential, converter):
         for cur_match in matches:
             cop = cur_match.token("cop")
             old_root = sentence[cur_match.token("old_root")]
@@ -875,7 +846,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             if evidential:
                 subjs, new_out_rel, new_amod = reattach_children_evidential(old_root, new_root, predecessor)
             else:
-                subjs, new_out_rel, new_amod = reattach_children_copula(old_root, new_root, predecessor)
+                subjs, new_out_rel, new_amod = reattach_children_copula(old_root, new_root, predecessor, converter)
 
             # update old-root's outgoing relation: for each subj add a 'amod' relation to the adjective.
             #   new_amod can be the old_root if it was a copula construct, or the old_root's 'xcomp' son if evidential
@@ -889,7 +860,6 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             # or with the proper complement if it was an adjectival root under the copula construct
             old_root.add_edge(Label(new_out_rel), new_root)
 
-
     # NOTE: the xpos restriction comes to make sure we catch only non verbal copulas to reconstruct
     #   (even though it should have been 'aux' instead of 'cop')
     extra_copula_reconstruction_constraint = Full(
@@ -902,10 +872,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_copula_reconstruction(sentence, matches):
-        extra_inner_weak_modifier_verb_reconstruction(sentence, matches, False)
-
+    def extra_copula_reconstruction(sentence, matches, converter):
+        extra_inner_weak_modifier_verb_reconstruction(sentence, matches, False, converter)
 
     # part1: find all evidential with no following(xcomp that is) main verb,
     #   and add a new node and transfer to him the rootness, like in copula
@@ -921,13 +889,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_evidential_basic_reconstruction(sentence, matches):
+    def extra_evidential_basic_reconstruction(sentence, matches, converter):
         if not remove_node_adding_conversions:
-            extra_inner_weak_modifier_verb_reconstruction(sentence, matches, True)
+            extra_inner_weak_modifier_verb_reconstruction(sentence, matches, True, converter)
 
-
-    def per_type_weak_modified_verb_reconstruction(sentence, matches, type_):
+    def per_type_weak_modified_verb_reconstruction(sentence, matches, type_, converter):
         for cur_match in matches:
             old_root = sentence[cur_match.token('old_root')]
             new_root = sentence[cur_match.token('new_root')]
@@ -962,7 +928,6 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                 ev_sons = [c for c, rels in inter_root.get_children_with_rels() for r in rels if 'ev' == r.base]
             old_root.add_edge(Label('ev', src=ccomp_or_xcomp, src_type=type_), inter_root)
 
-
     # part2: find all evidential with following(xcomp that is) main verb,
     #   and transfer to the main verb rootness
     extra_evidential_xcomp_reconstruction_constraint = Full(
@@ -976,10 +941,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_evidential_xcomp_reconstruction(sentence, matches):
-        per_type_weak_modified_verb_reconstruction(sentence, matches, "EVIDENTIAL")
-
+    def extra_evidential_xcomp_reconstruction(sentence, matches, converter):
+        per_type_weak_modified_verb_reconstruction(sentence, matches, "EVIDENTIAL", converter)
 
     extra_aspectual_reconstruction_constraint = Full(
         tokens=[
@@ -992,10 +955,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_aspectual_reconstruction(sentence, matches):
-        per_type_weak_modified_verb_reconstruction(sentence, matches, "ASPECTUAL")
-
+    def extra_aspectual_reconstruction(sentence, matches, converter):
+        per_type_weak_modified_verb_reconstruction(sentence, matches, "ASPECTUAL", converter)
 
     # TODO: documentation!
     extra_reported_evidentiality_constraint = Full(
@@ -1008,13 +969,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_reported_evidentiality(sentence, matches):
+    def extra_reported_evidentiality(sentence, matches, converter):
         for cur_match in matches:
             ev = cur_match.token("ev")
             new_root = cur_match.token("new_root")
             sentence[ev].add_edge(Label("ev", src="ccomp", src_type="REPORTED"), sentence[new_root])
-
 
     # for example The street is across from you.
     # The following relations:
@@ -1036,16 +995,14 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         concats=[TokenPair(two_word_preps_regular, "w1", "w2")]
     )
 
-
-    def eudpp_process_simple_2wp(sentence, matches):
+    def eudpp_process_simple_2wp(sentence, matches, converter):
         for cur_match in matches:
             common_parent = sentence[cur_match.token("common_parent")]
             w1 = sentence[cur_match.token("w1")]
             w2 = sentence[cur_match.token("w2")]
 
             # create multi word expression
-            create_mwe([w1, w2], common_parent, Label("case"), udv("mwe"))
-
+            create_mwe([w1, w2], common_parent, Label("case"), udv("mwe"), converter)
 
     # for example: He is close to me.
     # The following relations:
@@ -1073,8 +1030,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         concats=[TokenPair(two_word_preps_complex, "w1", "w2")]
     )
 
-
-    def eudpp_process_complex_2wp(sentence, matches):
+    def eudpp_process_complex_2wp(sentence, matches, converter):
         for cur_match in matches:
             w1 = sentence[cur_match.token("w1")]
             w2 = sentence[cur_match.token("w2")]
@@ -1092,8 +1048,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             reattach_children(w1, proxy)
 
             # create multi word expression
-            create_mwe([w1, w2], proxy, Label("case"), udv("mwe"))
-
+            create_mwe([w1, w2], proxy, Label("case"), udv("mwe"), converter)
 
     # for example: He is close to me.
     # The following relations:
@@ -1125,8 +1080,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         concats=[TokenTriplet(three_word_preps, "w1", "w2", "w3")]
     )
 
-
-    def eudpp_process_3wp(sentence, matches):
+    def eudpp_process_3wp(sentence, matches, converter):
         for cur_match in matches:
             w1 = sentence[cur_match.token("w1")]
             w2 = sentence[cur_match.token("w2")]
@@ -1147,8 +1101,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             reattach_children(w2, proxy)
 
             # create multi word expression
-            create_mwe([w1, w2, w3], proxy, Label(case), udv("mwe"))
-
+            create_mwe([w1, w2, w3], proxy, Label(case), udv("mwe"), converter)
 
     # The following two methods corrects Partitives and light noun constructions,
     # by making it a multi word expression with head of det:qmod.
@@ -1163,7 +1116,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
     #   mwe(A-1, couple-2,)
     #   mwe(A-1, of-3)
     #   root(ROOT-0, people-4)
-    def demote_per_type(sentence, matches):
+    def demote_per_type(sentence, matches, converter):
         for cur_match in matches:
             gov2 = sentence[cur_match.token("gov2")]
             old_gov = sentence[cur_match.token("w1")]
@@ -1182,10 +1135,9 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                 words += [sentence[det]]
 
             reattach_parents(old_gov, gov2)
-            create_mwe(words, gov2, Label("det", "qmod"), udv("mwe"))
+            create_mwe(words, gov2, Label("det", "qmod"), udv("mwe"), converter)
             # TODO: consider bringing back the 'if statement': [... if rel in ["punct", "acl", "acl:relcl", "amod"]]
             reattach_children(old_gov, gov2, cond=lambda x: x.base != udv("mwe"))
-
 
     eudpp_demote_quantificational_modifiers_3w_constraint = Full(
         tokens=[
@@ -1203,10 +1155,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "w3", distance=0)],
     )
 
-
-    def eudpp_demote_quantificational_modifiers_3w(sentence, matches):
-        demote_per_type(sentence, matches)
-
+    def eudpp_demote_quantificational_modifiers_3w(sentence, matches, converter):
+        demote_per_type(sentence, matches, converter)
 
     eudpp_demote_quantificational_modifiers_2w_constraint = Full(
         tokens=[
@@ -1222,10 +1172,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         distances=[ExactDistance("w1", "w2", distance=0)]
     )
 
-
-    def eudpp_demote_quantificational_modifiers_2w(sentence, matches):
-        demote_per_type(sentence, matches)
-
+    def eudpp_demote_quantificational_modifiers_2w(sentence, matches, converter):
+        demote_per_type(sentence, matches, converter)
 
     eudpp_demote_quantificational_modifiers_det_constraint = Full(
         tokens=[
@@ -1243,10 +1191,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         distances=[ExactDistance("w1", "w2", distance=0), ExactDistance("w2", "det", distance=0)]
     )
 
-
-    def eudpp_demote_quantificational_modifiers_det(sentence, matches):
-        demote_per_type(sentence, matches)
-
+    def eudpp_demote_quantificational_modifiers_det(sentence, matches, converter):
+        demote_per_type(sentence, matches, converter)
 
     # Look for ref rules for a given word.
     # Unlike what was done in SC, we dont look through the grandchildren, but only through the children
@@ -1266,8 +1212,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def eudpp_add_ref_and_collapse(sentence, matches):
+    def eudpp_add_ref_and_collapse(sentence, matches, converter):
         for cur_match in matches:
             gov = sentence[cur_match.token('gov')]
             mod = sentence[cur_match.token('mod')]
@@ -1282,7 +1227,6 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             reattach_children(relativizer, gov)
             relativizer.replace_edge(Label(label), Label("ref"), mod, gov)
             gov.add_edge(new_label, mod)
-
 
     # this is for reduce-relative-clause
     extra_add_ref_and_collapse_constraint = Full(
@@ -1300,8 +1244,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_add_ref_and_collapse(sentence, matches):
+    def extra_add_ref_and_collapse(sentence, matches, converter):
         for cur_match in matches:
             gov = sentence[cur_match.token('gov')]
             mod = sentence[cur_match.token('mod')]
@@ -1322,8 +1265,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                 sentence[prep].replace_edge(Label(old_rel), Label("case"), mod, mod)
             else:
                 leftmost_rel = udv("dobj")
-            gov.add_edge(Label(leftmost_rel, eud=get_eud_info(eud), src="acl", src_type="RELCL", phrase="REDUCED"), mod)
-
+            gov.add_edge(Label(leftmost_rel, eud=get_eud_info(eud, converter), src="acl", src_type="RELCL", phrase="REDUCED"), mod)
 
     # Adds the type of conjunction to all conjunct relations
     eud_conj_info_constraint = Full(
@@ -1335,18 +1277,16 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def eud_conj_info(sentence, matches):
+    def eud_conj_info(sentence, matches, converter):
         for cur_match in matches:
             gov = sentence[cur_match.token("gov")]
             conj = sentence[cur_match.token("conj")]
 
-            if conj not in g_cc_assignments:
+            if conj not in converter.cc_assignments:
                 continue
 
             for rel in cur_match.edge(cur_match.token("conj"), cur_match.token("gov")):
-                conj.replace_edge(Label(rel), Label(rel, g_cc_assignments[conj][1]), gov, gov)
-
+                conj.replace_edge(Label(rel), Label(rel, converter.cc_assignments[conj][1]), gov, gov)
 
     def create_new_node(sentence, to_copy, nodes_copied, last_copy_id):
         # create a copy node,
@@ -1359,7 +1299,6 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         sentence.append(copy_node)
 
         return copy_node, nodes_copied, last_copy_id
-
 
     # Expands PPs with conjunctions such as in the sentence
     # "Bill flies to France and from Serbia." by copying the verb
@@ -1384,8 +1323,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def eudpp_expand_pp_conjunctions(sentence, matches):
+    def eudpp_expand_pp_conjunctions(sentence, matches, converter):
         nodes_copied = 0
         last_copy_id = -1
         for cur_match in matches:
@@ -1394,7 +1332,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             conj = sentence[cur_match.token('conj')]
             already_copied = cur_match.token('already_copied')
 
-            if conj not in g_cc_assignments:
+            if conj not in converter.cc_assignments:
                 continue
 
             # Check if we already copied this node in this same match (as it is hard to restrict that).
@@ -1402,10 +1340,10 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                     any(node.get_conllu_field("misc") == f"CopyOf={str(to_copy.get_conllu_field('id'))}" for node in sentence):
                 return
 
-            cc_tok, cc_rel = g_cc_assignments[conj]
+            cc_tok, cc_rel = converter.cc_assignments[conj]
 
             copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
-            copy_node.add_edge(Label("conj", eud=get_eud_info(cc_rel)), to_copy)
+            copy_node.add_edge(Label("conj", eud=get_eud_info(cc_rel, converter)), to_copy)
 
             # replace cc('gov', 'cc') with cc('to_copy', 'cc')
             # NOTE: this is not mentioned in THE PAPER, but is done in SC (and makes sense).
@@ -1416,7 +1354,6 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                 # replace conj('gov', 'conj') with e.g nmod(copy_node, 'conj')
                 conj.remove_all_edges()
                 conj.add_edge(Label(rel), copy_node)
-
 
     # expands prepositions with conjunctions such as in the sentence
     # "Bill flies to and from Serbia." by copying the verb resulting
@@ -1439,8 +1376,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def eudpp_expand_prep_conjunctions(sentence, matches):
+    def eudpp_expand_prep_conjunctions(sentence, matches, converter):
         nodes_copied = 0
         last_copy_id = -1
         for cur_match in matches:
@@ -1449,7 +1385,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             modifier = sentence[cur_match.token('modifier')]
             already_copied = cur_match.token('already_copied')
 
-            if conj not in g_cc_assignments:
+            if conj not in converter.cc_assignments:
                 continue
 
             # Check if we already copied this node in this same match (as it is hard to restrict that).
@@ -1458,12 +1394,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                 return
 
             copy_node, nodes_copied, last_copy_id = create_new_node(sentence, to_copy, nodes_copied, last_copy_id)
-            copy_node.add_edge(Label("conj", eud=get_eud_info(g_cc_assignments[conj][1])), to_copy)
+            copy_node.add_edge(Label("conj", eud=get_eud_info(converter.cc_assignments[conj][1], converter)), to_copy)
 
             # copy relation from modifier to new node e.g nmod:from(copy_node, 'modifier')
             for rel in cur_match.edge(cur_match.token('modifier'), cur_match.token('to_copy')):
-                modifier.add_edge(Label(rel, eud=get_eud_info(conj.get_conllu_field('form'))), copy_node)
-
+                modifier.add_edge(Label(rel, eud=get_eud_info(conj.get_conllu_field('form'), converter)), copy_node)
 
     # TODO: Documentation
     extra_fix_nmod_npmod_constraint = Full(
@@ -1476,14 +1411,12 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_fix_nmod_npmod(sentence, matches):
+    def extra_fix_nmod_npmod(sentence, matches, converter):
         for cur_match in matches:
             gov = cur_match.token("gov")
             npmod = cur_match.token("npmod")
             for rel in cur_match.edge(npmod, gov):
                 sentence[npmod].replace_edge(Label(rel), Label("compound"), sentence[gov], sentence[gov])
-
 
     # TODO - add documentation!
     extra_hyphen_reconstruction_constraint = Full(
@@ -1501,15 +1434,13 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-
-    def extra_hyphen_reconstruction(sentence, matches):
+    def extra_hyphen_reconstruction(sentence, matches, converter):
         for cur_match in matches:
             subj = cur_match.token("subj")
             verb = cur_match.token("verb")
             noun = cur_match.token("noun")
             sentence[subj].add_edge(Label("nsubj", src="compound", src_type="HYPHEN"), sentence[verb])
             sentence[noun].add_edge(Label(udv("nmod"), src="compound", src_type="HYPHEN"), sentence[verb])
-
 
     # The bottle was broken by me.
     extra_passive_alteration_constraint = Full(
@@ -1529,8 +1460,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ]
     )
 
-
-    def extra_passive_alteration(sentence, matches):
+    def extra_passive_alteration(sentence, matches, converter):
         for cur_match in matches:
             subj = sentence[cur_match.token("subjpass")]
             predicate = sentence[cur_match.token("predicate")]
@@ -1627,63 +1557,72 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
     return conversions
 
 
-def get_rel_set(converted_sentence):
-    return set([(str(head.get_conllu_field("id")), rel.to_str(), str(tok.get_conllu_field("id"))) for tok in converted_sentence
-                for (head, rels) in tok.get_new_relations() for rel in rels])
+class Convert:
+    def __init__(self, *args):
+        self.args = args
+        self.iids = dict()
+        self.cc_assignments = dict()
+        # TODO - use kwargs
+        self.remove_enhanced_extra_info = args[5]  # should be in the index of remove_enhanced_extra_info param
+        self.remove_bart_extra_info = args[6]  # should be in the index of remove_bart_extra_info param
 
+    def __call__(self):
+        return self.convert(*self.args)
 
-def convert_sentence(sentence: Sequence[Token], conversions, matcher: Matcher, conv_iterations: int):
-    last_converted_sentence = None
-    i = 0
-    on_last_iter = ["extra_amod_propagation"]
-    do_last_iter = []
-    # we iterate till convergence or till user defined maximum is reached - the first to come.
-    while i < conv_iterations:
-        last_converted_sentence = get_rel_set(sentence)
-        m = matcher(sentence)
-        for conv_name in m.names():
-            if conv_name in on_last_iter:
-                do_last_iter.append(conv_name)
-                continue
-            matches = m.matches_for(conv_name)
-            conversions[conv_name].transformation(sentence, matches)
-        if get_rel_set(sentence) == last_converted_sentence:
-            break
-        i += 1
+    def get_rel_set(self, converted_sentence):
+        return set([(str(head.get_conllu_field("id")),
+                     rel.to_str(self.remove_enhanced_extra_info, self.remove_bart_extra_info),
+                     str(tok.get_conllu_field("id"))) for tok in converted_sentence
+                    for (head, rels) in tok.get_new_relations() for rel in rels])
 
-    for conv_name in do_last_iter:
-        m = matcher(sentence)
-        matches = m.matches_for(conv_name)
-        conversions[conv_name].transformation(sentence, matches)
-        if get_rel_set(sentence) != last_converted_sentence:
+    def convert(self, parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
+                remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel,
+                ud_version=1, one_time_initialized_conversions=None):
+
+        if one_time_initialized_conversions:
+            conversions = one_time_initialized_conversions
+        else:
+            conversions = init_conversions(remove_node_adding_conversions, ud_version)
+        conversions = remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra,
+                                   remove_enhanced_extra_info,
+                                   remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
+
+        i = 0
+        updated = []
+        for sentence in parsed:
+            sentence_as_list = [t for t in sentence if t.get_conllu_field("id").major != 0]
+            assign_ccs_to_conjs(sentence_as_list, self.cc_assignments)
+            i = max(i, self.convert_sentence(sentence_as_list, conversions, conv_iterations))
+            updated.append(sentence_as_list)
+
+        return updated, i
+
+    def convert_sentence(self, sentence: Sequence[Token], conversions, conv_iterations: int):
+        last_converted_sentence = None
+        i = 0
+        on_last_iter = ["extra_amod_propagation"]
+        do_last_iter = []
+        # we iterate till convergence or till user defined maximum is reached - the first to come.
+        matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint)
+                           for conversion_name, conversion in conversions.items()])
+        while i < conv_iterations:
+            last_converted_sentence = self.get_rel_set(sentence)
+            m = matcher(sentence)
+            for conv_name in m.names():
+                if conv_name in on_last_iter:
+                    do_last_iter.append(conv_name)
+                    continue
+                matches = m.matches_for(conv_name)
+                conversions[conv_name].transformation(sentence, matches, self)
+            if self.get_rel_set(sentence) == last_converted_sentence:
+                break
             i += 1
 
-    return i
+        for conv_name in do_last_iter:
+            m = matcher(sentence)
+            matches = m.matches_for(conv_name)
+            conversions[conv_name].transformation(sentence, matches, self)
+            if self.get_rel_set(sentence) != last_converted_sentence:
+                i += 1
 
-
-def convert(parsed, enhanced, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_enhanced_extra_info,
-            remove_bart_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel,
-            ud_version=1, one_time_initialized_conversions=None):
-    global g_iids
-    pybart_globals.g_remove_enhanced_extra_info = remove_enhanced_extra_info
-    pybart_globals.g_remove_bart_extra_info = remove_bart_extra_info
-
-    if one_time_initialized_conversions:
-        conversions = one_time_initialized_conversions
-    else:
-        conversions = init_conversions(remove_node_adding_conversions, ud_version)
-    conversions = remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remove_enhanced_extra_info,
-                 remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel)
-    matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint)
-                       for conversion_name, conversion in conversions.items()])
-
-    i = 0
-    updated = []
-    for sentence in parsed:
-        g_iids = dict()
-        sentence_as_list = [t for t in sentence if t.get_conllu_field("id").major != 0]
-        assign_ccs_to_conjs(sentence_as_list)
-        i = max(i, convert_sentence(sentence_as_list, conversions, matcher, conv_iterations))
-        updated.append(sentence_as_list)
-
-    return updated, i
+        return i
