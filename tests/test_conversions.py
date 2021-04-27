@@ -4,7 +4,7 @@ import math
 
 import pybart
 from pybart.conllu_wrapper import parse_conllu, serialize_conllu
-from pybart import converter, pybart_globals
+from pybart import converter
 from pybart import api
 from pybart.graph_token import add_basic_edges
 from pybart.converter import convert
@@ -52,13 +52,7 @@ class TestConversions:
                             cur_gold[test_name][specification] = [gold_line.split()]
                     else:
                         cur_gold[test_name] = {specification: [gold_line.split()]}
-    
-    @staticmethod
-    def setup_method():
-        pybart_globals.g_remove_enhanced_extra_info = False
-        pybart_globals.g_remove_bart_extra_info = False
-        pybart.converter.g_remove_node_adding_conversions = False
-    
+        
     @classmethod
     def common_logic(cls, cur_name):
         name = cur_name.split("test_")[1]
