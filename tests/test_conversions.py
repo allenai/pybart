@@ -60,7 +60,7 @@ class TestConversions:
             sent = [v.copy() for v in sent_]
             add_basic_edges(sent)
             con = Convert([sent], True, True, True, math.inf, False, False, False, False, False,
-                                   funcs_to_cancel=list(set(api.get_conversion_names()).difference({name, "extra_inner_weak_modifier_verb_reconstruction"})))
+                                   list(set(api.get_conversion_names()).difference({name, "extra_inner_weak_modifier_verb_reconstruction"})))
             converted, _ = con()
             serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold[name][spec], serialized_conllu.split("\n")):
@@ -72,7 +72,7 @@ class TestConversions:
         for spec, sent_ in cls.out[name].items():
             sent = [v.copy() for v in sent_]
             add_basic_edges(sent)
-            con = Convert([sent], True, True, True, math.inf, False, False, rnac, False, False, funcs_to_cancel=[])
+            con = Convert([sent], True, True, True, math.inf, False, False, rnac, False, False, [])
             converted, _ = con()
             serialized_conllu = serialize_conllu(converted, [None], False)
             for gold_line, out_line in zip(cls.gold_combined[name][spec], serialized_conllu.split("\n")):
