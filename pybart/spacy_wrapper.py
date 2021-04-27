@@ -61,6 +61,7 @@ def parse_spacy_sent(sent):
 def enhance_to_spacy_doc(orig_doc, converted_sentences, remove_enhanced_extra_info, remove_bart_extra_info):
     offset = 0
     for orig_span, converted_sentence in zip(orig_doc.sents, converted_sentences):
+        added_nodes_counter = 0
         node_indices_map = dict()
         nodes = []
         edges = []
@@ -70,7 +71,11 @@ def enhance_to_spacy_doc(orig_doc, converted_sentences, remove_enhanced_extra_in
             if new_id == '0':
                 continue
             node_indices_map[new_id.token_str] = idx
-            _ = nodes.append((new_id.major - 1 + offset,) if new_id.minor == 0 else ())
+            if new_id.minor == 0:
+                _ = nodes.append((new_id.major - 1 + offset,))
+            else:
+                _ = nodes.append((len(converted_sentence) + added_nodes_counter,))
+                added_nodes_counter += 1
         for idx, tok in enumerate(converted_sentence):
             new_id = tok.get_conllu_field("id").token_str
             if new_id == '0':
