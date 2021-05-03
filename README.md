@@ -68,19 +68,19 @@ Notice that for both methods the API calls can be called with a list of optional
 
 ```python
 import spacy
+from pybart.api import *
 
 # Load a UD-based english model
 nlp = spacy.load("en_ud_model_sm") # here you can change it to md/sm/lg as you preffer
 
 # Add BART converter to spaCy's pipeline
-from pybart.api import ConverterWithNlp
 nlp.add_pipe("pybart_spacy_pipe", last="True", config={'remove_extra_info':True}) # you can pass an empty config for default behavior, this is just an example
 
 # Test the new converter component
 doc = nlp("He saw me while driving")
 for sent_graph in doc._.parent_graphs_per_sent:
    for edge in sent_graph.edges:
-       print([doc[t.i].text for t in edge.head.tokens], f" --{edge.label_}-> ", [doc[t.i].text for t in edge.tail.tokens])
+       print(doc[edge.head.i].text if edge.head.i < len(doc) else "ADDED_NODE", f" --{edge.label_}-> ", doc[edge.tail.i].text if edge.tail.i < len(doc) else "ADDED_NODE")
 
 # Output:
 # ['saw'] --root-> ['saw']
