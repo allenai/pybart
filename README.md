@@ -62,6 +62,7 @@ pip install pybart-nlp
 ## Usage
 
 Once you've installed pyBART, you can use the package in one of the following ways.
+Notice, in the spacy mode we assign a method in the doc context named "get_pybart" which returns a list of lists. Each list corresponds to a sentence in doc.sents, and contains a list of edge dictionaries. Each edge contains the following fields: "head", "tail", and "label". "head" and "tail" can be either a reference to the corresponding spacy Token or a string representing an added node (and as such can't have a spacy Token reference).  
 Notice that for both methods the API calls can be called with a list of optional parameters to configure the conversion process. We will elaborate about them next.
 
 ### spaCy pipeline component
@@ -78,17 +79,19 @@ nlp.add_pipe("pybart_spacy_pipe", last="True", config={'remove_extra_info':True}
 
 # Test the new converter component
 doc = nlp("He saw me while driving")
-for sent_graph in doc._.parent_graphs_per_sent:
-   for edge in sent_graph.edges:
-       print(doc[edge.head.i].text if edge.head.i < len(doc) else "ADDED_NODE", f" --{edge.label_}-> ", doc[edge.tail.i].text if edge.tail.i < len(doc) else "ADDED_NODE")
+for i, sent in enumerate(doc._.get_pybart()):
+    print(f"Sentence {i}")
+    for edge in sent:
+        print(f"{edge['head']} --{edge['label']}--> {edge[tail']}")
 
 # Output:
-# ['saw'] --root-> ['saw']
-# ['saw'] --nsubj-> ['He']
-# ['saw'] --dobj-> ['me']
-# ['saw'] --advcl:while-> ['driving']
-# ['driving'] --mark-> ['while']
-# ['driving'] --nsubj-> ['He']
+# Sentence 0:
+# saw --root--> saw
+# saw --nsubj--> He
+# saw --dobj--> me
+# saw --advcl:while--> driving
+# driving --mark--> while
+# driving --nsubj--> He
 ```
 
 ### CoNLL-U format
