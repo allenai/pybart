@@ -82,7 +82,7 @@ doc = nlp("He saw me while driving")
 for i, sent in enumerate(doc._.get_pybart()):
     print(f"Sentence {i}")
     for edge in sent:
-        print(f"{edge['head']} --{edge['label']}--> {edge[tail']}")
+        print(f"{edge['head']} --{edge['label']}--> {edge['tail']}")
 
 # Output:
 # Sentence 0:
