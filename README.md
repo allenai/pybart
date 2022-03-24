@@ -3,7 +3,7 @@
     <img src="logo.png" width="400"/>
     <p>
    A Python converter from Universal-Dependencies trees to <b>BART</b> representation.<br>
-        Try out our UD-BART comparison <a href="http://34.147.8.119:5000/eud/">Demo</a>
+        Try out our UD-BART comparison <a href="https://pybart.apps.allenai.org/">Demo</a>
     </p>
     <hr/>
 </div>
@@ -16,7 +16,7 @@ See our [pyBART: Evidence-based Syntactic Transformations for IE](http://arxiv.o
 This project is part of a wider project series, related to BART:
 1. [**Converter:**](#converter-description) The current project.
 2. [**Model:**](https://github.com/allenai/ud_spacy_model) UD based [spaCy](https://spacy.io/) model (pip install [the_large_model](https://storage.googleapis.com/en_ud_model/en_ud_model_trf-2.0.0.tar.gz)). This model is needed when using the converter as a spaCy pipeline component (as spaCy doesn't provide UD-format based models).
-3. [**Demo:**](http://34.147.8.119:5000/eud/) Web-demo making use of the converter, to compare between UD and BART representations.
+3. [**Demo:**](https://pybart.apps.allenai.org/) Web-demo making use of the converter, to compare between UD and BART representations.
 
 ## Table of contents
 
