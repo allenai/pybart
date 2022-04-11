@@ -1,6 +1,6 @@
 import math
 
-from .conllu_wrapper import parse_conllu, serialize_conllu, parse_spike, conllu_to_spike, parsed_tacred_json
+from .conllu_wrapper import parse_conllu, serialize_conllu, parse_spike_sentence, conllu_to_spike, parsed_tacred_json
 from .converter import Convert, get_conversion_names as inner_get_conversion_names, init_conversions
 from spacy.language import Language
 from .spacy_wrapper import parse_spacy_sent, enhance_to_spacy_doc
@@ -13,20 +13,16 @@ def convert_bart_conllu(conllu_text, enhance_ud=True, enhanced_plus_plus=True, e
     return serialize_conllu(converted, all_comments, remove_eud_info, remove_extra_info, preserve_comments)
 
 
-def _convert_bart_spike_sent(doc, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version):
-    sents = parse_spike(doc)
-    con = Convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-    converted_sents, _ = con()
-    return conllu_to_spike(converted_sents, doc, remove_eud_info, remove_extra_info)
-
-
 def convert_spike_annh(spike_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):
-    if "documents" in spike_json:
-        for doc_key, doc in spike_json["documents"].items():
-            spike_json["documents"][doc_key] = _convert_bart_spike_sent(doc, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-    else:
-        spike_json = _convert_bart_spike_sent(spike_json, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-
+    # ASSUMPTION - SPIKE's annh structure jsonl where each line is a doc with: doc.body:
+    #   Array<Section> -> Section.body: Array<Paragraph> -> Paragraph.sentences: Array<Sentence>
+    for section in spike_json["body"]:
+        for paragraph in section["body"]:
+            sents = [parse_spike_sentence(sent) for sent in paragraph['sentences']]
+            con = Convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
+            converted_sents, _ = con()
+            # ATTENTION - overrides original json
+            conllu_to_spike(converted_sents, paragraph, remove_eud_info, remove_extra_info)
     return spike_json
 
 
