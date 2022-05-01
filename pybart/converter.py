@@ -1204,11 +1204,15 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         tokens=[
             Token(id="relativizer", spec=[Field(FieldNames.WORD, relativizing_words + list(relativizers_to_rel.keys()))]),
             Token(id="gov"),
-            Token(id="mod")
+            Token(id="mod"),
+            # a special case where we have an xcomp father for the head of the clause we attach the subj of the xcomp
+            #   e.g. "John is a man who like swimming", so "John" will become subj of like.
+            Token(id="grand", optional=True)
         ],
         edges=[
             Edge(child="mod", parent="gov", label=[HasLabelFromList(["acl:relcl"])]),  # TODO: english: relcl
-            Edge(child="relativizer", parent="mod", label=[HasLabelFromList(["/.*/"])])
+            Edge(child="relativizer", parent="mod", label=[HasLabelFromList(["/.*/"])]),
+            Edge(child="gov", parent="grand", label=[HasLabelFromList(["xcomp"])])
         ],
     )
 
@@ -1217,12 +1221,21 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             gov = sentence[cur_match.token('gov')]
             mod = sentence[cur_match.token('mod')]
             relativizer = sentence[cur_match.token('relativizer')]
+            grand = cur_match.token('grand')
 
             # this is a pretty basic case so we can assume only one label
             label = list(cur_match.edge(cur_match.token('relativizer'), cur_match.token('mod')))[0]
             text = relativizer.get_conllu_field("form").lower()
             # some relativizers that were simply missing on the eUD, we added them as nmods
             new_label = Label(udv(relativizers_to_rel[text]), eud=text if 1 == ud_version else "") if text in relativizers_to_rel else Label(label)
+
+            # for the special case we've added
+            if grand != -1:
+                grand = sentence[grand]
+                for child, rels in grand.get_children_with_rels():
+                    for rel in rels:
+                        if new_label.base == rel.base:
+                            child.add_edge(new_label, mod)
 
             reattach_children(relativizer, gov)
             relativizer.replace_edge(Label(label), Label("ref"), mod, gov)
