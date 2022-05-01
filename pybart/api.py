@@ -13,16 +13,29 @@ def convert_bart_conllu(conllu_text, enhance_ud=True, enhanced_plus_plus=True, e
     return serialize_conllu(converted, all_comments, remove_eud_info, remove_extra_info, preserve_comments)
 
 
+def _convert_spike_paragraph(paragraph, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version):
+    sents = [parse_spike_sentence(sent) for sent in paragraph['sentences']]
+    con = Convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
+    converted_sents, _ = con()
+    # ATTENTION - overrides original json
+    conllu_to_spike(converted_sents, paragraph, remove_eud_info, remove_extra_info)
+
+
+def _convert_spike_sections(section, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version):
+    for body in section["body"]:
+        if body["type"] == "section":
+            _convert_spike_sections(body, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
+        else:
+            _convert_spike_paragraph(body, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
+
+
 def convert_spike_annh(spike_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):
-    # ASSUMPTION - SPIKE's annh structure jsonl where each line is a doc with: doc.body:
-    #   Array<Section> -> Section.body: Array<Paragraph> -> Paragraph.sentences: Array<Sentence>
+    # ASSUMPTION - SPIKE's annh structure jsonl where each line is a doc with:
+    #   doc.body -> Array<Section> -> Section.body: Array<Paragraph|Section> -> Either:
+    #       -> Section.body: Array<Paragraph|Section>
+    #       -> Paragraph.sentences: Array<Sentence>
     for section in spike_json["body"]:
-        for paragraph in section["body"]:
-            sents = [parse_spike_sentence(sent) for sent in paragraph['sentences']]
-            con = Convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-            converted_sents, _ = con()
-            # ATTENTION - overrides original json
-            conllu_to_spike(converted_sents, paragraph, remove_eud_info, remove_extra_info)
+        _convert_spike_sections(section, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
     return spike_json
 
 

@@ -96,11 +96,11 @@ def parse_spike_sentence(spike_sentence):
     for i, (word, pos, lemma) in enumerate(zip(sent['words'], sent['pos'], sent['lemmas'])):
         output.append(Token(TokenId(i + 1), word, lemma, "_", pos, "_", None, "_", "_", "_"))
     for edge in sent['graphs']['universal-basic']['edges']:
-        output[edge['child'] + 1].set_conllu_field('head', TokenId(edge['parent'] + 1))
-        output[edge['child'] + 1].set_conllu_field('deprel', edge['label'])
+        output[edge['child']].set_conllu_field('head', TokenId(edge['parent'] + 1))
+        output[edge['child']].set_conllu_field('deprel', edge['label'])
     for root in sent['graphs']['universal-basic']['roots']:
-        output[root + 1].set_conllu_field('head', TokenId(0))
-        output[root + 1].set_conllu_field('deprel', "root")
+        output[root].set_conllu_field('head', TokenId(0))
+        output[root].set_conllu_field('deprel', "root")
     output.append(Token(TokenId(0), None, None, None, None, None, None, None, None, None))
 
     add_basic_edges(output)
@@ -133,7 +133,7 @@ def conllu_to_spike(conllu_sentences, spike_to_enhance, remove_enhanced_extra_in
     # ASSUMPTION - SPIKE doesnt allow node-adding conversions, so we dont need to fix text/offsets/etc
     spike_sentences = []
 
-    for i, conllu_sentence, spike_sentence in enumerate(zip(conllu_sentences, spike_to_enhance['sentences'])):
+    for i, (conllu_sentence, spike_sentence) in enumerate(zip(conllu_sentences, spike_to_enhance['sentences'])):
         spike_sentences.append(
             fix_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info, remove_bart_extra_info)
         )
