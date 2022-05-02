@@ -1,6 +1,6 @@
 import math
 
-from .conllu_wrapper import parse_conllu, serialize_conllu, parse_odin, conllu_to_odin, parse_spike_sentence, conllu_to_spike, parsed_tacred_json
+from .conllu_wrapper import parse_conllu, serialize_conllu, parse_odin, conllu_to_odin, parse_spike_sentence, fix_spike_graph, parsed_tacred_json
 from .converter import Convert, get_conversion_names as inner_get_conversion_names, init_conversions
 from spacy.language import Language
 from .spacy_wrapper import parse_spacy_sent, enhance_to_spacy_doc
@@ -30,30 +30,12 @@ def convert_bart_odin(odin_json, enhance_ud=True, enhanced_plus_plus=True, enhan
     return odin_json
 
 
-def _convert_spike_paragraph(paragraph, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version):
-    sents = [parse_spike_sentence(sent) for sent in paragraph['sentences']]
+def convert_spike_sentence(spike_sentence, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):
+    sents = [parse_spike_sentence(spike_sentence)]
     con = Convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
     converted_sents, _ = con()
     # ATTENTION - overrides original json
-    conllu_to_spike(converted_sents, paragraph, remove_eud_info, remove_extra_info)
-
-
-def _convert_spike_sections(section, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version):
-    for body in section["body"]:
-        if body["type"] == "section":
-            _convert_spike_sections(body, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-        else:
-            _convert_spike_paragraph(body, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-
-
-def convert_spike_annh(spike_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):
-    # ASSUMPTION - SPIKE's annh structure jsonl where each line is a doc with:
-    #   doc.body -> Array<Section> -> Section.body: Array<Paragraph|Section> -> Either:
-    #       -> Section.body: Array<Paragraph|Section>
-    #       -> Paragraph.sentences: Array<Sentence>
-    for section in spike_json["body"]:
-        _convert_spike_sections(section, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-    return spike_json
+    return fix_spike_graph(converted_sents[0], spike_sentence, remove_eud_info, remove_extra_info)
 
 
 def convert_bart_tacred(tacred_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):

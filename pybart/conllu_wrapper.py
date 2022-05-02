@@ -108,7 +108,8 @@ def parse_spike_sentence(spike_sentence):
     return output
 
 
-def fix_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info, remove_bart_extra_info):
+def fix_spike_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info, remove_bart_extra_info):
+    # ASSUMPTION - SPIKE doesnt allow node-adding conversions, so we dont need to fix text/offsets/etc
     if 'graphs' in spike_sentence:
         spike_sentence["graphs"]["universal-enhanced"] = {"edges": [], "roots": []}
     else:
@@ -127,20 +128,6 @@ def fix_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info, remov
                         {"parent": head.get_conllu_field("id").major - 1, "child": iid, "label": rel.to_str(remove_enhanced_extra_info, remove_bart_extra_info)})
     
     return spike_sentence
-
-
-def conllu_to_spike(conllu_sentences, spike_to_enhance, remove_enhanced_extra_info, remove_bart_extra_info):
-    # ASSUMPTION - SPIKE doesnt allow node-adding conversions, so we dont need to fix text/offsets/etc
-    spike_sentences = []
-
-    for i, (conllu_sentence, spike_sentence) in enumerate(zip(conllu_sentences, spike_to_enhance['sentences'])):
-        spike_sentences.append(
-            fix_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info, remove_bart_extra_info)
-        )
-    
-    spike_to_enhance['sentences'] = spike_sentences
-
-    return spike_to_enhance
 
 
 # fw.conllu_to_odin(converter.convert(fw.parse_conllu(fw.odin_to_conllu(json_buf)[0])))
@@ -206,7 +193,7 @@ def fix_sentence(conllu_sentence, push_new_to_end=True):
         return _fix_sentence_keep_order(conllu_sentence)
 
 
-def fix_graph(conllu_sentence, odin_sentence, is_basic, remove_enhanced_extra_info, remove_bart_extra_info):
+def fix_odin_graph(conllu_sentence, odin_sentence, is_basic, remove_enhanced_extra_info, remove_bart_extra_info):
     if is_basic:
         odin_sentence["graphs"] = {"universal-basic": {"edges": [], "roots": []}}
     else:
@@ -302,7 +289,7 @@ def conllu_to_odin(conllu_sentences, odin_to_enhance=None, is_basic=False, push_
 
         # fix graph
         fixed_sentences.append(fixed_sentence)
-        odin_sentences.append(fix_graph(
+        odin_sentences.append(fix_odin_graph(
             fixed_sentence, odin_to_enhance['sentences'][i] if odin_to_enhance else
             {'words': [token.get_conllu_field("form") for token in fixed_sentence if token.get_conllu_field("id").major != 0],
              'tags': [token.get_conllu_field("xpos") for token in fixed_sentence if token.get_conllu_field("id").major != 0]},
