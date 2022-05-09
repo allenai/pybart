@@ -30,10 +30,14 @@ def convert_bart_odin(odin_json, enhance_ud=True, enhanced_plus_plus=True, enhan
     return odin_json
 
 
-def convert_spike_sentence(spike_sentence, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):
+def _inner_convert_spike_sentence(spike_sentence, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version):
     sents = [parse_spike_sentence(spike_sentence)]
     con = Convert(sents, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
-    converted_sents, _ = con()
+    return con()
+
+
+def convert_spike_sentence(spike_sentence, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):
+    converted_sents, _ = _inner_convert_spike_sentence(spike_sentence, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
     # ATTENTION - overrides original json
     return fix_spike_graph(converted_sents[0], spike_sentence, remove_eud_info, remove_extra_info)
 
@@ -55,13 +59,17 @@ def convert_spacy_doc(doc, enhance_ud=True, enhanced_plus_plus=True, enhanced_ex
 
 
 class Converter:
-    def __init__(self, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):
+    def __init__(self, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1, is_spike_converter=False):
         self.config = (enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
+        self.is_spike_converter = is_spike_converter
         # make conversions and (more importantly) constraint initialization, a one timer.
         self.conversions = init_conversions(remove_node_adding_conversions, ud_version)
 
     def __call__(self, doc):
-        converted_sents, convs_done = convert_spacy_doc(doc, *self.config, self.conversions)
+        if self.is_spike_converter:
+            converted_sents, convs_done = _inner_convert_spike_sentence(doc, *self.config)
+        else:
+            converted_sents, convs_done = convert_spacy_doc(doc, *self.config, self.conversions)
         self._converted_sents = converted_sents
         self._convs_done = convs_done
         return doc

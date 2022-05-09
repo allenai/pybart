@@ -1618,6 +1618,7 @@ class Convert:
         # we iterate till convergence or till user defined maximum is reached - the first to come.
         matcher = Matcher([NamedConstraint(conversion_name, conversion.constraint)
                            for conversion_name, conversion in conversions.items()])
+        no_change_on_last_iter = False
         while i < conv_iterations:
             last_converted_sentence = self.get_rel_set(sentence)
             m = matcher(sentence)
@@ -1628,6 +1629,7 @@ class Convert:
                 matches = m.matches_for(conv_name)
                 conversions[conv_name].transformation(sentence, matches, self)
             if self.get_rel_set(sentence) == last_converted_sentence:
+                no_change_on_last_iter = True
                 break
             i += 1
 
@@ -1635,7 +1637,7 @@ class Convert:
             m = matcher(sentence)
             matches = m.matches_for(conv_name)
             conversions[conv_name].transformation(sentence, matches, self)
-            if self.get_rel_set(sentence) != last_converted_sentence:
-                i += 1
+        if (self.get_rel_set(sentence) != last_converted_sentence) and no_change_on_last_iter:
+            i += 1
 
         return i
