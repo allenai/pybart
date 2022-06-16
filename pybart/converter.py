@@ -356,7 +356,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
                     continue
                 is_xcomp_basic = (to_marker != -1) or (sentence[xcomp].get_conllu_field("xpos") in ["TO", "IN"])
                 if is_xcomp_basic:
-                    sentence[new_subj].add_edge(Label("nsubj", eud=get_eud_info("xcomp(INF)", converter)), sentence[xcomp])
+                    sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="INF"), sentence[xcomp])
                 elif not is_xcomp_basic:
                     sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="GERUND"), sentence[xcomp])
 
