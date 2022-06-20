@@ -28,14 +28,24 @@ neg_conjp_prev = ["if_not"]
 neg_conjp_next = ["instead_of", "rather_than", "but_rather", "but_not"]
 and_conjp_next = ["as_well", "but_also"]
 advmod_list = ['here', 'there', 'now', 'later', 'soon', 'before', 'then', 'today', 'tomorrow', 'yesterday', 'tonight', 'earlier', 'early']
+advmod_list_hebrew = ['כאן', 'שם', 'פה', 'היום', 'הלילה', 'מחר', 'אתמול', 'שלשום', 'מחרתיים', 'אמש', 'אשתקד', 'השנה', 'החודש', 'אז', 'עכשיו']
+advmod_list = advmod_list + advmod_list_hebrew
 evidential_list = ['seem', 'appear', 'be', 'sound']
 aspectual_list = ['begin', 'continue', 'delay', 'discontinue', 'finish', 'postpone', 'quit', 'resume', 'start', 'complete']
 reported_list = ['report', 'say', 'declare', 'announce', 'tell', 'state', 'mention', 'proclaim', 'replay', 'point', 'inform', 'explain', 'clarify', 'define', 'expound', 'describe', 'illustrate', 'justify', 'demonstrate', 'interpret', 'elucidate', 'reveal', 'confess', 'admit', 'accept', 'affirm', 'swear', 'agree', 'recognise', 'testify', 'assert', 'think', 'claim', 'allege', 'argue', 'assume', 'feel', 'guess', 'imagine', 'presume', 'suggest', 'argue', 'boast', 'contest', 'deny', 'refute', 'dispute', 'defend', 'warn', 'maintain', 'contradict']
 advcl_non_legit_markers = ["as", "so", "when", "if"]  # TODO - english specific
 adj_pos = ["JJ", "JJR", "JJS"]
+adj_pos_hebrew = ["ADJ"]
+adj_pos = adj_pos + adj_pos_hebrew
 verb_pos = ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "MD"]
+verb_pos_hebrew = ["VERB", "AUX"]
+verb_pos = verb_pos + verb_pos_hebrew
 noun_pos = ["NN", "NNS", "NNP", "NNPS"]
+noun_pos_hebrew = ["NOUN", "PROPN"]
+noun_pos = noun_pos + noun_pos_hebrew
 pron_pos = ["PRP", "PRP$", "WP", "WP$"]
+pron_pos_hebrew = ["PRON"]
+pron_pos = pron_pos + pron_pos_hebrew
 udv_map = {"nsubjpass": "nsubj:pass", "csubjpass": "csubj:pass", "auxpass": "aux:pass", "dobj": "obj", "mwe": "fixed",
            "nmod": "obl", "nmod:agent": "obl:agent", "nmod:tmod": "obl:tmod", "nmod:lmod": "obl:lmod"}
 
@@ -438,12 +448,12 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         tokens=[
             Token(id="nmod_of", spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
             Token(id="gov", spec=[Field(field=FieldNames.TAG, value=noun_pos)]),
-            Token(id="case", spec=[Field(field=FieldNames.WORD, value=["of"])]),  # TODO - english = of
+            Token(id="case", spec=[Field(field=FieldNames.WORD, value=["of", "של"])]),  # TODO - english = of
         ],
         edges=[
-            Edge(child="case", parent="nmod_of", label=[HasLabelFromList(["case"])]),
+            Edge(child="case", parent="nmod_of", label=[HasLabelFromList(["case", "case:gen"])]),
             # UD-versioning note: only nmod and not obl here because we are looking specifically for a nominal modifier
-            Edge(child="nmod_of", parent="gov", label=[HasLabelFromList(["nmod"])]),
+            Edge(child="nmod_of", parent="gov", label=[HasLabelFromList(["nmod", "nmod:poss"])]),
         ],
     )
 
@@ -545,10 +555,10 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             Token(id="receiver"),
             Token(id="mediator", spec=[Field(FieldNames.TAG, noun_pos + pron_pos)]),
             Token(id="modifier"),
-            Token(id="specifier", spec=[Field(FieldNames.WORD, ["like", "such", "including"])]),  # TODO: english = like/such/including
+            Token(id="specifier", spec=[Field(FieldNames.WORD, ["like", "such", "including", "כמו", "כגון", "כדוגמת", "כולל"])]),  # TODO: english = like/such/including
             # this is needed for the `such as` case, as it is a multi word preposition
             Token(id="as", optional=True, spec=[Field(FieldNames.WORD, ["as"])]),  # TODO: english = as
-            Token(id="case", optional=True, spec=[Field(FieldNames.TAG, ["IN", "TO"])]),
+            Token(id="case", optional=True, spec=[Field(FieldNames.TAG, ["IN", "TO", "ADP"])]),
         ],
         edges=[
             Edge(child="mediator", parent="receiver", label=[HasLabelFromList(subj_options + obj_options + ["nmod", "obl"])]),
@@ -648,7 +658,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             Token(id="father"),
             # we need the spec, to prevent propagation of possessive modifiers to pronouns ("my her"), and to proper nouns ("his U.S.A"),
             # and the `det` restriction to prevent propagation of possessive modifiers to definite phrases ("my the man")
-            Token(id="receiver", spec=[Field(field=FieldNames.TAG, value=pron_pos + ["NNP", "NNPS"], in_sequence=False)],
+            Token(id="receiver", spec=[Field(field=FieldNames.TAG, value=pron_pos + ["NNP", "NNPS", "PROPN"], in_sequence=False)],
                   outgoing_edges=[HasNoLabel("nmod:poss"), HasNoLabel("det")]),
             Token(id="nmod"),
         ],
@@ -1248,7 +1258,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             Token(id="gov", outgoing_edges=[HasNoLabel("ref")]),
             Token(id="mod"),
             Token("subj", optional=True),
-            Token("prep", optional=True, spec=[Field(FieldNames.TAG, ["RB", "IN"])])
+            Token("prep", optional=True, spec=[Field(FieldNames.TAG, ["RB", "IN", "ADV", "ADP"])])
         ],
         edges=[
             Edge(child="mod", parent="gov", label=[HasLabelFromList(["acl:relcl"])]),  # TODO: english: relcl
