@@ -348,6 +348,22 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
+    # This one covers the hebrew case where the object is presented as an NMOD with the special case-marker of "ל"
+    extra_xcomp_propagation_to_as_nmod_constraint = Full(
+        tokens=[
+            Token(id="gov"),
+            Token(id="new_subj"),
+            Token(id="case", spec=[Field(field=FieldNames.WORD, value=["ל"])], incoming_edges=[HasLabelFromList(["case"])]),
+            Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos)],
+                  outgoing_edges=[HasNoLabel(subj) for subj in subj_options]),
+        ],
+        edges=[
+            Edge(child="xcomp", parent="gov", label=[HasLabelFromList(["xcomp"])]),
+            Edge(child="new_subj", parent="gov", label=[HasLabelFromList(subj_options + obj_options + [udv("nmod")])]),
+            Edge(child="case", parent="new_subj", label=[HasLabelFromList(["case"])]),
+        ],
+    )
+
     def xcomp_propagation_per_type(sentence, matches, converter):
         labels_dict = defaultdict(list)
         for cur_match in matches:
@@ -361,19 +377,23 @@ def init_conversions(remove_node_adding_conversions, ud_version):
 
         for (gov, xcomp, to_marker), labels in labels_dict.items():
             obj_found = any("obj" in label for _, label in labels)
+            legit_nmod_found = any(udv("nmod") in label for _, label in labels)
             for new_subj, label in labels:
-                if obj_found and "subj" in label:
+                if (obj_found or legit_nmod_found) and "subj" in label:
                     continue
-                is_xcomp_basic = (to_marker != -1) or (sentence[xcomp].get_conllu_field("xpos") in ["TO", "IN"])
-                if is_xcomp_basic:
-                    sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="INF"), sentence[xcomp])
-                elif not is_xcomp_basic:
+                # VBG in the context of xcomp means it is a Gerund (TODO - is this english specific?)
+                if sentence[xcomp].get_conllu_field("xpos") == "VBG":
                     sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="GERUND"), sentence[xcomp])
+                else:
+                    sentence[new_subj].add_edge(Label("nsubj", src="xcomp", src_type="INF"), sentence[xcomp])
 
     def eud_xcomp_propagation(sentence, matches, converter):
         xcomp_propagation_per_type(sentence, matches, converter)
 
     def extra_xcomp_propagation_no_to(sentence, matches, converter):
+        xcomp_propagation_per_type(sentence, matches, converter)
+
+    def eud_xcomp_propagation_to_as_nmod(sentence, matches, converter):
         xcomp_propagation_per_type(sentence, matches, converter)
 
     # propagate subject and(/or) object as (possible) subject(s) for the son of the `advcl` relation if it has no subject of his own
@@ -1529,6 +1549,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         Conversion(ConvTypes.EUDPP, eudpp_add_ref_and_collapse_constraint, eudpp_add_ref_and_collapse),
         Conversion(ConvTypes.BART, extra_add_ref_and_collapse_constraint, extra_add_ref_and_collapse),
         Conversion(ConvTypes.EUD, eud_subj_of_conjoined_verbs_constraint, eud_subj_of_conjoined_verbs),
+        Conversion(ConvTypes.BART, extra_xcomp_propagation_to_as_nmod_constraint, eud_xcomp_propagation_to_as_nmod),
         Conversion(ConvTypes.EUD, extra_xcomp_propagation_constraint, eud_xcomp_propagation),
         Conversion(ConvTypes.BART, extra_of_prep_alteration_constraint, extra_of_prep_alteration),
         Conversion(ConvTypes.BART, extra_compound_propagation_constraint, extra_compound_propagation),
