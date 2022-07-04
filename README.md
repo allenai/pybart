@@ -1,3 +1,5 @@
+![CI](https://github.com/allenai/pybart/actions/workflows/ci.yml/badge.svg)
+
 <div align="center">
     <br>
     <img src="logo.png" width="400"/>
