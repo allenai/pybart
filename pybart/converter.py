@@ -224,7 +224,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             Token(id="gov"),
             Token(id="dep")],
         edges=[
-            Edge(child="gov", parent="new_gov", label=[HasLabelFromList(["/.*/"]), HasNoLabel("case"), HasNoLabel("mark")]),
+            Edge(child="gov", parent="new_gov", label=[HasLabelFromList(["/.*/"]), HasNoLabel("mark")]),
             Edge(child="dep", parent="gov", label=[HasLabelFromList(["conj"])]),
         ],
     )
