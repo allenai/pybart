@@ -348,12 +348,12 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         ],
     )
 
-    # This one covers the hebrew case where the object is presented as an NMOD with the special case-marker of "ל"
+    # This one covers the hebrew case where the object is presented as an NMOD with the special case-markers of "ל"\"ב"\"מ"
     extra_xcomp_propagation_to_as_nmod_constraint = Full(
         tokens=[
             Token(id="gov"),
             Token(id="new_subj"),
-            Token(id="case", spec=[Field(field=FieldNames.WORD, value=["ל"])], incoming_edges=[HasLabelFromList(["case"])]),
+            Token(id="case", spec=[Field(field=FieldNames.WORD, value=["ל", "ב", "מ"])], incoming_edges=[HasLabelFromList(["case"])]),
             Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos)],
                   outgoing_edges=[HasNoLabel(subj) for subj in subj_options]),
         ],
