@@ -308,14 +308,13 @@ def preprocess_constraint(constraint: Full) -> Full:
     for edge in constraint.edges:
         # skip HasNoLabel as they check for non existing label between two nodes,
         #   and if we add a token constraint it would be to harsh
-        if isinstance(edge.label, HasNoLabel):
-            continue
+        labels = [l for l in edge.label if not isinstance(l, HasNoLabel)]
         for tok in constraint.tokens:
             # we dont want to apply a constraint that came from an optional token, on a required token
             if tok.id == edge.child and not tok.optional:
-                outs[edge.parent].extend(list(edge.label))
+                outs[edge.parent].extend(labels)
             if tok.id == edge.parent and not tok.optional:
-                ins[edge.child].extend(list(edge.label))
+                ins[edge.child].extend(labels)
 
     # for each concat store the single words of the concat
     #   with their correspondent token for token level WORD constraint
