@@ -964,7 +964,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         tokens=[
             Token(id="old_root", spec=[
                 Field(field=FieldNames.TAG, value=verb_pos), Field(field=FieldNames.LEMMA, value=evidential_list)]),
-            Token(id="new_root", spec=[Field(field=FieldNames.TAG, value=noun_pos + adj_pos, in_sequence=False)]),
+            Token(id="new_root", spec=[Field(field=FieldNames.TAG, value=noun_pos + adj_pos + ["CD"], in_sequence=False)]),
         ],
         edges=[
             Edge(child="new_root", parent="old_root", label=[HasLabelFromList(["xcomp", "ccomp"])])
@@ -1592,7 +1592,7 @@ def remove_funcs(conversions, enhanced, enhanced_plus_plus, enhanced_extra, remo
             conversions.pop(func_name, None)
     if query_mode:
         for func_name in list(conversions.keys()):
-            if func_name not in ['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_basic_reconstruction', 'extra_evidential_xcomp_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers']:
+            if func_name not in ['extra_nmod_advmod_reconstruction', 'extra_copula_reconstruction', 'extra_evidential_basic_reconstruction', 'extra_evidential_xcomp_reconstruction', 'extra_inner_weak_modifier_verb_reconstruction', 'extra_aspectual_reconstruction', 'eud_correct_subj_pass', 'eud_conj_info', 'eud_prep_patterns', 'eudpp_process_simple_2wp', 'eudpp_process_complex_2wp', 'eudpp_process_3wp', 'eudpp_demote_quantificational_modifiers_3w', 'eudpp_demote_quantificational_modifiers_2w', 'eudpp_demote_quantificational_modifiers_det']:
                 conversions.pop(func_name, None)
     if funcs_to_cancel:
         for func_to_cancel in funcs_to_cancel:
