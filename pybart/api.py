@@ -36,10 +36,10 @@ def _inner_convert_spike_sentence(spike_sentence, enhance_ud, enhanced_plus_plus
     return con()
 
 
-def convert_spike_sentence(spike_sentence, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1, graph_to_remove="universal-enhanced"):
+def convert_spike_sentence(spike_sentence, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1, graph_to_replace="universal-enhanced"):
     converted_sents, _ = _inner_convert_spike_sentence(spike_sentence, enhance_ud, enhanced_plus_plus, enhanced_extra, conv_iterations, remove_eud_info, remove_extra_info, remove_node_adding_conversions, remove_unc, query_mode, funcs_to_cancel, ud_version)
     # ATTENTION - overrides original json
-    return fix_spike_graph(converted_sents[0], spike_sentence, remove_eud_info, remove_extra_info, graph_to_remove)
+    return fix_spike_graph(converted_sents[0], spike_sentence, remove_eud_info, remove_extra_info, graph_to_replace)
 
 
 def convert_bart_tacred(tacred_json, enhance_ud=True, enhanced_plus_plus=True, enhanced_extra=True, conv_iterations=math.inf, remove_eud_info=False, remove_extra_info=False, remove_node_adding_conversions=False, remove_unc=False, query_mode=False, funcs_to_cancel=None, ud_version=1):

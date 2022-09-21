@@ -108,12 +108,12 @@ def parse_spike_sentence(spike_sentence):
     return output
 
 
-def fix_spike_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info, remove_bart_extra_info, graph_to_remove):
+def fix_spike_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info, remove_bart_extra_info, graph_to_replace):
     # ASSUMPTION - SPIKE doesnt allow node-adding conversions, so we dont need to fix text/offsets/etc
     if 'graphs' in spike_sentence:
-        spike_sentence["graphs"][graph_to_remove] = {"edges": [], "roots": []}
+        spike_sentence["graphs"][graph_to_replace] = {"edges": [], "roots": []}
     else:
-        spike_sentence["graphs"] = {graph_to_remove: {"edges": [], "roots": []}}
+        spike_sentence["graphs"] = {graph_to_replace: {"edges": [], "roots": []}}
 
     for iid, token in enumerate(conllu_sentence):
         if token.get_conllu_field("id").major == 0:
@@ -122,9 +122,9 @@ def fix_spike_graph(conllu_sentence, spike_sentence, remove_enhanced_extra_info,
         for head, rels in token.get_new_relations():
             for rel in rels:
                 if rel.to_str(remove_enhanced_extra_info, remove_bart_extra_info).lower().startswith("root"):
-                    spike_sentence["graphs"][graph_to_remove]["roots"].append(iid)
+                    spike_sentence["graphs"][graph_to_replace]["roots"].append(iid)
                 else:
-                    spike_sentence["graphs"][graph_to_remove]["edges"].append(
+                    spike_sentence["graphs"][graph_to_replace]["edges"].append(
                         {"parent": head.get_conllu_field("id").major - 1, "child": iid, "label": rel.to_str(remove_enhanced_extra_info, remove_bart_extra_info)})
     
     return spike_sentence
