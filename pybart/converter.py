@@ -609,11 +609,14 @@ def init_conversions(remove_node_adding_conversions, ud_version):
 
             # we loop just in case there are more than one of object/subject/modifier relations between the receiver and mediator
             for label in cur_match.edge(mediator, receiver):
-                sentence[modifier].add_edge(Label(label, src="nmod", phrase=phrase), sentence[receiver])
-                # also propagate the attached case in case of modifier relation between the receiver and mediator
+                eud = None
+                # propagate the attached case in case of modifier relation between the receiver and mediator
                 if label in ["nmod", "obl"] and case != -1:
-                    sentence[case].add_edge(
-                        Label("case", eud=sentence[case].get_conllu_field("form").lower(), src=label, phrase=phrase), sentence[modifier])
+                    sentence[case].add_edge(Label("case", src=label, phrase=phrase), sentence[modifier])
+                    eud = sentence[case].get_conllu_field("form").lower()
+                # propagate the target subj/obj/modifier
+                sentence[modifier].add_edge(Label(label, eud=eud, src="nmod", phrase=phrase), sentence[receiver])
+
 
     def conj_propagation_of_nmods_per_type(sentence, matches, converter, nmod_fathers_name):
         for cur_match in matches:
