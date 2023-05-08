@@ -509,7 +509,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             compound = cur_match.token("compound")
             middle_man = cur_match.token("middle_man")
             for rel in cur_match.edge(middle_man, gov):
-                sentence[compound].add_edge(Label(rel, src="compound", src_type="NULL", uncertain=True), sentence[gov])
+                sentence[compound].add_edge(Label(f"{rel}c", src="compound", src_type="NULL", uncertain=True), sentence[gov])
 
     # here we add a subject relation for each amod relation (but in the opposite direction)
     extra_amod_propagation_constraint = Full(
