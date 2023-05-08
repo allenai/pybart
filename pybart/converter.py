@@ -567,7 +567,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         for cur_match in matches:
             father = sentence[cur_match.token("father")]
             acl = sentence[cur_match.token("acl")]
-            if all((r.base not in subj_options) or (r.eud is None and r.src is None) for _, rels in father.get_new_relations() for r in rels):
+            if all((r.base not in subj_options) or (r.eud is not None or r.src is not None) for _, rels in father.get_new_relations() for r in rels):
                 father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
 
     extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
