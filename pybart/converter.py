@@ -324,8 +324,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         tokens=[
             Token(id="gov"),
             Token(id="new_subj"),
-            Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos + ["TO", "IN"])],
-                  outgoing_edges=[HasNoLabel(subj) for subj in subj_options] + [HasNoLabel("mark"), HasNoLabel("aux")]),
+            Token(
+                id="xcomp",
+                spec=[Field(field=FieldNames.WORD, value=["using"], in_sequence=False), Field(field=FieldNames.TAG, value=verb_pos + ["TO", "IN"])],
+                outgoing_edges=[HasNoLabel(subj) for subj in subj_options] + [HasNoLabel("mark"), HasNoLabel("aux")]
+            ),
         ],
         edges=[
             Edge(child="xcomp", parent="gov", label=[HasLabelFromList(["xcomp"])]),
