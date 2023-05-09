@@ -324,8 +324,11 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         tokens=[
             Token(id="gov"),
             Token(id="new_subj"),
-            Token(id="xcomp", spec=[Field(field=FieldNames.TAG, value=verb_pos + ["TO", "IN"])],
-                  outgoing_edges=[HasNoLabel(subj) for subj in subj_options] + [HasNoLabel("mark"), HasNoLabel("aux")]),
+            Token(
+                id="xcomp",
+                spec=[Field(field=FieldNames.WORD, value=["using"], in_sequence=False), Field(field=FieldNames.TAG, value=verb_pos + ["TO", "IN"])],
+                outgoing_edges=[HasNoLabel(subj) for subj in subj_options] + [HasNoLabel("mark"), HasNoLabel("aux")]
+            ),
         ],
         edges=[
             Edge(child="xcomp", parent="gov", label=[HasLabelFromList(["xcomp"])]),
@@ -506,7 +509,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
             compound = cur_match.token("compound")
             middle_man = cur_match.token("middle_man")
             for rel in cur_match.edge(middle_man, gov):
-                sentence[compound].add_edge(Label(rel, src="compound", src_type="NULL", uncertain=True), sentence[gov])
+                sentence[compound].add_edge(Label(f"{rel}c", src="compound", src_type="NULL", uncertain=True), sentence[gov])
 
     # here we add a subject relation for each amod relation (but in the opposite direction)
     extra_amod_propagation_constraint = Full(
@@ -555,8 +558,7 @@ def init_conversions(remove_node_adding_conversions, ud_version):
     # acl part2: take care of all acl's (not acl:relcl) that are not marked by 'to'
     extra_acl_propagation_constraint = Full(
         tokens=[
-            Token(id="father", spec=[Field(FieldNames.TAG, pron_pos + noun_pos)],
-                  incoming_edges=[HasNoLabel(subj_cur) for subj_cur in subj_options + ["mark"]]),
+            Token(id="father", spec=[Field(FieldNames.TAG, pron_pos + noun_pos)]),
             Token(id="acl", spec=[Field(FieldNames.TAG, verb_pos)], outgoing_edges=[HasNoLabel(subj_cur) for subj_cur in subj_options]),
         ],
         edges=[
@@ -568,7 +570,8 @@ def init_conversions(remove_node_adding_conversions, ud_version):
         for cur_match in matches:
             father = sentence[cur_match.token("father")]
             acl = sentence[cur_match.token("acl")]
-            father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
+            if all((r.base not in subj_options) or (r.eud is not None or r.src is not None) for _, rels in father.get_new_relations() for r in rels):
+                father.add_edge(Label("nsubj", src="acl", src_type="NULL", phrase="REDUCED"), acl)
 
     extra_subj_obj_nmod_propagation_of_nmods_constraint = Full(
         tokens=[
