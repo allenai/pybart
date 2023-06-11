@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from constants.constants import EUD_LITERAL_ALLOWED_LIST
 
 
 @dataclass
@@ -30,7 +31,9 @@ class Label:
         eud = ""
         if self.eud is not None:
             if not remove_enhanced_extra_info:
-                eud = ":" + self.eud
+                if self.eud.lower() not in EUD_LITERAL_ALLOWED_LIST:
+                    self.eud = "_other"
+                eud = ":" + self.eud.lower()
 
         bart = ""
         if self.src is not None:
