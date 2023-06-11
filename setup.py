@@ -13,6 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/allenai/pybart",
     packages=setuptools.find_packages(),
+    package_data={'pybart': ['constants/eud_literal_allowed_list_en.json', 'constants/eud_literal_allowed_list_he.json']},
     classifiers=[
         "Programming Language :: Python :: 3.7",
         "License :: OSI Approved :: Apache Software License",
