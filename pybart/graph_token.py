@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from constants.constants import EUD_LITERAL_ALLOWED_LIST
+from .constants.constants import EUD_LITERAL_ALLOWED_LIST
 
 
 @dataclass
